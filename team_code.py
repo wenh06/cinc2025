@@ -9,13 +9,54 @@
 #
 ################################################################################
 
-import joblib
-import numpy as np
 import os
-from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-import sys
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, Tuple, Union
 
-from helper_code import *
+import humanize
+import torch
+import torch.nn as nn
+from torch.nn.parallel import DataParallel as DP  # noqa: F401
+from torch.nn.parallel import DistributedDataParallel as DDP  # noqa: F401
+from torch_ecg.cfg import CFG
+from torch_ecg.utils.misc import str2bool
+
+from cfg import BaseCfg, ModelCfg, TrainCfg  # noqa: F401
+from const import MODEL_CACHE_DIR, TEST_DATA_CACHE_DIR
+from helper_code import find_records
+
+################################################################################
+# environment variables
+
+os.environ["HUGGINGFACE_HUB_CACHE"] = str(MODEL_CACHE_DIR)
+os.environ["HF_HUB_CACHE"] = str(MODEL_CACHE_DIR)
+os.environ["HF_HOME"] = str(Path(MODEL_CACHE_DIR).parent)
+
+try:
+    TEST_FLAG = os.environ.get("CINC2025_REVENGER_TEST", False)
+    TEST_FLAG = str2bool(TEST_FLAG)
+except Exception:
+    TEST_FLAG = False
+
+################################################################################
+
+
+################################################################################
+# NOTE: configurable options
+
+SubmissionCfg = CFG()
+
+################################################################################
+
+
+################################################################################
+# NOTE: constants
+
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+################################################################################
+
 
 ################################################################################
 #
@@ -26,123 +67,143 @@ from helper_code import *
 # Train your models. This function is *required*. You should edit this function to add your code, but do *not* change the arguments
 # of this function. If you do not train one of the models, then you can return None for the model.
 
-# Train your model.
-def train_model(data_folder, model_folder, verbose):
+
+def train_model(
+    data_folder: Union[str, bytes, os.PathLike], model_folder: Union[str, bytes, os.PathLike], verbose: bool = True
+) -> None:
+    """Train the models.
+
+    Parameters
+    ----------
+    data_folder : `path_like`
+        The path to the folder containing the training data.
+    model_folder : `path_like`
+        The path to the folder where the model will be saved.
+    verbose : bool
+        Whether to display progress information.
+
+    Returns
+    -------
+    None
+
+    """
+    print("\n" + "*" * 100)
+    msg = "   CinC2025 challenge training entry starts   ".center(100, "#")
+    print(msg)
+    print("*" * 100 + "\n")
+
     # Find the data files.
     if verbose:
-        print('Finding the Challenge data...')
+        print("Finding the Challenge data...")
 
     records = find_records(data_folder)
     num_records = len(records)
 
     if num_records == 0:
-        raise FileNotFoundError('No data were provided.')
+        raise FileNotFoundError("No data were provided.")
+    else:
+        print(f"Found {num_records} records.")
 
-    # Extract the features and labels from the data.
-    if verbose:
-        print('Extracting features and labels from the data...')
+    # override the default data folder
+    if TEST_FLAG:
+        data_folder = TEST_DATA_CACHE_DIR
 
-    features = np.zeros((num_records, 6), dtype=np.float64)
-    labels = np.zeros(num_records, dtype=bool)
-
-    # Iterate over the records.
-    for i in range(num_records):
-        if verbose:
-            width = len(str(num_records))
-            print(f'- {i+1:>{width}}/{num_records}: {records[i]}...')
-
-        record = os.path.join(data_folder, records[i])
-        features[i] = extract_features(record)
-        labels[i] = load_label(record)
-
-    # Train the models.
-    if verbose:
-        print('Training the model on the data...')
-    
-    # This very simple model trains a random forest model with very simple features.
-
-    # Define the parameters for the random forest classifier and regressor.
-    n_estimators = 12  # Number of trees in the forest.
-    max_leaf_nodes = 34  # Maximum number of leaf nodes in each tree.
-    random_state = 56  # Random state; set for reproducibility.
-
-    # Fit the model.
-    model = RandomForestClassifier(
-        n_estimators=n_estimators, max_leaf_nodes=max_leaf_nodes, random_state=random_state).fit(features, labels)
+    # raise error only when testing in GitHub Actions;
+    # in other cases (submissions), errors are caught and printed,
+    # and workarounds are used to continue the training
+    raise_error = TEST_FLAG
+    if raise_error:
+        print("Training in test mode. Any error will raise an exception.")
+    else:
+        print("Training in submission mode. Errors will be caught and printed.")
+        print("Workarounds will be used to continue the training.")
 
     # Create a folder for the model if it does not already exist.
     os.makedirs(model_folder, exist_ok=True)
+    model_folder = Path(model_folder).expanduser().resolve()
+    data_folder = Path(data_folder).expanduser().resolve()
+    (Path(model_folder) / "working_dir").mkdir(parents=True, exist_ok=True)
 
-    # Save the model.
-    save_model(model_folder, model)
-
+    # Train the models.
     if verbose:
-        print('Done.')
-        print()
+        print("Training the model on the data...")
+
+    # TODO: Implement your training code here.
+    raise NotImplementedError("The train_model function is not implemented yet.")
+
+    print("\n" + "*" * 100)
+    msg = "   CinC2025 challenge training entry ends   ".center(100, "#")
+    print(msg)
+
 
 # Load your trained models. This function is *required*. You should edit this function to add your code, but do *not* change the
 # arguments of this function. If you do not train one of the models, then you can return None for the model.
-def load_model(model_folder, verbose):
-    model_filename = os.path.join(model_folder, 'model.sav')
-    model = joblib.load(model_filename)
-    return model
+def load_model(model_folder: Union[str, bytes, os.PathLike], verbose: bool = True) -> Dict[str, Union[dict, nn.Module]]:
+    """Load the trained models.
+
+    Parameters
+    ----------
+    model_folder : `path_like`
+        The path to the folder containing the trained model.
+    verbose : bool
+        Whether to display progress information.
+
+    Returns
+    -------
+    model : Dict[str, Union[dict, nn.Module]]
+        The trained model and its training configurations.
+
+    """
+    model_folder = Path(model_folder).expanduser().resolve()
+
+    print("Loading the trained models...")
+
+    raise NotImplementedError("The load_model function is not implemented yet.")
+
 
 # Run your trained model. This function is *required*. You should edit this function to add your code, but do *not* change the
 # arguments of this function.
-def run_model(record, model, verbose):
-    # Load the model.
-    model = model['model']
+@torch.no_grad()
+def run_model(
+    record: Union[str, bytes, os.PathLike], model: Dict[str, Union[dict, nn.Module]], verbose: bool = True
+) -> Tuple[int, float]:
+    """Run the trained model on a record.
 
-    # Extract the features.
-    features = extract_features(record)
-    features = features.reshape(1, -1)
+    Parameters
+    ----------
+    record : `path_like`
+        The path to the record to process, without the file extension.
+    model : Dict[str, Union[dict, nn.Module]]
+        The trained model and its training configurations.
+    verbose : bool
+        Whether to display progress information.
 
-    # Get the model outputs.
-    binary_output = model.predict(features)[0]
-    probability_output = model.predict_proba(features)[0][1]
+    Returns
+    -------
+    binary_output : int
+        The binary output of the model.
+    probability_output : float
+        The probability output of the model.
 
-    return binary_output, probability_output
+    """
+    start_time = datetime.now()
 
-################################################################################
-#
-# Optional functions. You can change or remove these functions and/or add new functions.
-#
-################################################################################
-
-# Extract your features.
-def extract_features(record):
-    header = load_header(record)
-    age = get_age(header)
-    sex = get_sex(header)
-    
-    one_hot_encoding_sex = np.zeros(3, dtype=bool)
-    if sex == 'Female':
-        one_hot_encoding_sex[0] = 1
-    elif sex == 'Male':
-        one_hot_encoding_sex[1] = 1
+    # raise error only when testing in GitHub Actions;
+    # in other cases (submissions), errors are caught and printed,
+    # and workarounds are used to continue the model inference
+    raise_error = TEST_FLAG
+    if raise_error:
+        print("Running the models in test mode. Any error will raise an exception.")
     else:
-        one_hot_encoding_sex[2] = 1
+        print("Running the models in submission mode. Errors will be caught and printed.")
+        print("Workarounds will be used to continue the model inference.")
 
-    signal, fields = load_signals(record)
+    # TODO: Implement your inference code here.
 
-    # TO-DO: Update to compute per-lead features. Check lead order and update and use functions for reordering leads as needed.
+    raise NotImplementedError("The run_model function is not implemented yet.")
 
-    num_finite_samples = np.size(np.isfinite(signal))
-    if num_finite_samples > 0:
-        signal_mean = np.nanmean(signal)
-    else:
-        signal_mean = 0.0
-    if num_finite_samples > 1:
-        signal_std = np.nanstd(signal)
-    else:
-        signal_std = 0.0
+    elapsed_time = humanize.naturaldelta(datetime.now() - start_time)
 
-    features = np.concatenate(([age], one_hot_encoding_sex, [signal_mean, signal_std]))
+    print(f"Inference pipeline completed in {elapsed_time}.")
 
-    return np.asarray(features, dtype=np.float32)
-
-# Save your trained model.
-def save_model(model_folder, model):
-    d = {'model': model}
-    filename = os.path.join(model_folder, 'model.sav')
-    joblib.dump(d, filename, protocol=0)
+    # return binary_output, probability_output

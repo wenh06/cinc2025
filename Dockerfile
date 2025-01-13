@@ -113,4 +113,3 @@ RUN pip list
 
 # copy the whole project to the docker container
 COPY ./ /challenge
-
