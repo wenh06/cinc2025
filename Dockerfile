@@ -60,7 +60,7 @@ LABEL maintainer="wenh06@gmail.com"
 # https://stackoverflow.com/questions/55313610/importerror-libgl-so-1-cannot-open-shared-object-file-no-such-file-or-directo
 RUN apt update
 RUN apt install build-essential -y
-RUN apt install git ffmpeg libsm6 libxext6 vim libsndfile1 libxrender1 unzip -y
+RUN apt install git ffmpeg libsm6 libxext6 vim libsndfile1 libxrender1 unzip wget curl -y
 
 
 ## DO NOT EDIT the 3 lines.
@@ -110,6 +110,16 @@ RUN pip install -r requirements-docker.txt
 
 # list packages after installing requirements
 RUN pip list
+
+# install AWS CLI v2 (not installed in the base image)
+# https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2-linux.html
+RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" \
+    && unzip awscliv2.zip \
+    && ./aws/install \
+    && rm -rf awscliv2.zip aws
+# verify the installation
+RUN aws --version && which aws
+
 
 # copy the whole project to the docker container
 COPY ./ /challenge
