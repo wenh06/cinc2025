@@ -99,11 +99,8 @@ RUN python -m pip install --upgrade pip setuptools wheel
 
 # RUN pip install torch-ecg
 # install the dev branch of torch-ecg
-RUN pip install torch-ecg>=0.0.30
-# RUN cd $GIT_CLONE_DIR \
-#     && git clone https://github.com/DeepPSP/torch_ecg.git && cd torch_ecg && git checkout dev \
-#     && python -m pip install -r requirements.txt && python -m pip install -e .[dev] \
-#     && cd /challenge
+# RUN pip install torch-ecg>=0.0.30
+RUN pip install git+https://github.com/DeepPSP/torch_ecg.git@dev
 
 # install dependencies other than torch-related packages
 RUN pip install -r requirements-docker.txt
