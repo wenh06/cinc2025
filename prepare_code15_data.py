@@ -16,10 +16,61 @@ def get_parser():
     description = 'Prepare the CODE-15 database.'
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument('-i', '--signal_files', type=str, required=True, nargs='*')
+    parser.add_argument('-f', '--signal_format', type=str, required=False, default='dat', choices=['dat', 'mat']) 
     parser.add_argument('-d', '--demographics_file', type=str, required=True) 
     parser.add_argument('-l', '--label_file', type=str, required=True) 
     parser.add_argument('-o', '--output_path', type=str, required=True)
     return parser
+
+# Suppress stdout for noisy commands.
+from contextlib import contextmanager
+@contextmanager
+def suppress_stdout():
+    with open(os.devnull, 'w') as devnull:
+        stdout = sys.stdout
+        sys.stdout = devnull
+        try:  
+            yield
+        finally:
+            sys.stdout = stdout
+
+# Convert .dat files to .mat files (optional).
+def convert_dat_to_mat(record, write_dir=None):
+    import wfdb.io.convert
+
+    # Change the current working directory; wfdb.io.convert.matlab.wfdb_to_matlab places files in the current working directory.
+    cwd = os.getcwd()
+    if write_dir:
+        os.chdir(write_dir)
+
+    # Convert the .dat file to a .mat file.
+    with suppress_stdout():
+        wfdb.io.convert.matlab.wfdb_to_mat(record)
+
+    # Remove the .dat file.
+    os.remove(record + '.hea')
+    os.remove(record + '.dat')
+
+    # Rename the .mat file.
+    os.rename(record + 'm' + '.hea', record + '.hea')
+    os.rename(record + 'm' + '.mat', record + '.mat')
+
+    # Update the header file with the renamed record and .mat file.
+    with open(record + '.hea', 'r') as f:
+        output_string = ''
+        for l in f:
+            if l.startswith('#Creator') or l.startswith('#Source'):
+                pass
+            else:
+                l = l.replace(record + 'm', record)
+                output_string += l
+
+    with open(record + '.hea', 'w') as f:
+        f.write(output_string)
+
+    # Change the current working directory back to the previous current working directory.
+    if write_dir:
+        os.chdir(cwd)
 
 # Fix the checksums from the Python WFDB library.
 def fix_checksums(record, checksums=None):
@@ -168,6 +219,9 @@ def run(args):
                 wfdb.wrsamp(record, fs=sampling_frequency, units=[units]*num_leads, sig_name=lead_names, 
                             d_signal=digital_signals, fmt=[fmt]*num_leads, adc_gain=[gain]*num_leads, baseline=[baseline]*num_leads,
                             write_dir=args.output_path, comments=comments)
+
+                if args.signal_format == 'mat':
+                    convert_dat_to_mat(record, write_dir=args.output_path)
 
                 # Recompute the checksums for the checksum due to an error in the Python WFDB library.
                 checksums = np.sum(digital_signals, axis=0, dtype=np.int16)
