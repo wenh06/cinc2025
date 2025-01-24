@@ -3,7 +3,7 @@
 
 import os
 from pathlib import Path
-from typing import Any, Dict, Optional, Sequence, Union
+from typing import Any, Dict, List, Literal, Optional, Sequence, Tuple, Union
 
 import h5py
 import numpy as np
@@ -16,7 +16,7 @@ from torch_ecg.utils.misc import add_docstring
 from tqdm.auto import tqdm
 
 from cfg import BaseCfg
-from prepare_code15_data import fix_checksums
+from prepare_code15_data import convert_dat_to_mat, fix_checksums
 
 __all__ = [
     "CODE15",
@@ -144,10 +144,30 @@ class CODE15(_DataBase):
         ).exists(), f"Chagas label file {self.__chagas_label_file__} not found in the database directory."
 
         self._df_metadata = pd.read_csv(self.db_dir / self.__label_file__)
+        self._df_metadata["sex"] = self._df_metadata["is_male"].map({True: "Male", False: "Female"})
         self._df_chagas = pd.read_csv(self.db_dir / self.__chagas_label_file__)
+        self._all_records = list(
+            set(self._df_metadata.exam_id.unique().tolist()).intersection(self._df_chagas.exam_id.unique().tolist())
+        )
+        self._df_metadata = self._df_metadata[self._df_metadata.exam_id.isin(self._all_records)]
+        self._df_chagas = self._df_chagas[self._df_chagas.exam_id.isin(self._all_records)]
+        self._all_subjects = self._df_metadata.patient_id.unique().tolist()
 
         if not self.wfdb_format_dir.is_absolute():
             self.wfdb_format_dir = self.db_dir / self.wfdb_format_dir
+        self.wfdb_format_dir.mkdir(parents=True, exist_ok=True)
+
+    def load_data(
+        self,
+    ) -> None:
+        """Load the data from the database."""
+        raise NotImplementedError
+
+    def load_ann(
+        self,
+    ) -> None:
+        """Load the annotations from the database."""
+        raise
 
     @property
     def url(self) -> Dict[str, str]:
@@ -186,11 +206,48 @@ class CODE15(_DataBase):
         for file in files:
             http_get(self.url[file], self.db_dir)
 
-    def _convert_to_wfdb_format(self) -> None:
-        """Convert the CODE-15% dataset to WFDB format."""
-        # Load the patient demographic data.
-        exam_id_to_patient_id = dict()
-        exam_id_to_age = dict()
+    @property
+    def database_info(self) -> DataBaseInfo:
+        return _CODE15_INFO
+
+    def _convert_to_wfdb_format(
+        self,
+        signal_format: Literal["dat", "mat"] = "dat",
+        trim_zeros: bool = True,
+        overwrite: bool = False,
+    ) -> List[Tuple[str, int]]:
+        """Convert the CODE-15% dataset to WFDB format.
+
+        Parameters
+        ----------
+        signal_format : {"dat", "mat"}, default "dat"
+            The format of the signal files.
+        trim_zeros : bool, default True
+            Whether to trim the zero padding at the start and end of the signals.
+
+            .. note::
+                Signals corresponding some of the exam IDs have values all zeros,
+                trimming the zeros will result in empty signals.
+        overwrite : bool, default False
+            Whether to overwrite the existing files.
+
+        Returns
+        -------
+        excep_list : list of tuple
+            List of tuples containing the h5 file name and the exam ID that failed to convert.
+            This list is kept and returned for further inspection and debugging.
+
+        """
+        if len(self._h5_data_files) == 0:
+            self.logger.warning("No hdf5 files found in the database directory. Call `download()` to download the database.")
+            return
+        return CODE15.convert_to_wfdb_format(
+            signal_files=self._h5_data_files,
+            df_demographics=self._df_metadata,
+            df_chagas=self._df_chagas,
+            output_path=self.wfdb_format_dir,
+            overwrite=overwrite,
+        )
 
     @staticmethod
     def convert_to_wfdb_format(
@@ -198,7 +255,10 @@ class CODE15(_DataBase):
         df_demographics: pd.DataFrame,
         df_chagas: pd.DataFrame,
         output_path: Union[str, bytes, os.PathLike],
-    ) -> None:
+        signal_format: Literal["dat", "mat"] = "dat",
+        trim_zeros: bool = True,
+        overwrite: bool = False,
+    ) -> List[Tuple[str, int]]:
         """Convert the CODE-15% dataset to WFDB format.
 
         Modified from the original script in `prepare_code15_data.py`,
@@ -214,25 +274,33 @@ class CODE15(_DataBase):
             DataFrame containing the Chagas labels.
         output_path : `path-like`
             Output path to store the converted files.
+        signal_format : {"dat", "mat"}, default "dat"
+            The format of the signal files.
+        trim_zeros : bool, default True
+            Whether to trim the zero padding at the start and end of the signals.
+
+            .. note::
+                Signals corresponding some of the exam IDs have values all zeros,
+                trimming the zeros will result in empty signals.
+        overwrite : bool, default False
+            Whether to overwrite the existing files.
+
+        Returns
+        -------
+        excep_list : list of tuple
+            List of tuples containing the h5 file name and the exam ID that failed to convert.
+            This list is kept and returned for further inspection and debugging.
 
         """
-        # Load the patient demographic data.
-        exam_id_to_patient_id = dict()
-        exam_id_to_age = dict()
-        exam_id_to_sex = dict()
-        with tqdm(total=len(df_demographics), desc="Loading demographics", dynamic_ncols=True, mininterval=1) as pbar:
-            for _, row in df_demographics.iterrows():
-                exam_id = int(row["exam_id"])
-                exam_id_to_patient_id[exam_id] = int(row["patient_id"])
-                exam_id_to_age[exam_id] = int(row["age"])
-                exam_id_to_sex[exam_id] = "Male" if row["is_male"] else "Female"
+        assert signal_format in ["dat", "mat"], f"Unsupported signal format: {signal_format}"
+        df_demographics = df_demographics.copy()
+        if "sex" not in df_demographics.columns:
+            df_demographics["sex"] = df_demographics["is_male"].map({True: "Male", False: "Female"})
+        exam_id_to_demographics = (
+            df_demographics[["exam_id", "patient_id", "age", "sex"]].set_index("exam_id").to_dict(orient="index")
+        )
 
-        # Load the Chagas labels.
-        exam_id_to_chagas = dict()
-        with tqdm(total=len(df_chagas), desc="Loading Chagas labels", dynamic_ncols=True, mininterval=1) as pbar:
-            for _, row in df_chagas.iterrows():
-                exam_id = int(row["exam_id"])
-                exam_id_to_chagas[exam_id] = bool(row["chagas"])
+        exam_id_to_chagas = df_chagas[["exam_id", "chagas"]].set_index("exam_id").to_dict()["chagas"]
 
         # Load and convert the signal data.
         # See https://zenodo.org/records/4916206 for more information about these values.
@@ -250,8 +318,12 @@ class CODE15(_DataBase):
         output_path.mkdir(parents=True, exist_ok=True)
 
         # Iterate over the input signal files.
-        with tqdm(total=len(signal_files), desc="Converting signals", dynamic_ncols=True, mininterval=1) as pbar:
-            for signal_file in signal_files:
+        excep_list = []
+        with tqdm(signal_files, total=len(signal_files), desc="Converting signals", dynamic_ncols=True, mininterval=1) as pbar:
+            for signal_file in pbar:
+                signal_file = Path(signal_file).expanduser().resolve()
+                pbar.set_postfix_str(f"Converting signals in {signal_file.stem}")
+                signal_file = str(signal_file)
                 with h5py.File(signal_file, "r") as h5_sig_file:
                     exam_ids = list(h5_sig_file["exam_id"])
                     num_exam_ids = len(exam_ids)
@@ -265,13 +337,11 @@ class CODE15(_DataBase):
                         mininterval=1,
                         leave=False,
                     ):
-                        exam_id = exam_ids[idx]
+                        exam_id = exam_ids[idx].item()
 
                         # Skip exam IDs without Chagas labels.
                         if exam_id not in exam_id_to_chagas:
                             continue
-                        else:
-                            pass
 
                         physical_signals = np.array(h5_sig_file["tracings"][idx], dtype=np.float32)
 
@@ -279,8 +349,12 @@ class CODE15(_DataBase):
                         num_samples, num_leads = np.shape(physical_signals)
                         assert num_leads == 12
 
-                        # Remove zero padding at the start and end of the signals.
-                        physical_signals = np.trim_zeros(physical_signals, trim="fb", axis=0)
+                        if trim_zeros:
+                            # Remove zero padding at the start and end of the signals.
+                            physical_signals = np.trim_zeros(physical_signals, trim="fb", axis=0)
+                            if physical_signals.shape[0] == 0:
+                                excep_list.append((signal_file, exam_id))
+                                continue
 
                         # Convert the signal to digital units;
                         # saturate the signal and represent NaNs as the lowest representable integer.
@@ -292,9 +366,9 @@ class CODE15(_DataBase):
                         digital_signals = np.asarray(digital_signals, dtype=np.int32)
 
                         # Add the exam ID, the patient ID, age, sex, and the Chagas label.
-                        patient_id = exam_id_to_patient_id[exam_id]
-                        age = exam_id_to_age[exam_id]
-                        sex = exam_id_to_sex[exam_id]
+                        patient_id = exam_id_to_demographics[exam_id]["patient_id"]
+                        age = exam_id_to_demographics[exam_id]["age"]
+                        sex = exam_id_to_demographics[exam_id]["sex"]
                         chagas = exam_id_to_chagas[exam_id]
                         comments = [
                             f"Exam ID: {exam_id}",
@@ -306,6 +380,8 @@ class CODE15(_DataBase):
 
                         # Save the signal.
                         record = str(exam_id)
+                        if not overwrite and (output_path / record).with_suffix(f".{signal_format}").exists():
+                            continue
                         wfdb.wrsamp(
                             record,
                             fs=sampling_frequency,
@@ -319,6 +395,11 @@ class CODE15(_DataBase):
                             comments=comments,
                         )
 
+                        if signal_format == "mat":
+                            convert_dat_to_mat(record, write_dir=str(output_path))
+
                         # Recompute the checksums for the checksum due to an error in the Python WFDB library.
                         checksums = np.sum(digital_signals, axis=0, dtype=np.int16)
                         fix_checksums(str(output_path / record), checksums)
+
+        return excep_list
