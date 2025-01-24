@@ -2,6 +2,8 @@
 """
 
 import os
+import re
+from numbers import Real
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Sequence, Tuple, Union
 
@@ -26,12 +28,12 @@ __all__ = [
 _CODE15_INFO = DataBaseInfo(
     title="CODE-15%: a large scale annotated dataset of 12-lead ECGs",
     about="""
-    1. The database contains 345,779 exams from 233,770 patients, obtained through stratified sampling from the CODE dataset ( 15% of the patients).
+    1. The database contains 345,779 exams from 233,770 patients, obtained through stratified sampling from the CODE dataset ( 15% of the patients). It can be downloaded from Zenodo [1]_. The paper describing the dataset is available in Nature Communications [2]_. The dataset is also used in the 2025 Moody Challenge [4]_.
     2. The "exams.csv" file contains the labels and demographic information of the patients with the following columns:
         - "exam_id": id used for identifying the exam;
         - "age": patient age in years at the moment of the exam;
         - "is_male": true if the patient is male;
-        - "nn_predicted_age": age predicted by a neural network to the patient. As described in the paper "Deep neural network estimated electrocardiographic-age as a mortality predictor" bellow.
+        - "nn_predicted_age": age predicted by a neural network to the patient. As described in [3]_;
         - "1dAVb": Whether or not the patient has 1st degree AV block;
         - "RBBB": Whether or not the patient has right bundle branch block;
         - "LBBB": Whether or not the patient has left bundle branch block;
@@ -107,7 +109,8 @@ class CODE15(_DataBase):
             verbose=verbose,
             **kwargs,
         )
-        self.wfdb_format_dir = Path(kwargs.pop("wfdb_format_dir", "wfdb_format_files"))
+        self.wfdb_data_dir = Path(kwargs.pop("wfdb_data_dir", "wfdb_format_files"))
+        self.wfdb_data_ext = kwargs.pop("wfdb_data_ext", "dat")
         self.__config = CFG(BaseCfg.copy())
         self.__config.update(kwargs)
 
@@ -116,12 +119,11 @@ class CODE15(_DataBase):
         self.chagas_ann_ext = "code15_chagas_labels.csv"
         self.fs = 400
 
-        self._h5_data_files = None
-        self._df_records = None
-        self._df_metadata = None
-        self._df_chagas = None
-        self._all_records = None
-        self._all_subjects = None
+        self._h5_data_files = []
+        self._df_records = pd.DataFrame()
+        self._all_records = []
+        self._all_subjects = []
+        self._subject_records = {}
         self._is_converted_to_wfdb_format = False
         self._ls_rec()
 
@@ -143,31 +145,255 @@ class CODE15(_DataBase):
             self.db_dir / self.__chagas_label_file__
         ).exists(), f"Chagas label file {self.__chagas_label_file__} not found in the database directory."
 
-        self._df_metadata = pd.read_csv(self.db_dir / self.__label_file__)
-        self._df_metadata["sex"] = self._df_metadata["is_male"].map({True: "Male", False: "Female"})
+        self._df_records = pd.read_csv(self.db_dir / self.__label_file__)
+        self._df_records["sex"] = self._df_records["is_male"].map({True: "Male", False: "Female"})
         self._df_chagas = pd.read_csv(self.db_dir / self.__chagas_label_file__)
         self._all_records = list(
-            set(self._df_metadata.exam_id.unique().tolist()).intersection(self._df_chagas.exam_id.unique().tolist())
+            set(self._df_records.exam_id.unique().tolist()).intersection(self._df_chagas.exam_id.unique().tolist())
         )
-        self._df_metadata = self._df_metadata[self._df_metadata.exam_id.isin(self._all_records)]
+        self._df_records = self._df_records[self._df_records.exam_id.isin(self._all_records)]
         self._df_chagas = self._df_chagas[self._df_chagas.exam_id.isin(self._all_records)]
-        self._all_subjects = self._df_metadata.patient_id.unique().tolist()
 
-        if not self.wfdb_format_dir.is_absolute():
-            self.wfdb_format_dir = self.db_dir / self.wfdb_format_dir
-        self.wfdb_format_dir.mkdir(parents=True, exist_ok=True)
+        if not self.wfdb_data_dir.is_absolute():
+            self.wfdb_data_dir = self.db_dir / self.wfdb_data_dir
+        self.wfdb_data_dir.mkdir(parents=True, exist_ok=True)
+
+        # find all records in the wfdb data directory
+        df_wfdb_records = pd.DataFrame(
+            {
+                "wfdb_signal_file": list(self.wfdb_data_dir.rglob(f"*.{self.wfdb_data_ext}")),
+                "exam_id": None,
+            }
+        )
+        if df_wfdb_records.empty:
+            self._is_converted_to_wfdb_format = False
+            self._df_records["record"] = self._df_records["exam_id"].astype(str)
+            self._subject_records = self._df_records.groupby("patient_id")["record"].apply(sorted).to_dict()
+            self._df_records.set_index("record", inplace=True)
+            self._all_records = self._df_records.index.tolist()
+            self._all_subjects = self._df_records.patient_id.unique().tolist()
+            self._df_chagas["record"] = self._df_chagas["exam_id"].astype(str)
+            self._df_chagas.set_index("record", inplace=True)
+            return
+
+        self._is_converted_to_wfdb_format = True
+        df_wfdb_records.wfdb_signal_file = df_wfdb_records.wfdb_signal_file.apply(lambda x: x.with_suffix(""))
+        # note that the ".mat" files are named {exam_id}m.mat in function `convert_dat_to_mat`
+        df_wfdb_records.exam_id = df_wfdb_records.wfdb_signal_file.apply(lambda x: int(re.sub("\\D", "", x.stem)))
+        self._df_records = pd.merge(self._df_records, df_wfdb_records, on="exam_id", how="inner")
+        self._df_records["record"] = self._df_records["exam_id"].astype(str)
+        self._subject_records = self._df_records.groupby("patient_id")["record"].apply(sorted).to_dict()
+        self._df_records.set_index("record", inplace=True)
+        self._all_records = self._df_records.index.tolist()
+        self._all_subjects = self._df_records.patient_id.unique().tolist()
+        self._df_chagas = self._df_chagas[self._df_chagas.exam_id.isin(self._df_records.exam_id)]
+        self._df_chagas["record"] = self._df_chagas["exam_id"].astype(str)
+        self._df_chagas.set_index("record", inplace=True)
 
     def load_data(
         self,
+        rec: Union[str, int],
+        data_format: str = "channel_first",
+        units: Union[str, type(None)] = "mV",
+        fs: Optional[Real] = None,
+        return_fs: bool = False,
+    ) -> Union[np.ndarray, Tuple[np.ndarray, Real]]:
+        """Load physical (converted from digital) ECG data,
+        or load digital signal directly.
+
+        Parameters
+        ----------
+        rec : str or int
+            Record name or index of the record in :attr:`all_records`.
+            NOTE: DO NOT confuse index (int) and record name (exam_id, str).
+        data_format : str, default "channel_first"
+            Format of the ECG data,
+            "channel_last" (alias "lead_last"), or
+            "channel_first" (alias "lead_first"), or
+            "flat" (alias "plain").
+        units : str or None, default "mV"
+            Units of the output signal, can also be "μV" (aliases "uV", "muV");
+            None for digital data, without digital-to-physical conversion.
+        fs : numbers.Real, optional
+            Sampling frequency of the output signal.
+            If not None, the loaded data will be resampled to this frequency,
+            otherwise, the original sampling frequency will be used.
+        return_fs : bool, default False
+            Whether to return the sampling frequency of the output signal.
+
+        Returns
+        -------
+        data : numpy.ndarray
+            The loaded ECG data.
+        data_fs : numbers.Real, optional
+            Sampling frequency of the output signal.
+            Returned if `return_fs` is True.
+
+        .. note::
+            Since the duration of the signals are short (<= 10 seconds),
+            parameters `sampfrom` and `sampto` are not provided.
+
+        """
+        if isinstance(rec, int):
+            rec = self[rec]
+        if not self._is_converted_to_wfdb_format:
+            # load data from hdf5 file
+            h5_file = self.db_dir / self._df_records.loc[rec, "trace_file"]
+            with h5py.File(h5_file, "r") as h5f:
+                data = h5f["tracings"][h5f["exam_id"][:] == rec][0]  # shape (n_samples, n_leads)
+        else:
+            # load data from wfdb files
+            record_path = self._df_records.loc[rec, "wfdb_signal_file"]
+            data = wfdb.rdsamp(record_path)[0]  # shape (n_samples, n_leads)
+        data = data.astype(np.float32)  # typically in most deep learning tasks, we use float32
+        if units.lower() in ["uv", "μv", "muv"]:
+            data = data * 1e3
+        if fs is not None:
+            data = wfdb.processing.resample_sig(data, self.fs, fs)
+        if data_format.lower() in ["channel_first", "lead_first"]:
+            data = data.T
+        if return_fs:
+            return data, fs
+        return data
+
+    def load_ann(self, rec: Union[str, int]) -> List[str]:
+        """Load the arrhythmia annotations of the record.
+
+        The arrhythmia annotations are:
+
+            - 1dAVb: 1st degree AV block
+            - RBBB: right bundle branch block
+            - LBBB: left bundle branch block
+            - SB: sinus bradycardia
+            - AF: atrial fibrillation
+            - ST: sinus tachycardia
+
+        Parameters
+        ----------
+        rec : str or int
+            Record name or index of the record in :attr:`all_records`.
+            NOTE: DO NOT confuse index (int) and record name (exam_id, str).
+
+        Returns
+        -------
+        ann : list of str
+            List of the arrhythmia annotations.
+
+        """
+        if isinstance(rec, int):
+            rec = self[rec]
+        ann = self._df_records.loc[rec, ["1dAVb", "RBBB", "LBBB", "SB", "AF", "ST"]].to_dict()
+        ann = [k for k, v in ann.items() if v]
+        return ann
+
+    def load_binary_ann(self, rec: Union[str, int]) -> int:
+        """Load the binary annotations of the record.
+
+        This corresponds to the "normal_ecg" column in the label file.
+
+        Parameters
+        ----------
+        rec : str or int
+            Record name or index of the record in :attr:`all_records`.
+            NOTE: DO NOT confuse index (int) and record name (exam_id, str).
+
+        Returns
+        -------
+        bin_ann : int
+            Binary annotation of the record.
+            0 for abnormal ECG, 1 for normal ECG.
+
+        """
+        if isinstance(rec, int):
+            rec = self[rec]
+        bin_ann = int(self._df_records.loc[rec, "normal_ecg"])
+        return bin_ann
+
+    def load_chagas_ann(self, rec: Union[str, int]) -> int:
+        """Load the Chagas label of the record.
+
+        Parameters
+        ----------
+        rec : str or int
+            Record name or index of the record in :attr:`all_records`.
+            NOTE: DO NOT confuse index (int) and record name (exam_id, str).
+
+        Returns
+        -------
+        chagas_ann : int
+            Chagas label of the record.
+            0 for negative, 1 for positive.
+
+        """
+        if isinstance(rec, int):
+            rec = self[rec]
+        chagas_ann = int(self._df_chagas.loc[rec, "chagas"])
+        return chagas_ann
+
+    def load_demographics(self, rec: Union[str, int]) -> Dict[str, Any]:
+        """Load the demographic information of the record.
+
+        Parameters
+        ----------
+        rec : str or int
+            Record name or index of the record in :attr:`all_records`.
+            NOTE: DO NOT confuse index (int) and record name (exam_id, str).
+
+        Returns
+        -------
+        demographics : dict
+            Demographic information of the record,
+            including "age", "sex".
+
+        """
+        if isinstance(rec, int):
+            rec = self[rec]
+        demographics = self._df_records.loc[rec, ["age", "sex"]].to_dict()
+
+    def plot(
+        self,
+        rec: Union[str, int],
+        data: Optional[np.ndarray] = None,
+        ticks_granularity: int = 0,
+        leads: Optional[Union[str, Sequence[str]]] = None,
+        same_range: bool = False,
+        **kwargs: Any,
     ) -> None:
-        """Load the data from the database."""
+        """Plot the signals of a record or external signals (units in μV),
+        along with the annotations.
+
+        Parameters
+        ----------
+        rec : str or int
+            Record name or index of the record in :attr:`all_records`.
+        data : numpy.ndarray, optional
+            (12-lead) ECG signal to plot,
+            should be of the format "channel_first",
+            and compatible with `leads`.
+            If is not None, data of `rec` will not be used.
+            This is useful when plotting filtered data.
+        ticks_granularity : int, default 0
+            Granularity to plot axis ticks, the higher the more ticks.
+            0 (no ticks) --> 1 (major ticks) --> 2 (major + minor ticks)
+        leads : str or List[str], optional
+            The leads of the ECG signal to plot.
+        same_range : bool, default False
+            If True, all leads are forced to have the same y range.
+        kwargs : dict, optional
+            Additional keyword arguments to pass to :func:`matplotlib.pyplot.plot`.
+
+        """
         raise NotImplementedError
 
-    def load_ann(
-        self,
-    ) -> None:
-        """Load the annotations from the database."""
-        raise
+    @property
+    def all_subjects(self) -> List[str]:
+        """List of all subject IDs."""
+        return self._all_subjects
+
+    @property
+    def subject_records(self) -> Dict[str, List[str]]:
+        """Dict of subject IDs and their corresponding records."""
+        return self._subject_records
 
     @property
     def url(self) -> Dict[str, str]:
@@ -243,9 +469,9 @@ class CODE15(_DataBase):
             return
         return CODE15.convert_to_wfdb_format(
             signal_files=self._h5_data_files,
-            df_demographics=self._df_metadata,
+            df_demographics=self._df_records,
             df_chagas=self._df_chagas,
-            output_path=self.wfdb_format_dir,
+            output_path=self.wfdb_data_dir,
             overwrite=overwrite,
         )
 
@@ -325,7 +551,7 @@ class CODE15(_DataBase):
                 pbar.set_postfix_str(f"Converting signals in {signal_file.stem}")
                 signal_file = str(signal_file)
                 with h5py.File(signal_file, "r") as h5_sig_file:
-                    exam_ids = list(h5_sig_file["exam_id"])
+                    exam_ids = h5_sig_file["exam_id"][...]
                     num_exam_ids = len(exam_ids)
 
                     # Iterate over the exam IDs in each signal file.
