@@ -36,6 +36,8 @@ BaseCfg.model_dir.mkdir(exist_ok=True)
 
 BaseCfg.torch_dtype = torch.float32  # "double"
 BaseCfg.np_dtype = np.float32
+BaseCfg.diag_classes = ["1dAVb", "RBBB", "LBBB", "SB", "ST", "AF"]
+BaseCfg.diag_class_map = {c: i for i, c in enumerate(BaseCfg.diag_classes)}
 
 
 ###############################################################################
@@ -46,6 +48,20 @@ TrainCfg = deepcopy(BaseCfg)
 
 TrainCfg.checkpoints = BaseCfg.checkpoints
 TrainCfg.checkpoints.mkdir(exist_ok=True)
+TrainCfg.aux_tasks = CFG(
+    binary_classification=CFG(
+        enabled=True,
+        loss="AsymmetricLoss",
+        loss_weight=1.0,
+        loss_kw={},  # keyword arguments for the loss function
+    ),
+    arrhythmia_classification=CFG(
+        enabled=True,
+        loss="AsymmetricLoss",
+        loss_weight=1.0,
+        loss_kw={},  # keyword arguments for the loss function
+    ),
+)
 
 TrainCfg.train_ratio = 0.9
 

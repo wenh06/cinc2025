@@ -258,7 +258,7 @@ class CODE15(_DataBase):
             return data, fs
         return data
 
-    def load_ann(self, rec: Union[str, int]) -> List[str]:
+    def load_ann(self, rec: Union[str, int], class_map: Optional[Dict[str, int]] = None) -> Union[List[str], List[int]]:
         """Load the arrhythmia annotations of the record.
 
         The arrhythmia annotations are:
@@ -275,17 +275,23 @@ class CODE15(_DataBase):
         rec : str or int
             Record name or index of the record in :attr:`all_records`.
             NOTE: DO NOT confuse index (int) and record name (exam_id, str).
+        class_map : dict, optional
+            Mapping of the arrhythmia classes to integers.
+            If not provided, the conversion will not be performed.
 
         Returns
         -------
-        ann : list of str
-            List of the arrhythmia annotations.
+        ann : list of str or int
+            List of the arrhythmia annotations or
+            their corresponding integer labels w.r.t. `class_map`.
 
         """
         if isinstance(rec, int):
             rec = self[rec]
         ann = self._df_records.loc[rec, self.__label_cols__].to_dict()
         ann = [k for k, v in ann.items() if v]
+        if class_map is not None:
+            ann = [class_map[an] for an in ann]
         return ann
 
     def load_binary_ann(self, rec: Union[str, int]) -> int:
