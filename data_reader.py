@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 import wfdb
 from torch_ecg.cfg import CFG
-from torch_ecg.databases.base import DataBaseInfo, _DataBase
+from torch_ecg.databases.base import DEFAULT_FIG_SIZE_PER_SEC, DataBaseInfo, _DataBase
 from torch_ecg.utils.download import http_get
 from torch_ecg.utils.misc import add_docstring
 from tqdm.auto import tqdm
@@ -94,6 +94,7 @@ class CODE15(_DataBase):
     __label_file__ = "exams.csv"
     __chagas_label_file__ = "code15_chagas_labels.csv"
     __chagas_label_file_url__ = "https://moody-challenge.physionet.org/2025/data/code15_chagas_labels.zip"
+    __label_cols__ = ["1dAVb", "RBBB", "LBBB", "SB", "ST", "AF"]
 
     def __init__(
         self,
@@ -118,6 +119,7 @@ class CODE15(_DataBase):
         self.ann_ext = self.__label_file__
         self.chagas_ann_ext = "code15_chagas_labels.csv"
         self.fs = 400
+        self.all_leads = ["I", "II", "III", "AVR", "AVL", "AVF", "V1", "V2", "V3", "V4", "V5", "V6"]
 
         self._h5_data_files = []
         self._df_records = pd.DataFrame()
@@ -282,7 +284,7 @@ class CODE15(_DataBase):
         """
         if isinstance(rec, int):
             rec = self[rec]
-        ann = self._df_records.loc[rec, ["1dAVb", "RBBB", "LBBB", "SB", "AF", "ST"]].to_dict()
+        ann = self._df_records.loc[rec, self.__label_cols__].to_dict()
         ann = [k for k, v in ann.items() if v]
         return ann
 
@@ -295,7 +297,7 @@ class CODE15(_DataBase):
         ----------
         rec : str or int
             Record name or index of the record in :attr:`all_records`.
-            NOTE: DO NOT confuse index (int) and record name (exam_id, str).
+            NOTE: DO NOT confuse index (int) and record name (`exam_id`, str).
 
         Returns
         -------
@@ -349,6 +351,7 @@ class CODE15(_DataBase):
         if isinstance(rec, int):
             rec = self[rec]
         demographics = self._df_records.loc[rec, ["age", "sex"]].to_dict()
+        return demographics
 
     def plot(
         self,
@@ -383,7 +386,87 @@ class CODE15(_DataBase):
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.plot`.
 
         """
-        raise NotImplementedError
+        if isinstance(rec, int):
+            rec = self[rec]
+
+        if "plt" not in dir():
+            import matplotlib.pyplot as plt
+
+            plt.MultipleLocator.MAXTICKS = 3000
+
+        _leads = self._normalize_leads(leads, numeric=False)
+        lead_indices = [self.all_leads.index(ld) for ld in _leads]
+
+        if data is None:
+            _data = self.load_data(rec, data_format="channel_first", units="μV")[lead_indices]
+        else:
+            units = self._auto_infer_units(data)
+            self.logger.info(f"input data is auto detected to have units in {units}")
+            if units.lower() == "mv":
+                _data = 1000 * data
+            else:
+                _data = data
+            assert _data.shape[0] == len(
+                _leads
+            ), f"number of leads from data of shape ({_data.shape[0]}) does not match the length ({len(_leads)}) of `leads`"
+
+        if same_range:
+            y_ranges = np.ones((_data.shape[0],)) * np.max(np.abs(_data)) + 100
+        else:
+            y_ranges = np.max(np.abs(_data), axis=1) + 100
+
+        dem_row = self._df_records.loc[rec]
+        chagas_ann = f"Chagas: {'True' if self.load_chagas_ann(rec) else 'False'}"
+        diag_ann = ",".join(self.load_ann(rec))
+        if diag_ann == "":
+            diag_ann = "None"
+        bin_ann = "Normal" if self.load_binary_ann(rec) else "Abnormal"
+
+        plot_alpha = 0.4
+        nb_leads = len(_leads)
+
+        t = np.arange(_data.shape[1]) / self.fs
+        duration = len(t) / self.fs
+        fig_sz_w = int(round(DEFAULT_FIG_SIZE_PER_SEC * duration))
+        fig_sz_h = 6 * np.maximum(y_ranges, 750) / 1500
+        fig, axes = plt.subplots(nb_leads, 1, sharex=False, figsize=(fig_sz_w, np.sum(fig_sz_h)))
+        if nb_leads == 1:
+            axes = [axes]
+        for idx in range(nb_leads):
+            axes[idx].plot(
+                t,
+                _data[idx],
+                color="black",
+                linewidth="2.0",
+                label=f"lead - {_leads[idx]}",
+            )
+            axes[idx].axhline(y=0, linestyle="-", linewidth="1.0", color="red")
+            # NOTE that `Locator` has default `MAXTICKS` equal to 1000
+            if ticks_granularity >= 1:
+                axes[idx].xaxis.set_major_locator(plt.MultipleLocator(0.2))
+                axes[idx].yaxis.set_major_locator(plt.MultipleLocator(500))
+                axes[idx].grid(which="major", linestyle="-", linewidth="0.4", color="red")
+            if ticks_granularity >= 2:
+                axes[idx].xaxis.set_minor_locator(plt.MultipleLocator(0.04))
+                axes[idx].yaxis.set_minor_locator(plt.MultipleLocator(100))
+                axes[idx].grid(which="minor", linestyle=":", linewidth="0.2", color="gray")
+            # add extra info. to legend
+            # https://stackoverflow.com/questions/16826711/is-it-possible-to-add-a-string-as-a-legend-item-in-matplotlib
+            axes[idx].plot([], [], " ", label=f"Exam ID - {rec}, Patient ID - {dem_row.patient_id}")
+            axes[idx].plot([], [], " ", label=f"Age - {dem_row.age}, Sex - {dem_row.sex}")
+            axes[idx].plot([], [], " ", label=f"Diagnosis - {bin_ann} - {diag_ann}")
+            axes[idx].plot([], [], " ", label=f"{chagas_ann}")
+            axes[idx].legend(loc="upper left", fontsize=14)
+            axes[idx].set_xlim(t[0], t[-1])
+            axes[idx].set_ylim(min(-600, -y_ranges[idx]), max(600, y_ranges[idx]))
+            axes[idx].set_xlabel("Time [s]", fontsize=16)
+            axes[idx].set_ylabel("Voltage [μV]", fontsize=16)
+        plt.subplots_adjust(hspace=0.05)
+        fig.tight_layout()
+        if kwargs.get("save_path", None):
+            plt.savefig(kwargs["save_path"], dpi=200, bbox_inches="tight")
+        else:
+            plt.show()
 
     @property
     def all_subjects(self) -> List[str]:
