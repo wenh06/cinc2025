@@ -416,11 +416,10 @@ class CODE15(_DataBase):
             y_ranges = np.max(np.abs(_data), axis=1) + 100
 
         dem_row = self._df_records.loc[rec]
-        chagas_ann = f"Chagas: {'True' if self.load_chagas_ann(rec) else 'False'}"
-        diag_ann = ",".join(self.load_ann(rec))
-        if diag_ann == "":
-            diag_ann = "None"
-        bin_ann = "Normal" if self.load_binary_ann(rec) else "Abnormal"
+        chagas_ann = "Chagas - " + ("True" if self.load_chagas_ann(rec) else "False")
+        diag_ann = "Diagnosis - " + ("Normal" if self.load_binary_ann(rec) else "Abnormal")
+        if dem_row[self.__label_cols__].any():
+            diag_ann += " - " + ", ".join(self.load_ann(rec))
 
         plot_alpha = 0.4
         nb_leads = len(_leads)
@@ -452,10 +451,13 @@ class CODE15(_DataBase):
                 axes[idx].grid(which="minor", linestyle=":", linewidth="0.2", color="gray")
             # add extra info. to legend
             # https://stackoverflow.com/questions/16826711/is-it-possible-to-add-a-string-as-a-legend-item-in-matplotlib
-            axes[idx].plot([], [], " ", label=f"Exam ID - {rec}, Patient ID - {dem_row.patient_id}")
-            axes[idx].plot([], [], " ", label=f"Age - {dem_row.age}, Sex - {dem_row.sex}")
-            axes[idx].plot([], [], " ", label=f"Diagnosis - {bin_ann} - {diag_ann}")
-            axes[idx].plot([], [], " ", label=f"{chagas_ann}")
+            axes[idx].plot(
+                [],
+                [],
+                " ",
+                label=f"Exam ID - {rec}; Patient ID - {dem_row.patient_id}; Age - {dem_row.age}; Sex - {dem_row.sex}",
+            )
+            axes[idx].plot([], [], " ", label=f"{chagas_ann}; {diag_ann}")
             axes[idx].legend(loc="upper left", fontsize=14)
             axes[idx].set_xlim(t[0], t[-1])
             axes[idx].set_ylim(min(-600, -y_ranges[idx]), max(600, y_ranges[idx]))
