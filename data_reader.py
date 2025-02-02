@@ -523,6 +523,10 @@ class CODE15(_DataBase):
         for file in files:
             http_get(self.url[file], self.db_dir)
 
+    def download_subset(self) -> None:
+        """Download a subset of the database files."""
+        self.download(["exams_part17", "labels", "chagas_labels"])
+
     @property
     def database_info(self) -> DataBaseInfo:
         return _CODE15_INFO

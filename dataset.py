@@ -251,4 +251,4 @@ class FastDataReader(ReprMixin, Dataset):
             "chagas_label": chagas_label,
             "bin_label": bin_label,
             "diag_label": diag_label,
-        }
+        }  # to be improved

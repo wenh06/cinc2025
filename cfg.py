@@ -36,6 +36,8 @@ BaseCfg.model_dir.mkdir(exist_ok=True)
 
 BaseCfg.torch_dtype = torch.float32  # "double"
 BaseCfg.np_dtype = np.float32
+BaseCfg.fs = 400
+BaseCfg.n_leads = 12
 BaseCfg.diag_classes = ["1dAVb", "RBBB", "LBBB", "SB", "ST", "AF"]
 BaseCfg.diag_class_map = {c: i for i, c in enumerate(BaseCfg.diag_classes)}
 
