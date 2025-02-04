@@ -13,9 +13,9 @@ from torch.utils.data.dataset import Dataset
 from torch_ecg._preprocessors import PreprocManager
 from torch_ecg.cfg import CFG, DEFAULTS
 from torch_ecg.utils.misc import ReprMixin
-from torch_ecg.utils.utils_data import one_hot_encode, stratified_train_test_split  # noqa: F401
+from torch_ecg.utils.utils_data import one_hot_encode, stratified_train_test_split
 from torch_ecg.utils.utils_nn import default_collate_fn
-from tqdm.auto import tqdm  # noqa: F401
+from tqdm.auto import tqdm
 
 from cfg import BaseCfg, TrainCfg
 from data_reader import CODE15
@@ -86,7 +86,7 @@ class CinC2025Dataset(Dataset, ReprMixin):
     def __len__(self) -> int:
         if self.cache is None:
             return len(self.fdr)
-        return len(self.cache["images"])
+        return len(self.cache["signal"])
 
     def __getitem__(self, index: Union[int, slice]) -> Dict[str, np.ndarray]:
         if self.cache is None:
@@ -102,7 +102,16 @@ class CinC2025Dataset(Dataset, ReprMixin):
             The RAM of the Challenge is only 64GB.
 
         """
-        raise NotImplementedError
+        self.__cache = {
+            "signals": np.empty((len(self), self.config.n_leads, self.config.input_len), dtype=self.dtype),
+            "chagas_labels": np.empty((len(self),), dtype=np.int64),
+            "bin_labels": np.empty((len(self),), dtype=np.int64),
+            "diag_labels": np.empty((len(self), len(self.config.diag_class_map)), dtype=self.dtype),
+        }
+        for idx in tqdm(range(len(self)), desc="loading data", unit="record", mininterval=1, dynamic_ncols=True):
+            data = self.fdr[idx]
+            for k, v in data.items():
+                self.__cache[k][idx] = v
 
     def _train_test_split(self, train_ratio: float = 0.8, force_recompute: bool = False) -> List[str]:
         """Split the dataset into training and validation sets
@@ -204,9 +213,7 @@ class CinC2025Dataset(Dataset, ReprMixin):
 
     @property
     def data_fields(self) -> Set[str]:
-        # fmt: off
-        return set(["signal", "chagas_label", "bin_label", "diag_label"])
-        # fmt: on
+        return set(["signals", "chagas_labels", "bin_labels", "diag_labels"])
 
     def extra_repr_keys(self) -> List[str]:
         return ["reader", "training"]
@@ -239,16 +246,28 @@ class FastDataReader(ReprMixin, Dataset):
         signal = self.reader.load_data(
             rec,
             data_format="channel_first",
+            fs=self.config.fs,
             return_fs=False,
         )  # (n_leads, n_samples)
+        # ensure the length of the signal equals to the expected length `self.config.input_len`
+        pad_len = self.config.input_len - signal.shape[1]
+        pad_shift = DEFAULTS.RNG.integers(0, pad_len + 1)
+        signal = np.pad(signal, ((0, 0), (pad_shift, pad_len - pad_shift)), mode="constant")
         if self.ppm is not None:
-            signal = self.ppm(signal)
-        chagas_label = self.reader.load_chagas_ann(rec)
-        bin_label = self.reader.load_bin_ann(rec)
-        diag_label = self.reader.load_ann(rec, class_map=self.config.diag_class_map)
+            signal, _ = self.ppm(signal, self.config.fs)
+        chagas_label = self.reader.load_chagas_ann(rec)  # categorical: 0 or 1
+        bin_label = self.reader.load_binary_ann(rec)  # categorical: 0 or 1
+        diag_label = self.reader.load_ann(rec, class_map=self.config.diag_class_map, augmented=True)
+        diag_label = one_hot_encode([diag_label], len(self.config.diag_class_map))[0]  # (n_classes,)
+
+        # if `index` is a slice, the output shapes are:
+        # signal: (batch_size, n_leads, n_samples)
+        # chagas_label: (batch_size,)
+        # bin_label: (batch_size,)
+        # diag_label: (batch_size, n_classes)
         return {
-            "signal": signal.astype(self.dtype),
-            "chagas_label": chagas_label,
-            "bin_label": bin_label,
-            "diag_label": diag_label,
-        }  # to be improved
+            "signals": signal.astype(self.dtype),  # (n_leads, n_samples)
+            "chagas_labels": chagas_label,  # scalar
+            "bin_labels": bin_label,  # scalar
+            "diag_labels": diag_label,  # (n_classes,)
+        }

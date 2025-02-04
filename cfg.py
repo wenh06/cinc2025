@@ -38,7 +38,7 @@ BaseCfg.torch_dtype = torch.float32  # "double"
 BaseCfg.np_dtype = np.float32
 BaseCfg.fs = 400
 BaseCfg.n_leads = 12
-BaseCfg.diag_classes = ["1dAVb", "RBBB", "LBBB", "SB", "ST", "AF"]
+BaseCfg.diag_classes = ["1dAVb", "RBBB", "LBBB", "SB", "ST", "AF"] + ["NORM", "OTHER"]
 BaseCfg.diag_class_map = {c: i for i, c in enumerate(BaseCfg.diag_classes)}
 
 
@@ -52,7 +52,9 @@ TrainCfg.checkpoints = BaseCfg.checkpoints
 TrainCfg.checkpoints.mkdir(exist_ok=True)
 TrainCfg.aux_tasks = CFG(
     binary_classification=CFG(
-        enabled=True,
+        # merged with arrhythmia_classification by adding
+        # 2 classes: "NORM" and "OTHER"
+        enabled=False,
         loss="AsymmetricLoss",
         loss_weight=1.0,
         loss_kw={},  # keyword arguments for the loss function
@@ -66,6 +68,7 @@ TrainCfg.aux_tasks = CFG(
 )
 
 TrainCfg.train_ratio = 0.9
+TrainCfg.input_len = 4096  # approximately 10s
 
 
 ###############################################################################

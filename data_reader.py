@@ -95,6 +95,8 @@ class CODE15(_DataBase):
     __chagas_label_file__ = "code15_chagas_labels.csv"
     __chagas_label_file_url__ = "https://moody-challenge.physionet.org/2025/data/code15_chagas_labels.zip"
     __label_cols__ = ["1dAVb", "RBBB", "LBBB", "SB", "ST", "AF"]
+    __normal_ecg_name__ = "NORM"
+    __abnormal_ecg_name__ = "OTHER"
 
     def __init__(
         self,
@@ -250,7 +252,7 @@ class CODE15(_DataBase):
         data = data.astype(np.float32)  # typically in most deep learning tasks, we use float32
         if units.lower() in ["uv", "μv", "muv"]:
             data = data * 1e3
-        if fs is not None:
+        if fs is not None and fs != self.fs:
             data = wfdb.processing.resample_sig(data, self.fs, fs)
         if data_format.lower() in ["channel_first", "lead_first"]:
             data = data.T
@@ -258,7 +260,9 @@ class CODE15(_DataBase):
             return data, fs
         return data
 
-    def load_ann(self, rec: Union[str, int], class_map: Optional[Dict[str, int]] = None) -> Union[List[str], List[int]]:
+    def load_ann(
+        self, rec: Union[str, int], class_map: Optional[Dict[str, int]] = None, augmented: bool = False
+    ) -> Union[List[str], List[int]]:
         """Load the arrhythmia annotations of the record.
 
         The arrhythmia annotations are:
@@ -278,6 +282,9 @@ class CODE15(_DataBase):
         class_map : dict, optional
             Mapping of the arrhythmia classes to integers.
             If not provided, the conversion will not be performed.
+        augmented : bool, default False
+            Whether to augment the annotations with the binary label,
+            i.e., adding two more classes "Normal" and "Other".
 
         Returns
         -------
@@ -290,6 +297,11 @@ class CODE15(_DataBase):
             rec = self[rec]
         ann = self._df_records.loc[rec, self.__label_cols__].to_dict()
         ann = [k for k, v in ann.items() if v]
+        if augmented and len(ann) == 0:
+            if self.load_binary_ann(rec):
+                ann.append(self.__normal_ecg_name__)
+            else:
+                ann.append(self.__abnormal_ecg_name__)
         if class_map is not None:
             ann = [class_map[an] for an in ann]
         return ann
