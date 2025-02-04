@@ -8,6 +8,7 @@ from copy import deepcopy
 import numpy as np
 import torch
 from torch_ecg.cfg import CFG
+from torch_ecg.model_configs import linear
 
 __all__ = [
     "BaseCfg",
@@ -38,8 +39,9 @@ BaseCfg.torch_dtype = torch.float32  # "double"
 BaseCfg.np_dtype = np.float32
 BaseCfg.fs = 400
 BaseCfg.n_leads = 12
-BaseCfg.diag_classes = ["1dAVb", "RBBB", "LBBB", "SB", "ST", "AF"] + ["NORM", "OTHER"]
-BaseCfg.diag_class_map = {c: i for i, c in enumerate(BaseCfg.diag_classes)}
+# arrhythmia diagnosis classes
+BaseCfg.arr_diag_classes = ["1dAVb", "RBBB", "LBBB", "SB", "ST", "AF"] + ["NORM", "OTHER"]
+BaseCfg.arr_diag_class_map = {c: i for i, c in enumerate(BaseCfg.arr_diag_classes)}
 
 
 ###############################################################################
@@ -82,3 +84,11 @@ ModelCfg = CFG()
 ModelCfg.torch_dtype = BaseCfg.torch_dtype
 ModelCfg.model_dir = BaseCfg.model_dir
 ModelCfg.checkpoints = BaseCfg.checkpoints
+
+ModelCfg.arr_diag_head = deepcopy(linear)
+ModelCfg.arr_diag_head.update(
+    CFG(
+        enabled=True,
+        out_channels=[512] + [len(BaseCfg.arr_diag_classes)],
+    )
+)

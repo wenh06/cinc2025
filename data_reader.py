@@ -84,7 +84,7 @@ class CODE15(_DataBase):
     verbose : int, default 1
         Level of logging verbosity.
     kwargs : dict, optional
-        Auxilliary key word arguments
+        Auxilliary key word arguments.
 
     """
 
@@ -435,9 +435,9 @@ class CODE15(_DataBase):
 
         dem_row = self._df_records.loc[rec]
         chagas_ann = "Chagas - " + ("True" if self.load_chagas_ann(rec) else "False")
-        diag_ann = "Diagnosis - " + ("Normal" if self.load_binary_ann(rec) else "Abnormal")
+        arr_diag_ann = "Diagnosis - " + ("Normal" if self.load_binary_ann(rec) else "Abnormal")
         if dem_row[self.__label_cols__].any():
-            diag_ann += " - " + ", ".join(self.load_ann(rec))
+            arr_diag_ann += " - " + ", ".join(self.load_ann(rec))
 
         plot_alpha = 0.4
         nb_leads = len(_leads)
@@ -475,7 +475,7 @@ class CODE15(_DataBase):
                 " ",
                 label=f"Exam ID - {rec}; Patient ID - {dem_row.patient_id}; Age - {dem_row.age}; Sex - {dem_row.sex}",
             )
-            axes[idx].plot([], [], " ", label=f"{chagas_ann}; {diag_ann}")
+            axes[idx].plot([], [], " ", label=f"{chagas_ann}; {arr_diag_ann}")
             axes[idx].legend(loc="upper left", fontsize=14)
             axes[idx].set_xlim(t[0], t[-1])
             axes[idx].set_ylim(min(-600, -y_ranges[idx]), max(600, y_ranges[idx]))

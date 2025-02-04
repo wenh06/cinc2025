@@ -21,11 +21,11 @@ from cfg import BaseCfg, TrainCfg
 from data_reader import CODE15
 
 __all__ = [
-    "CinC2025Dataset",
+    "CINC2025Dataset",
 ]
 
 
-class CinC2025Dataset(Dataset, ReprMixin):
+class CINC2025Dataset(Dataset, ReprMixin):
     """Dataset for the CinC2025 Challenge.
 
     Parameters
@@ -41,7 +41,7 @@ class CinC2025Dataset(Dataset, ReprMixin):
 
     """
 
-    __name__ = "CinC2025Dataset"
+    __name__ = "CINC2025Dataset"
 
     def __init__(
         self,
@@ -106,7 +106,7 @@ class CinC2025Dataset(Dataset, ReprMixin):
             "signals": np.empty((len(self), self.config.n_leads, self.config.input_len), dtype=self.dtype),
             "chagas_labels": np.empty((len(self),), dtype=np.int64),
             "bin_labels": np.empty((len(self),), dtype=np.int64),
-            "diag_labels": np.empty((len(self), len(self.config.diag_class_map)), dtype=self.dtype),
+            "arr_diag_labels": np.empty((len(self), len(self.config.arr_diag_class_map)), dtype=self.dtype),
         }
         for idx in tqdm(range(len(self)), desc="loading data", unit="record", mininterval=1, dynamic_ncols=True):
             data = self.fdr[idx]
@@ -213,7 +213,7 @@ class CinC2025Dataset(Dataset, ReprMixin):
 
     @property
     def data_fields(self) -> Set[str]:
-        return set(["signals", "chagas_labels", "bin_labels", "diag_labels"])
+        return set(["signals", "chagas_labels", "bin_labels", "arr_diag_labels"])
 
     def extra_repr_keys(self) -> List[str]:
         return ["reader", "training"]
@@ -257,17 +257,17 @@ class FastDataReader(ReprMixin, Dataset):
             signal, _ = self.ppm(signal, self.config.fs)
         chagas_label = self.reader.load_chagas_ann(rec)  # categorical: 0 or 1
         bin_label = self.reader.load_binary_ann(rec)  # categorical: 0 or 1
-        diag_label = self.reader.load_ann(rec, class_map=self.config.diag_class_map, augmented=True)
-        diag_label = one_hot_encode([diag_label], len(self.config.diag_class_map))[0]  # (n_classes,)
+        arr_diag_label = self.reader.load_ann(rec, class_map=self.config.arr_diag_class_map, augmented=True)
+        arr_diag_label = one_hot_encode([arr_diag_label], len(self.config.arr_diag_class_map))[0]  # (n_classes,)
 
         # if `index` is a slice, the output shapes are:
         # signal: (batch_size, n_leads, n_samples)
         # chagas_label: (batch_size,)
         # bin_label: (batch_size,)
-        # diag_label: (batch_size, n_classes)
+        # arr_diag_label: (batch_size, n_classes)
         return {
             "signals": signal.astype(self.dtype),  # (n_leads, n_samples)
             "chagas_labels": chagas_label,  # scalar
             "bin_labels": bin_label,  # scalar
-            "diag_labels": diag_label,  # (n_classes,)
+            "arr_diag_labels": arr_diag_label,  # (n_classes,)
         }
