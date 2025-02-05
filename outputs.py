@@ -2,7 +2,7 @@
 """
 
 from dataclasses import dataclass
-from typing import Optional, Sequence
+from typing import Optional, Sequence, Union
 
 import numpy as np  # noqa: F401
 import torch  # noqa: F401
@@ -43,7 +43,7 @@ class CINC2025Outputs:
 
     """
 
-    chagas: Optional[Sequence[bool]] = None
+    chagas: Optional[Sequence[Union[bool, int, float]]] = None
     chagas_logits: Optional[Sequence[Sequence[float]]] = None
     chagas_prob: Optional[Sequence[Sequence[float]]] = None
     chagas_loss: Optional[Sequence[float]] = None
