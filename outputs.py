@@ -19,7 +19,7 @@ class CINC2025Outputs:
 
     Attributes
     ----------
-    chagas : Sequence[bool]
+    chagas : Sequence[bool] or Sequence[int] or Sequence[float]
         Predicted Chagas disease diagnosis.
     chagas_logits : Sequence[Sequence[float]]
         Logits of the Chagas disease diagnosis.
@@ -29,7 +29,7 @@ class CINC2025Outputs:
         Loss for the Chagas disease diagnosis.
     chagas_threshold : float, default 0.5
         Threshold for the Chagas disease diagnosis.
-    arr_diag : Sequence[Sequence[str]]
+    arr_diag : Sequence[Sequence[Union[str, int]]]
         Predicted arrhythmia diagnosis.
     arr_diag_logits : Sequence[Sequence[float]]
         Logits of the arrhythmia diagnosis.
@@ -49,7 +49,7 @@ class CINC2025Outputs:
     chagas_prob: Optional[Sequence[Sequence[float]]] = None
     chagas_loss: Optional[Sequence[float]] = None
     chagas_threshold: float = 0.5
-    arr_diag: Optional[Sequence[Sequence[str]]] = None
+    arr_diag: Optional[Sequence[Sequence[Union[str, int]]]] = None
     arr_diag_logits: Optional[Sequence[Sequence[float]]] = None
     arr_diag_prob: Optional[Sequence[Sequence[float]]] = None
     arr_diag_loss: Optional[Sequence[float]] = None
@@ -92,6 +92,7 @@ class CINC2025Outputs:
 
         if self.arr_diag is not None:
             assert self.arr_diag_classes is not None, "arr_diag_classes should be provided if `arr_diag` is provided"
+            assert len(self.arr_diag) == len(self.chagas), "inconsistent length"
             idx2class = {idx: cl for idx, cl in enumerate(self.arr_diag_classes)}
             # in case the arr_diag is not converted to class names
             self.arr_diag = [[idx2class.get(item, item) for item in items] for items in self.arr_diag]
@@ -107,6 +108,7 @@ class CINC2025Outputs:
                     [self.arr_diag_classes[idx] for idx in np.where(np.array(items) > self.arr_diag_threshold)[0]]
                     for items in self.arr_diag_prob
                 ]
+            assert len(self.arr_diag) == len(self.chagas), "inconsistent length"
         elif self.arr_diag_logits is not None:
             assert self.arr_diag_classes is not None, "arr_diag_classes should be provided if `arr_diag` is provided"
             if isinstance(self.arr_diag_logits, torch.Tensor):
@@ -127,6 +129,7 @@ class CINC2025Outputs:
                     [self.arr_diag_classes[idx] for idx in np.where(np.array(items) > self.arr_diag_threshold)[0]]
                     for items in self.arr_diag_prob
                 ]
+            assert len(self.arr_diag) == len(self.chagas), "inconsistent length"
         if self.arr_diag_loss is not None:
             if isinstance(self.arr_diag_loss, torch.Tensor):
                 self.arr_diag_loss = self.arr_diag_loss.cpu().detach().numpy()
