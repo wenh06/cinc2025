@@ -19,10 +19,17 @@ from tqdm.auto import tqdm
 
 from cfg import BaseCfg
 from prepare_code15_data import convert_dat_to_mat, fix_checksums
+from utils.misc import trim_zeros
 
 __all__ = [
     "CODE15",
 ]
+
+
+if np.__version__ >= "2.2":
+    trim_zeros_func = np.trim_zeros
+else:
+    trim_zeros_func = trim_zeros
 
 
 _CODE15_INFO = DataBaseInfo(
@@ -171,6 +178,17 @@ class CODE15(_DataBase):
         )
         if df_wfdb_records.empty:
             self._is_converted_to_wfdb_format = False
+
+            # perhaps only a part of the dataset is downloaded
+            # so we need to filter out the records that are not downloaded
+            dl_rec_list = []
+            for h5_file in self._h5_data_files:
+                with h5py.File(h5_file, "r") as h5f:
+                    dl_rec_list.extend(h5f["exam_id"][:].tolist())
+            self._df_records = self._df_records[self._df_records.exam_id.isin(dl_rec_list)]
+            self._df_chagas = self._df_chagas[self._df_chagas.exam_id.isin(dl_rec_list)]
+            del dl_rec_list
+
             self._df_records["record"] = self._df_records["exam_id"].astype(str)
             self._subject_records = self._df_records.groupby("patient_id")["record"].apply(sorted).to_dict()
             self._df_records.set_index("record", inplace=True)
@@ -178,6 +196,7 @@ class CODE15(_DataBase):
             self._all_subjects = self._df_records.patient_id.unique().tolist()
             self._df_chagas["record"] = self._df_chagas["exam_id"].astype(str)
             self._df_chagas.set_index("record", inplace=True)
+
             return
 
         self._is_converted_to_wfdb_format = True
@@ -535,6 +554,8 @@ class CODE15(_DataBase):
         for file in files:
             http_get(self.url[file], self.db_dir)
 
+        self._ls_rec()
+
     def download_subset(self) -> None:
         """Download a subset of the database files."""
         self.download(["exams_part17", "labels", "chagas_labels"])
@@ -684,7 +705,7 @@ class CODE15(_DataBase):
 
                         if trim_zeros:
                             # Remove zero padding at the start and end of the signals.
-                            physical_signals = np.trim_zeros(physical_signals, trim="fb", axis=0)
+                            physical_signals = trim_zeros_func(physical_signals, trim="fb", axis=0)
                             if physical_signals.shape[0] == 0:
                                 excep_list.append((signal_file, exam_id))
                                 continue
