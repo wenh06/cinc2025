@@ -101,6 +101,7 @@ class CODE15(_DataBase):
     __label_file__ = "exams.csv"
     __chagas_label_file__ = "code15_chagas_labels.csv"
     __chagas_label_file_url__ = "https://moody-challenge.physionet.org/2025/data/code15_chagas_labels.zip"
+    __default_wfdb_data_dir__ = "wfdb_format_files"
     __label_cols__ = ["1dAVb", "RBBB", "LBBB", "SB", "ST", "AF"]
     __normal_ecg_name__ = "NORM"
     __abnormal_ecg_name__ = "OTHER"
@@ -119,7 +120,7 @@ class CODE15(_DataBase):
             verbose=verbose,
             **kwargs,
         )
-        self.wfdb_data_dir = Path(kwargs.pop("wfdb_data_dir", "wfdb_format_files"))
+        self.wfdb_data_dir = Path(kwargs.pop("wfdb_data_dir", self.__default_wfdb_data_dir__))
         self.wfdb_data_ext = kwargs.pop("wfdb_data_ext", "dat")
         self.__config = CFG(BaseCfg.copy())
         self.__config.update(kwargs)
@@ -571,7 +572,7 @@ class CODE15(_DataBase):
         )
         return files
 
-    def download(self, files: Optional[Union[str, Sequence[str]]]) -> None:
+    def download(self, files: Optional[Union[str, Sequence[str]]] = None) -> None:
         """Download the database files.
 
         Parameters
@@ -830,3 +831,78 @@ class CODE15(_DataBase):
                         fix_checksums(str(output_path / record), checksums)
 
         return excep_list
+
+
+if __name__ == "__main__":
+    import argparse
+    import warnings
+
+    parser = argparse.ArgumentParser(description="Process CINC2025 database.")
+    parser.add_argument(
+        "operations",
+        nargs=argparse.ONE_OR_MORE,
+        type=str,
+        choices=[
+            "download",
+            "download_subset",
+            "convert_to_wfdb_format",
+        ],
+    )
+    parser.add_argument(
+        "-d",
+        "--db-dir",
+        type=str,
+        help="The directory to (store) the database.",
+        dest="db_dir",
+    )
+    parser.add_argument(
+        "-w",
+        "--working-dir",
+        type=str,
+        default=None,
+        help="The working directory to store the intermediate results.",
+        dest="working_dir",
+    )
+    parser.add_argument(
+        "-o",
+        "--output-folder",
+        type=str,
+        help="The output directory to store the converted wfdb format files, used when `operations` contain `convert_to_wfdb_format`.",
+        default=None,
+        dest="output_folder",
+    )
+    parser.add_argument(
+        "-f",
+        "--files",
+        type=str,
+        help="H5 data files to download, used when `operations` contain `download`. e.g., '0,3-6,9,labels,chagas_labels'.",
+        dest="db_dir",
+    )
+
+    args = parser.parse_args()
+    operations = args.operations
+    if "convert_to_wfdb_format" in operations and args.output_folder is not None:
+        dr = CODE15(db_dir=args.db_dir, wfdb_data_dir=args.output_folder)
+    else:
+        dr = CODE15(db_dir=args.db_dir)
+
+    if "download" in operations:
+        if args.files:
+            files = args.files.split(",")
+            files = [f"exams_part{item}" if item.isdigit() else item for item in files]
+            dr.download(files)
+        else:
+            dr.download()
+
+    if "download_subset" in operations:
+        dr.download_subset()
+
+    if "convert_to_wfdb_format" in operations:
+        if args.output_folder is None:
+            warnings.warn(f"Output folder not specified. Default to {dr.wfdb_data_dir}.")
+        dr._convert_to_wfdb_format()
+
+    print("Done.")
+
+    # usage examples:
+    # python data_reader.py download -d /path/to/db_dir
