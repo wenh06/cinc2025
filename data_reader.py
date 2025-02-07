@@ -163,20 +163,24 @@ class CODE15(_DataBase):
             }
         )
 
+        if self._label_file is None:
+            self._label_file = self.db_dir / self.__label_file__
+            if not self._label_file.exists():
+                self._label_file = None
+        else:
+            self._label_file = Path(self._label_file).expanduser().resolve()
+        if self._chagas_label_file is None:
+            self._chagas_label_file = self.db_dir / self.__chagas_label_file__
+            if not self._chagas_label_file.exists():
+                self._chagas_label_file = None
+        else:
+            self._chagas_label_file = Path(self._chagas_label_file).expanduser().resolve()
+
         if len(self._h5_data_files) == 0 and df_wfdb_records.empty:
             self.logger.warning("No data files found in the database directory. Call `download()` to download the database.")
             return
 
         # else: some data files are found, proceed to load the metadata
-
-        if self._label_file is None:
-            self._label_file = self.db_dir / self.__label_file__
-        else:
-            self._label_file = Path(self._label_file).expanduser().resolve()
-        if self._chagas_label_file is None:
-            self._chagas_label_file = self.db_dir / self.__chagas_label_file__
-        else:
-            self._chagas_label_file = Path(self._chagas_label_file).expanduser().resolve()
 
         assert self._label_file.exists(), f"Label file {self.__label_file__} not found in the given directory."
         assert (
