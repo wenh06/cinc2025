@@ -35,15 +35,20 @@ def check_env():
 
 
 def cache_data():
-    """Cache the subset data for testing."""
+    """Cache the necessary data.
 
-    print("   Caching the action test data   ".center(80, "#"))
+    Including: label file and chagas label file.
+
+    """
+
+    print("   Caching necessary data   ".center(80, "#"))
     reader_kwargs = {
         "db_dir": Path(TEST_DATA_CACHE_DIR),
     }
     dr = CODE15(**reader_kwargs)
-    dr.download_subset()
-    print("   Caching the action test data done.   ".center(80, "#"))
+    # dr.download_subset()
+    dr.download(files=["labels", "chagas_labels"])
+    print("   Caching necessary data done.   ".center(80, "#"))
 
     # move the label files to `LABEL_CACHE_DIR`
     print("   Moving the label files   ".center(80, "#"))
@@ -62,15 +67,15 @@ def cache_data():
     }
     dr = CODE15(**reader_kwargs)
 
-    print("   Checking the action test data   ".center(80, "#"))
-    print(f"{len(dr._df_records) = }")
-    print(f"{len(dr._all_records) = }")
-    print("   GitHub Action test data checking complete.   ".center(80, "#"))
+    # print("   Checking the action test data   ".center(80, "#"))
+    # print(f"{len(dr._df_records) = }")
+    # print(f"{len(dr._all_records) = }")
+    # print("   GitHub Action test data checking complete.   ".center(80, "#"))
 
-    print("   Converting to wfdb format   ".center(80, "#"))
-    dr._convert_to_wfdb_format()
-    print(f"is_converted: {dr._is_converted_to_wfdb_format}")
-    print("   Converting to wfdb format done.   ".center(80, "#"))
+    # print("   Converting to wfdb format   ".center(80, "#"))
+    # dr._convert_to_wfdb_format()
+    # print(f"is_converted: {dr._is_converted_to_wfdb_format}")
+    # print("   Converting to wfdb format done.   ".center(80, "#"))
 
 
 if __name__ == "__main__":

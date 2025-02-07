@@ -82,7 +82,7 @@ jobs:
           -e mount_data_dir=${{ env.mount_data_dir }} \
           -v ${{ env.download_data_dir }}:${{ env.mount_data_dir }} \
           ${{ env.DOCKER_HUB_USERNAME }}/${{ env.DOCKER_HUB_REPOSITORY }}:${{ env.DOCKER_IMAGE_TAG }} \
-          bash -c "python data_reader.py download_subset_tiny download_synthetic_images --db-dir ${{ env.mount_data_dir }}"
+          bash -c "python data_reader.py download convert_to_wfdb_format --db-dir ${{ env.mount_data_dir }} --files 0,17"
         docker ps -a
         docker stop $(docker ps -a -q)
 

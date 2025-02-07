@@ -23,7 +23,7 @@ from torch_ecg.cfg import CFG
 from torch_ecg.utils.misc import str2bool
 
 from cfg import BaseCfg, ModelCfg, TrainCfg  # noqa: F401
-from const import MODEL_CACHE_DIR, TEST_DATA_CACHE_DIR
+from const import LABEL_CACHE_DIR, MODEL_CACHE_DIR, TEST_DATA_CACHE_DIR  # noqa: F401
 from helper_code import find_records
 
 ################################################################################
