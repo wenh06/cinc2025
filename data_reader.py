@@ -880,7 +880,7 @@ if __name__ == "__main__":
         "--files",
         type=str,
         help="H5 data files to download, used when `operations` contain `download`. e.g., '0,3-6,9,labels,chagas_labels'.",
-        dest="db_dir",
+        dest="files",
     )
 
     args = parser.parse_args()
@@ -892,8 +892,24 @@ if __name__ == "__main__":
 
     if "download" in operations:
         if args.files:
-            files = args.files.split(",")
-            files = [f"exams_part{item}" if item.isdigit() else item for item in files]
+            files = []
+            for item in args.files.split(","):
+                item = item.strip()
+                if item.isdigit():
+                    if int(item) < 18:
+                        files.append(f"exams_part{item}")
+                    else:
+                        warnings.warn(f"Invalid file number: {item}, skipped.")
+                elif re.match(r"\d+-\d+", item):
+                    start, end = map(int, item.split("-"))
+                    if start > end or end >= 18:
+                        warnings.warn(f"Invalid file range: {item}, skipped.")
+                    else:
+                        files.extend([f"exams_part{i}" for i in range(start, end + 1)])
+                elif item in ["labels", "chagas_labels"]:
+                    files.append(item)
+                else:
+                    warnings.warn(f"Unknown file: {item}, skipped.")
             dr.download(files)
         else:
             dr.download()
@@ -910,3 +926,4 @@ if __name__ == "__main__":
 
     # usage examples:
     # python data_reader.py download -d /path/to/db_dir
+    # python data_reader.py download convert_to_wfdb_format --db-dir /path/to/db_dir --files 0,17
