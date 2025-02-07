@@ -7,6 +7,7 @@ __all__ = [
     "PROJECT_DIR",
     "MODEL_CACHE_DIR",
     "DATA_CACHE_DIR",
+    "LABEL_CACHE_DIR",
     "TEST_DATA_CACHE_DIR",
 ]
 
@@ -36,5 +37,8 @@ DATA_CACHE_DIR = str(
     .resolve()
 )
 Path(DATA_CACHE_DIR).mkdir(parents=True, exist_ok=True)
+
+LABEL_CACHE_DIR = str(Path(PROJECT_DIR) / "cache")
+
 TEST_DATA_CACHE_DIR = str(Path(DATA_CACHE_DIR).parent / "revenger_action_test_data_dir")
 Path(TEST_DATA_CACHE_DIR).mkdir(parents=True, exist_ok=True)

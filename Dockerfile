@@ -18,6 +18,7 @@ ENV HUGGINGFACE_HUB_CACHE=/challenge/cache/revenger_model_dir
 ENV HF_HUB_CACHE=/challenge/cache/revenger_model_dir
 ENV MODEL_CACHE_DIR=/challenge/cache/revenger_model_dir
 ENV DATA_CACHE_DIR=/challenge/cache/revenger_data_dir
+ENV TEST_DATA_CACHE_DIR=/challenge/cache/revenger_action_test_data_dir
 ENV GIT_CLONE_DIR=/challenge/cache/git_clone_dir
 
 # ENV NO_ALBUMENTATIONS_UPDATE=1
@@ -71,6 +72,7 @@ WORKDIR /challenge
 
 RUN mkdir -p $MODEL_CACHE_DIR
 RUN mkdir -p $DATA_CACHE_DIR
+RUN mkdir -p $TEST_DATA_CACHE_DIR
 RUN mkdir -p $GIT_CLONE_DIR
 
 
@@ -120,3 +122,29 @@ RUN aws --version && which aws
 
 # copy the whole project to the docker container
 COPY ./ /challenge
+
+
+# Download synthetic image data and pretrained models
+RUN python post_docker_build.py
+# check if the data and model are downloaded
+# TODO: pass the path as environment variables
+RUN du -sh $DATA_CACHE_DIR
+RUN du -sh $TEST_DATA_CACHE_DIR
+RUN du -sh $MODEL_CACHE_DIR
+
+
+# NOTE: also run test_local.py to test locally
+# since GitHub Actions does not have GPU,
+# one need to run test_local.py to avoid errors related to devices
+# RUN python test_docker.py
+
+
+# commands to run test with docker container:
+
+# sudo docker build -t image .
+# sudo docker run -it --shm-size=10240m --gpus all -v ~/Jupyter/temp/cinc2025_docker_test/model:/challenge/model -v ~/Jupyter/temp/cinc2025_docker_test/test_data:/challenge/test_data -v ~/Jupyter/temp/cinc2025_docker_test/test_outputs:/challenge/test_outputs -v ~/Jupyter/temp/cinc2025_docker_test/data:/challenge/training_data image bash
+
+
+# python train_model.py training_data model
+# python run_model.py model test_data test_outputs
+# python evaluate_model.py labels outputs scores.csv
