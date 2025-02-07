@@ -36,6 +36,5 @@ DATA_CACHE_DIR = str(
     .resolve()
 )
 Path(DATA_CACHE_DIR).mkdir(parents=True, exist_ok=True)
-TEST_DATA_CACHE_DIR = str(Path(DATA_CACHE_DIR) / "cinc2025_action_test_data")
-# SUBSET_DATA_CACHE_DIR = str(Path(DATA_CACHE_DIR) / "cinc2025_subset_data")
-# FULL_DATA_CACHE_DIR = str(Path(DATA_CACHE_DIR) / "cinc2025_full_data")
+TEST_DATA_CACHE_DIR = str(Path(DATA_CACHE_DIR).parent / "revenger_action_test_data_dir")
+Path(TEST_DATA_CACHE_DIR).mkdir(parents=True, exist_ok=True)

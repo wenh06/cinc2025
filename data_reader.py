@@ -14,7 +14,7 @@ import wfdb
 from torch_ecg.cfg import CFG
 from torch_ecg.databases.base import DEFAULT_FIG_SIZE_PER_SEC, DataBaseInfo, _DataBase
 from torch_ecg.utils.download import http_get
-from torch_ecg.utils.misc import add_docstring
+from torch_ecg.utils.misc import add_docstring, str2bool
 from tqdm.auto import tqdm
 
 from cfg import BaseCfg
@@ -136,6 +136,8 @@ class CODE15(_DataBase):
         self._all_subjects = []
         self._subject_records = {}
         self._is_converted_to_wfdb_format = False
+        self._label_file = self.__config.get("label_file", None)
+        self._chagas_label_file = self.__config.get("chagas_label_file", None)
         self._ls_rec()
 
     def _ls_rec(self) -> None:
@@ -144,26 +146,9 @@ class CODE15(_DataBase):
         """
         # find all hdf5 files
         self._h5_data_files = list(self.db_dir.rglob("*.hdf5"))
-        if len(self._h5_data_files) == 0:
-            self.logger.warning("No hdf5 files found in the database directory. Call `download()` to download the database.")
-            return
-        assert len(set([f.parent for f in self._h5_data_files])) == 1, "All hdf5 files should be in the same directory."
-        self.db_dir = self._h5_data_files[0].parent
-        assert (
-            self.db_dir / self.__label_file__
-        ).exists(), f"Label file {self.__label_file__} not found in the database directory."
-        assert (
-            self.db_dir / self.__chagas_label_file__
-        ).exists(), f"Chagas label file {self.__chagas_label_file__} not found in the database directory."
-
-        self._df_records = pd.read_csv(self.db_dir / self.__label_file__)
-        self._df_records["sex"] = self._df_records["is_male"].map({True: "Male", False: "Female"})
-        self._df_chagas = pd.read_csv(self.db_dir / self.__chagas_label_file__)
-        self._all_records = list(
-            set(self._df_records.exam_id.unique().tolist()).intersection(self._df_chagas.exam_id.unique().tolist())
-        )
-        self._df_records = self._df_records[self._df_records.exam_id.isin(self._all_records)]
-        self._df_chagas = self._df_chagas[self._df_chagas.exam_id.isin(self._all_records)]
+        if len(self._h5_data_files) > 0:
+            assert len(set([f.parent for f in self._h5_data_files])) == 1, "All hdf5 files should be in the same directory."
+            self.db_dir = self._h5_data_files[0].parent
 
         if not self.wfdb_data_dir.is_absolute():
             self.wfdb_data_dir = self.db_dir / self.wfdb_data_dir
@@ -176,6 +161,36 @@ class CODE15(_DataBase):
                 "exam_id": None,
             }
         )
+
+        if len(self._h5_data_files) == 0 and df_wfdb_records.empty:
+            self.logger.warning("No data files found in the database directory. Call `download()` to download the database.")
+            return
+
+        # else: some data files are found, proceed to load the metadata
+
+        if self._label_file is None:
+            self._label_file = self.db_dir / self.__label_file__
+        else:
+            self._label_file = Path(self._label_file).expanduser().resolve()
+        if self._chagas_label_file is None:
+            self._chagas_label_file = self.db_dir / self.__chagas_label_file__
+        else:
+            self._chagas_label_file = Path(self._chagas_label_file).expanduser().resolve()
+
+        assert self._label_file.exists(), f"Label file {self.__label_file__} not found in the given directory."
+        assert (
+            self._chagas_label_file.exists()
+        ), f"Chagas label file {self.__chagas_label_file__} not found in the given directory."
+
+        self._df_records = pd.read_csv(self._label_file)
+        self._df_records["sex"] = self._df_records["is_male"].map({True: "Male", False: "Female"})
+        self._df_chagas = pd.read_csv(self._chagas_label_file)
+        self._all_records = list(
+            set(self._df_records.exam_id.unique().tolist()).intersection(self._df_chagas.exam_id.unique().tolist())
+        )
+        self._df_records = self._df_records[self._df_records.exam_id.isin(self._all_records)]
+        self._df_chagas = self._df_chagas[self._df_chagas.exam_id.isin(self._all_records)]
+
         if df_wfdb_records.empty:
             self._is_converted_to_wfdb_format = False
 
@@ -212,6 +227,34 @@ class CODE15(_DataBase):
         self._df_chagas = self._df_chagas[self._df_chagas.exam_id.isin(self._df_records.exam_id)]
         self._df_chagas["record"] = self._df_chagas["exam_id"].astype(str)
         self._df_chagas.set_index("record", inplace=True)
+
+    def get_absolute_path(self, rec: Union[str, int], ext: Literal["hdf5", "dat", "mat"] = "dat") -> Path:
+        """Get the absolute path of the record.
+
+        Parameters
+        ----------
+        rec : str or int
+            Record name or index of the record in :attr:`all_records`.
+            NOTE: DO NOT confuse index (int) and record name (exam_id, str).
+        ext : {"hdf5", "dat", "mat"}, default "dat"
+            Extension of the file.
+
+        Returns
+        -------
+        path : pathlib.Path
+            Absolute path of the record.
+
+        """
+        if isinstance(rec, int):
+            rec = self[rec]
+        row = self._df_records.loc[rec]
+        if ext == "hdf5":
+            path = self.db_dir / row["trace_file"]
+        else:
+            path = row["wfdb_signal_file"].with_suffix(f".{ext}")
+        if not path.exists():
+            self.logger.warning(f"File {path} does not exist.")
+        return path
 
     def load_data(
         self,
@@ -595,13 +638,43 @@ class CODE15(_DataBase):
         if len(self._h5_data_files) == 0:
             self.logger.warning("No hdf5 files found in the database directory. Call `download()` to download the database.")
             return
-        return CODE15.convert_to_wfdb_format(
+
+        excep_list = CODE15.convert_to_wfdb_format(
             signal_files=self._h5_data_files,
             df_demographics=self._df_records,
             df_chagas=self._df_chagas,
             output_path=self.wfdb_data_dir,
             overwrite=overwrite,
         )
+        self._ls_rec()
+
+        return excep_list
+
+    @staticmethod
+    def load_chagas_label_from_header(record_name: Union[str, bytes, os.PathLike]) -> int:
+        """Load the Chagas label from the header file of the record.
+
+        Parameters
+        ----------
+        record_name : str or `path-like`
+            Record name or path to the record.
+
+        Returns
+        -------
+        chagas_label : int
+            Chagas label of the record.
+            0 for negative, 1 for positive.
+
+        """
+        header_file = Path(record_name).expanduser().resolve().with_suffix(".hea")
+        with open(header_file, "r") as f:
+            for line in f:
+                if "Chagas label" in line:
+                    chagas_label = int(str2bool(line.split(":")[-1].strip()))
+                    break
+            else:
+                raise ValueError(f"Chagas label not found in the header file {header_file}")
+        return chagas_label
 
     @staticmethod
     def convert_to_wfdb_format(

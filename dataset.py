@@ -104,9 +104,9 @@ class CINC2025Dataset(Dataset, ReprMixin):
         """
         self.__cache = {
             "signals": np.empty((len(self), self.config.n_leads, self.config.input_len), dtype=self.dtype),
-            "chagas_labels": np.empty((len(self),), dtype=np.int64),
-            "bin_labels": np.empty((len(self),), dtype=np.int64),
-            "arr_diag_labels": np.empty((len(self), len(self.config.arr_diag_class_map)), dtype=self.dtype),
+            "chagas": np.empty((len(self),), dtype=np.int64),
+            "is_normal": np.empty((len(self),), dtype=np.int64),
+            "arr_diag": np.empty((len(self), len(self.config.arr_diag_class_map)), dtype=self.dtype),
         }
         for idx in tqdm(range(len(self)), desc="loading data", unit="record", mininterval=1, dynamic_ncols=True):
             data = self.fdr[idx]
@@ -213,7 +213,7 @@ class CINC2025Dataset(Dataset, ReprMixin):
 
     @property
     def data_fields(self) -> Set[str]:
-        return set(["signals", "chagas_labels", "bin_labels", "arr_diag_labels"])
+        return set(["signals", "chagas", "is_normal", "arr_diag"])
 
     def extra_repr_keys(self) -> List[str]:
         return ["reader", "training"]
@@ -267,7 +267,7 @@ class FastDataReader(ReprMixin, Dataset):
         # arr_diag_label: (batch_size, n_classes)
         return {
             "signals": signal.astype(self.dtype),  # (n_leads, n_samples)
-            "chagas_labels": chagas_label,  # scalar
-            "bin_labels": bin_label,  # scalar
-            "arr_diag_labels": arr_diag_label,  # (n_classes,)
+            "chagas": chagas_label,  # scalar
+            "is_normal": bin_label,  # scalar
+            "arr_diag": arr_diag_label,  # (n_classes,)
         }
