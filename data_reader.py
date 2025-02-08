@@ -576,7 +576,7 @@ class CODE15(_DataBase):
         )
         return files
 
-    def download(self, files: Optional[Union[str, Sequence[str]]] = None) -> None:
+    def download(self, files: Optional[Union[str, Sequence[str]]] = None, refresh: bool = True) -> None:
         """Download the database files.
 
         Parameters
@@ -588,6 +588,8 @@ class CODE15(_DataBase):
                 - "exams_part{i}" for i in range(18)
                 - "labels"
                 - "chagas_labels"
+        refresh : bool, default True
+            Whether to call `self._ls_rec()` after downloading the files.
 
         """
         if files is None:
@@ -602,7 +604,8 @@ class CODE15(_DataBase):
         for file in files:
             http_get(self.url[file], self.db_dir)
 
-        self._ls_rec()
+        if refresh:
+            self._ls_rec()
 
     def download_subset(self) -> None:
         """Download a subset of the database files."""
@@ -910,9 +913,9 @@ if __name__ == "__main__":
                     files.append(item)
                 else:
                     warnings.warn(f"Unknown file: {item}, skipped.")
-            dr.download(files)
+            dr.download(files, refresh=False)
         else:
-            dr.download()
+            dr.download(refresh=False)
 
     if "download_subset" in operations:
         dr.download_subset()
@@ -920,6 +923,7 @@ if __name__ == "__main__":
     if "convert_to_wfdb_format" in operations:
         if args.output_folder is None:
             warnings.warn(f"Output folder not specified. Default to {dr.wfdb_data_dir}.")
+        dr._ls_rec()
         dr._convert_to_wfdb_format()
 
     print("Done.")
