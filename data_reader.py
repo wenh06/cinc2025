@@ -182,9 +182,11 @@ class CODE15(_DataBase):
 
         # else: some data files are found, proceed to load the metadata
 
-        assert self._label_file.exists(), f"Label file {self.__label_file__} not found in the given directory."
         assert (
-            self._chagas_label_file.exists()
+            self._label_file is not None and self._label_file.exists()
+        ), f"Label file {self.__label_file__} not found in the given directory."
+        assert (
+            self._chagas_label_file is not None and self._chagas_label_file.exists()
         ), f"Chagas label file {self.__chagas_label_file__} not found in the given directory."
 
         self._df_records = pd.read_csv(self._label_file)
@@ -895,12 +897,12 @@ if __name__ == "__main__":
 
     if "download" in operations:
         if args.files:
-            files = []
+            files = set()
             for item in args.files.split(","):
                 item = item.strip()
                 if item.isdigit():
                     if int(item) < 18:
-                        files.append(f"exams_part{item}")
+                        files.add(f"exams_part{item}")
                     else:
                         warnings.warn(f"Invalid file number: {item}, skipped.")
                 elif re.match(r"\d+-\d+", item):
@@ -908,11 +910,13 @@ if __name__ == "__main__":
                     if start > end or end >= 18:
                         warnings.warn(f"Invalid file range: {item}, skipped.")
                     else:
-                        files.extend([f"exams_part{i}" for i in range(start, end + 1)])
+                        files.update([f"exams_part{i}" for i in range(start, end + 1)])
                 elif item in ["labels", "chagas_labels"]:
-                    files.append(item)
+                    files.add(item)
                 else:
                     warnings.warn(f"Unknown file: {item}, skipped.")
+            if "convert_to_wfdb_format" in operations:
+                files.update(["labels", "chagas_labels"])
             dr.download(files, refresh=False)
         else:
             dr.download(refresh=False)
