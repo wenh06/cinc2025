@@ -52,18 +52,19 @@ def cache_data():
 
     # move the label files to `LABEL_CACHE_DIR`
     print("   Moving the label files   ".center(80, "#"))
-    shutil.move(dr._label_file, LABEL_CACHE_DIR)
-    shutil.move(dr._chagas_label_file, LABEL_CACHE_DIR)
+    (Path(LABEL_CACHE_DIR) / CODE15.__name__).mkdir(parents=True, exist_ok=True)
+    shutil.move(dr._label_file, Path(LABEL_CACHE_DIR) / CODE15.__name__)
+    shutil.move(dr._chagas_label_file, LABEL_CACHE_DIR / CODE15.__name__)
     print("In the LABEL_CACHE_DIR:")
-    print(list(Path(LABEL_CACHE_DIR).rglob("*")))
+    print(list((Path(LABEL_CACHE_DIR) / CODE15.__name__).rglob("*")))
     print("   Moving the label files done.   ".center(80, "#"))
 
     # re-init the reader with the new label file paths
     del dr
     reader_kwargs = {
         "db_dir": Path(TEST_DATA_CACHE_DIR),
-        "label_file": Path(LABEL_CACHE_DIR) / CODE15.__label_file__,
-        "chagas_label_file": Path(LABEL_CACHE_DIR) / CODE15.__chagas_label_file__,
+        "code15_label_file": Path(LABEL_CACHE_DIR) / CODE15.__name__ / CODE15.__label_file__,
+        "code15_chagas_label_file": Path(LABEL_CACHE_DIR) / CODE15.__name__ / CODE15.__chagas_label_file__,
     }
     dr = CODE15(**reader_kwargs)
 
