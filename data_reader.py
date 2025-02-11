@@ -3,6 +3,7 @@
 
 import os
 import re
+import shutil
 import urllib.parse
 from numbers import Real
 from pathlib import Path
@@ -14,13 +15,19 @@ import pandas as pd
 import wfdb
 from torch_ecg.cfg import CFG
 from torch_ecg.databases.base import DEFAULT_FIG_SIZE_PER_SEC, DataBaseInfo, _DataBase
-from torch_ecg.databases.physionet_databases import PTBXL
+from torch_ecg.databases.physionet_databases import PTBXL as PTBXL_Reader
 from torch_ecg.utils.download import http_get
 from torch_ecg.utils.misc import add_docstring, str2bool
 from tqdm.auto import tqdm
 
 from cfg import BaseCfg
-from prepare_code15_data import convert_dat_to_mat, fix_checksums
+from helper_code import is_integer
+from prepare_code15_data import convert_dat_to_mat as code15_convert_dat_to_mat
+from prepare_code15_data import fix_checksums as code15_fix_checksums
+from prepare_ptbxl_data import convert_dat_to_mat as ptbxl_convert_dat_to_mat
+from prepare_ptbxl_data import fix_checksums as ptbxl_fix_checksums
+from prepare_samitrop_data import convert_dat_to_mat as samitrop_convert_dat_to_mat
+from prepare_samitrop_data import fix_checksums as samitrop_fix_checksums
 from utils.misc import trim_zeros
 
 __all__ = [
@@ -67,6 +74,7 @@ _CODE15_INFO = DataBaseInfo(
     note="""
     """,
     issues="""
+    1. A small part of the database has signals with all zeros.
     """,
     references=[
         "https://zenodo.org/records/4916206",
@@ -124,8 +132,8 @@ class CODE15(_DataBase):
             verbose=verbose,
             **kwargs,
         )
-        self.wfdb_data_dir = Path(kwargs.pop("code15_wfdb_data_dir", self.__default_wfdb_data_dir__))
-        self.wfdb_data_ext = kwargs.pop("code15_wfdb_data_ext", "dat")
+        self.wfdb_data_dir = Path(kwargs.pop("wfdb_data_dir", self.__default_wfdb_data_dir__))
+        self.wfdb_data_ext = kwargs.pop("wfdb_data_ext", "dat")
         self.__config = CFG(BaseCfg.copy())
         self.__config.update(kwargs)
 
@@ -142,8 +150,8 @@ class CODE15(_DataBase):
         self._all_subjects = []
         self._subject_records = {}
         self._is_converted_to_wfdb_format = False
-        self._label_file = self.__config.get("code15_label_file", None)
-        self._chagas_label_file = self.__config.get("code15_chagas_label_file", None)
+        self._label_file = self.__config.get("label_file", None)
+        self._chagas_label_file = self.__config.get("chagas_label_file", None)
         self._ls_rec()
 
     def _ls_rec(self) -> None:
@@ -171,13 +179,15 @@ class CODE15(_DataBase):
         if self._label_file is None:
             self._label_file = self.db_dir / self.__label_file__
             if not self._label_file.exists():
-                self.download(["labels"], refresh=False)
+                # self.download(["labels"], refresh=False)
+                self._label_file = None
         else:
             self._label_file = Path(self._label_file).expanduser().resolve()
         if self._chagas_label_file is None:
             self._chagas_label_file = self.db_dir / self.__chagas_label_file__
             if not self._chagas_label_file.exists():
-                self.download(["chagas_labels"], refresh=False)
+                # self.download(["chagas_labels"], refresh=False)
+                self._chagas_label_file = None
         else:
             self._chagas_label_file = Path(self._chagas_label_file).expanduser().resolve()
 
@@ -187,12 +197,20 @@ class CODE15(_DataBase):
 
         # else: some data files are found, proceed to load the metadata
 
-        assert (
-            self._label_file is not None and self._label_file.exists()
-        ), f"Label file {self.__label_file__} not found in the given directory."
-        assert (
-            self._chagas_label_file is not None and self._chagas_label_file.exists()
-        ), f"Chagas label file {self.__chagas_label_file__} not found in the given directory."
+        # assert (
+        #     self._label_file is not None and self._label_file.exists()
+        # ), f"Label file {self.__label_file__} not found in the given directory."
+        # assert (
+        #     self._chagas_label_file is not None and self._chagas_label_file.exists()
+        # ), f"Chagas label file {self.__chagas_label_file__} not found in the given directory."
+        if self._label_file is None or not self._label_file.exists():
+            self.logger.warning(f"Label file {self.__label_file__} not found in the given directory.")
+            self._label_file = None
+            return
+        if self._chagas_label_file is None or not self._chagas_label_file.exists():
+            self.logger.warning(f"Chagas label file {self.__chagas_label_file__} not found in the given directory.")
+            self._chagas_label_file = None
+            return
 
         self._df_records = pd.read_csv(self._label_file)
         self._df_records["sex"] = self._df_records["is_male"].map({True: "Male", False: "Female"})
@@ -848,11 +866,11 @@ class CODE15(_DataBase):
                         )
 
                         if signal_format in ("mat", ".mat"):
-                            convert_dat_to_mat(record, write_dir=str(output_path))
+                            code15_convert_dat_to_mat(record, write_dir=str(output_path))
 
                         # Recompute the checksums for the checksum due to an error in the Python WFDB library.
                         checksums = np.sum(digital_signals, axis=0, dtype=np.int16)
-                        fix_checksums(str(output_path / record), checksums)
+                        code15_fix_checksums(str(output_path / record), checksums)
 
         return excep_list
 
@@ -934,8 +952,8 @@ class SamiTrop(_DataBase):
             verbose=verbose,
             **kwargs,
         )
-        self.wfdb_data_dir = Path(kwargs.pop("sami_trop_wfdb_data_dir", self.__default_wfdb_data_dir__))
-        self.wfdb_data_ext = kwargs.pop("sami_trop_wfdb_data_ext", "dat")
+        self.wfdb_data_dir = Path(kwargs.pop("wfdb_data_dir", self.__default_wfdb_data_dir__))
+        self.wfdb_data_ext = kwargs.pop("wfdb_data_ext", "dat")
         self.__config = CFG(BaseCfg.copy())
         self.__config.update(kwargs)
 
@@ -951,8 +969,8 @@ class SamiTrop(_DataBase):
         self._all_records = []
         self._all_subjects = []
         self._is_converted_to_wfdb_format = False
-        self._label_file = self.__config.get("sami_trop_label_file", None)
-        self._chagas_label_file = self.__config.get("sami_trop_chagas_label_file", None)
+        self._label_file = self.__config.get("label_file", None)
+        self._chagas_label_file = self.__config.get("chagas_label_file", None)
         self._ls_rec()
 
     def _ls_rec(self) -> None:
@@ -980,13 +998,15 @@ class SamiTrop(_DataBase):
         if self._label_file is None:
             self._label_file = self.db_dir / self.__label_file__
             if not self._label_file.exists():
-                self.download(["labels"], refresh=False)
+                # self.download(["labels"], refresh=False)
+                self._label_file = None
         else:
             self._label_file = Path(self._label_file).expanduser().resolve()
         if self._chagas_label_file is None:
             self._chagas_label_file = self.db_dir / self.__chagas_label_file__
             if not self._chagas_label_file.exists():
-                self.download(["chagas_labels"], refresh=False)
+                # self.download(["chagas_labels"], refresh=False)
+                self._chagas_label_file = None
         else:
             self._chagas_label_file = Path(self._chagas_label_file).expanduser().resolve()
 
@@ -996,9 +1016,20 @@ class SamiTrop(_DataBase):
 
         # else: some data files are found, proceed to load the metadata
 
-        assert (
-            self._label_file is not None and self._label_file.exists()
-        ), f"Label file {self.__label_file__} not found in the given directory."
+        # assert (
+        #     self._label_file is not None and self._label_file.exists()
+        # ), f"Label file {self.__label_file__} not found in the given directory."
+        # assert (
+        #     self._chagas_label_file is not None and self._chagas_label_file.exists()
+        # ), f"Chagas label file {self.__chagas_label_file__} not found in the given directory."
+        if self._label_file is None or not self._label_file.exists():
+            self.logger.warning(f"Label file {self.__label_file__} not found in the given directory.")
+            self._label_file = None
+            return
+        if self._chagas_label_file is None or not self._chagas_label_file.exists():
+            self.logger.warning(f"Chagas label file {self.__chagas_label_file__} not found in the given directory.")
+            self._chagas_label_file = None
+            return
 
         self._df_records = pd.read_csv(self._label_file)
         self._df_records["sex"] = self._df_records["is_male"].map({True: "Male", False: "Female"})
@@ -1354,10 +1385,6 @@ class SamiTrop(_DataBase):
             The format of the signal files.
         trim_zeros : bool, default True
             Whether to trim the zero padding at the start and end of the signals.
-
-            .. note::
-                Signals corresponding some of the exam IDs have values all zeros,
-                trimming the zeros will result in empty signals.
         overwrite : bool, default False
             Whether to overwrite the existing files.
 
@@ -1410,10 +1437,6 @@ class SamiTrop(_DataBase):
             The format of the signal files.
         trim_zeros : bool, default True
             Whether to trim the zero padding at the start and end of the signals.
-
-            .. note::
-                Signals corresponding some of the exam IDs have values all zeros,
-                trimming the zeros will result in empty signals.
         overwrite : bool, default False
             Whether to overwrite the existing files.
 
@@ -1518,13 +1541,172 @@ class SamiTrop(_DataBase):
                 )
 
                 if signal_format in ("mat", ".mat"):
-                    convert_dat_to_mat(record, write_dir=str(output_path))
+                    samitrop_convert_dat_to_mat(record, write_dir=str(output_path))
 
                 # Recompute the checksums as needed.
                 checksums = np.sum(digital_signals, axis=0, dtype=np.int16)
-                fix_checksums(str(output_path / record), checksums)
+                samitrop_fix_checksums(str(output_path / record), checksums)
 
         return excep_list
+
+
+class PTBXL(PTBXL_Reader):
+
+    def _convert_to_wfdb_format(
+        self,
+        fs: Literal[100, 500] = 500,
+        signal_format: Literal["dat", "mat"] = "dat",
+        trim_zeros: bool = True,
+        overwrite: bool = False,
+    ) -> None:
+        """Convert the PTB-XL dataset to WFDB format.
+
+        Typically, the chagas labels are added to the header files as comments.
+
+        Parameters
+        ----------
+        fs : {100, 500}, default 500
+            Sampling frequency of the signals to convert.
+        signal_format : {"dat", "mat"}, default "dat"
+            The format of the signal files.
+        trim_zeros : bool, default True
+            Whether to trim the zero padding at the start and end of the signals.
+        overwrite : bool, default False
+            Whether to overwrite the existing files.
+
+        Returns
+        -------
+        None
+
+        """
+        PTBXL.convert_to_wfdb_format(
+            df_demographics=self._df_metadata,
+            output_path=self.wfdb_data_dir,
+            fs=fs,
+            signal_format=signal_format,
+            trim_zeros=trim_zeros,
+            overwrite=overwrite,
+        )
+
+    @staticmethod
+    def convert_to_wfdb_format(
+        signal_dir: Union[str, bytes, os.PathLike],
+        df_demographics: pd.DataFrame,
+        output_path: Union[str, bytes, os.PathLike],
+        fs: Literal[100, 500] = 500,
+        signal_format: Literal["dat", "mat"] = "dat",
+        trim_zeros: bool = True,
+        overwrite: bool = False,
+    ) -> None:
+        """Convert the PTB-XL dataset to WFDB format.
+
+        Typically, the chagas labels are added to the header files as comments.
+
+        Parameters
+        ----------
+        signal_dir : `path-like`
+            Path to the directory containing the signal files.
+        df_demographics : pd.DataFrame
+            DataFrame containing the demographic information.
+        output_path : `path-like`
+            Output path to store the converted files.
+        fs : {100, 500}, default 500
+            Sampling frequency of the signals to convert.
+        signal_format : {"dat", "mat"}, default "dat"
+            The format of the signal files.
+        trim_zeros : bool, default True
+            Whether to trim the zero padding at the start and end of the signals.
+        overwrite : bool, default False
+            Whether to overwrite the existing files.
+
+        Returns
+        -------
+        None
+
+        """
+        signal_dir = Path(signal_dir).expanduser().resolve()
+        output_path = Path(output_path).expanduser().resolve()
+        assert fs in [100, 500], f"Unsupported sampling frequency: {fs}"
+        file_col = {100: "filename_lr", 500: "filename_hr"}[fs]
+        assert signal_format in ["dat", "mat"], f"Unsupported signal format: {signal_format}"
+        df_demographics = df_demographics.copy()
+        df_demographics["recording_date"] = pd.to_datetime(df_demographics["recording_date"])
+        df_demographics["recording_date"] = df_demographics["recording_date"].dt.strftime("%X %Y/%m/%d")
+
+        for row in tqdm(
+            df_demographics.itertuples(),
+            total=len(df_demographics),
+            desc="Converting signals",
+            dynamic_ncols=True,
+            mininterval=1,
+        ):
+            age = row["age"]
+            age = int(age) if is_integer(age) else float(age)
+
+            sex = row["sex"]
+            if sex == 0:
+                sex = "Male"
+            elif sex == 1:
+                sex = "Female"
+            else:
+                sex = "Unknown"
+
+            height = row["height"]
+            height = int(height) if is_integer(height) else float(height)
+
+            weight = row["weight"]
+            weight = int(weight) if is_integer(weight) else float(weight)
+
+            recording_date = row["recording_date"]
+
+            # Assume that all of the patients are negative for Chagas, which is likely to be the case for every or almost every patient
+            # in the PTB-XL dataset.
+            label = False
+
+            # Update the header file.
+            input_header_file = (signal_dir / row[file_col]).with_suffix(".hea")
+            output_header_file = (output_path / row[file_col]).with_suffix(".hea")
+            output_header_file.parent.mkdir(parents=True, exist_ok=True)
+
+            if not output_header_file.exists() or overwrite:
+                input_header = input_header_file.read_text()
+
+                lines = input_header.split("\n")
+                record_line = " ".join(lines[0].strip().split(" ")[:4]) + "\n"
+                signal_lines = "\n".join(line.strip() for line in lines[1:] if line.strip() and not line.startswith("#")) + "\n"
+                comment_lines = (
+                    "\n".join(
+                        line.strip()
+                        for line in lines[1:]
+                        if line.startswith("#")
+                        and not any(
+                            (line.startswith(x) for x in ("# Age:", "# Sex:", "# Height:", "# Weight:", "# Chagas label:"))
+                        )
+                    )
+                    + "\n"
+                )
+
+                record_line = record_line.strip() + f" {recording_date}" + "\n"
+                signal_lines = signal_lines.strip() + "\n"
+                comment_lines = (
+                    comment_lines.strip()
+                    + f"# Age: {age}\n# Sex: {sex}\n# Height: {height}\n# Weight: {weight}\n# Chagas label: {label}\n"
+                )
+
+                output_header = record_line + signal_lines + comment_lines
+                output_header_file.write_text(output_header)
+
+            # Copy the signal files if the input and output folders are different.
+            output_signal_file = (output_path / row[file_col]).with_suffix(f".{signal_format}")
+            if not output_signal_file.exists():
+                input_signal_file = (signal_dir / row[file_col]).with_suffix(".dat")
+                shutil.copy2(input_signal_file, output_signal_file.with_suffix(".dat"))
+                # Convert data from .dat files to .mat files as requested.
+                if signal_format in ("mat", ".mat"):
+                    ptbxl_convert_dat_to_mat(output_signal_file.stem, write_dir=str(output_signal_file.parent))
+
+                # Recompute the checksums as needed.
+                ptbxl_fix_checksums(str(output_signal_file.with_suffix("")))
 
 
 _CINC2025_INFO = DataBaseInfo(
@@ -1599,36 +1781,11 @@ class CINC2025(_DataBase):
         self.__config = CFG(BaseCfg.copy())
         self.__config.update(kwargs)
 
-        self.readers = {
-            "CODE15": CODE15(db_dir=self.db_dir["CODE15"], working_dir=self.working_dir, verbose=verbose, **kwargs),
-            "SamiTrop": SamiTrop(db_dir=self.db_dir["SamiTrop"], working_dir=self.working_dir, verbose=verbose, **kwargs),
-            "PTBXL": PTBXL(db_dir=self.db_dir["PTBXL"], working_dir=self.working_dir, verbose=verbose, **kwargs),
-        }
-
-        self.fs = 400
-
-        self._df_records = pd.DataFrame()
-        self._df_chagas = pd.DataFrame(columns=["chagas"])
-        self._all_records = []
-        self._ls_rec()
-
     def _ls_rec(self) -> None:
         """Find all records in the database directory
         and store them (path, metadata, etc.) in a dataframe.
         """
-        df_records = {}
-        for name, reader in self.readers.items():
-            reader._ls_rec()
-            df_records[name] = pd.DataFrame(index=reader._df_records.index)
-            df_records[name]["source"] = name
-            if hasattr(reader, "_df_chagas"):
-                self._df_chagas = pd.concat([self._df_chagas, reader._df_chagas[["chagas"]]], axis=0)
-            else:
-                df_chagas = pd.DataFrame(index=reader._df_records.index)
-                df_chagas["chagas"] = False
-                self._df_chagas = pd.concat([self._df_chagas, df_chagas], axis=0)
-        self._df_records = pd.concat(df_records.values(), axis=0)
-        self._all_records = self._df_records.index.tolist()
+        raise NotImplementedError
 
     def load_data(
         self,
@@ -1674,10 +1831,7 @@ class CINC2025(_DataBase):
             parameters `sampfrom` and `sampto` are not provided.
 
         """
-        if isinstance(rec, int):
-            rec = self[rec]
-        reader = self.readers[self._df_records.loc[rec, "source"]]
-        return reader.load_data(rec, data_format=data_format, units=units, fs=fs, return_fs=return_fs)
+        raise NotImplementedError
 
     def load_ann(self, rec: Union[str, int]) -> int:
         """Load the chagas annotations of the record.
@@ -1695,9 +1849,7 @@ class CINC2025(_DataBase):
             0 for negative, 1 for positive.
 
         """
-        if isinstance(rec, int):
-            rec = self[rec]
-        return int(self._df_chagas.loc[rec, "chagas"])
+        raise NotImplementedError
 
     def plot(self, rec: Union[str, int], **kwargs: Any) -> None:
         """Plot the signals of a record or external signals (units in μV),
@@ -1711,13 +1863,10 @@ class CINC2025(_DataBase):
             Additional keyword arguments to pass to corresponding reader's `plot()` method.
 
         """
-        if isinstance(rec, int):
-            rec = self[rec]
-        reader = self.readers[self._df_records.loc[rec, "source"]]
-        reader.plot(rec, **kwargs)
+        raise NotImplementedError
 
-    def download(self, files: Optional[Union[str, Sequence[str]]] = None, refresh: bool = True) -> None:
-        """Download the database files.
+    def download(self, files: Optional[Union[str, Sequence[str]]] = None) -> None:
+        """Download the database files, and convert them to WFDB format.
 
         Parameters
         ----------
@@ -1725,21 +1874,13 @@ class CINC2025(_DataBase):
             The files to download.
             If not specified, download all files.
             The available files are:
-                - "exams"
-                - "labels"
-                - "chagas_labels"
-        refresh : bool, default True
-            Whether to call `self._ls_rec()` after downloading the files.
+
+                - "code-15-exams-part{0-17}"
+                - "sami-trop"
+                - "ptb-xl"
 
         """
-        if "PTBXL" in files:
-            self.readers["PTBXL"].download()
-        for name, reader in self.readers.items():
-            if name == "PTBXL":
-                continue
-            dl_files = [item for item in files if item in reader.url.keys()]
-            if dl_files:
-                reader.download(files=dl_files, refresh=refresh)
+        raise NotImplementedError
 
 
 if __name__ == "__main__":

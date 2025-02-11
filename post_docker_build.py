@@ -63,8 +63,8 @@ def cache_data():
     del dr
     reader_kwargs = {
         "db_dir": Path(TEST_DATA_CACHE_DIR),
-        "code15_label_file": Path(LABEL_CACHE_DIR) / CODE15.__name__ / CODE15.__label_file__,
-        "code15_chagas_label_file": Path(LABEL_CACHE_DIR) / CODE15.__name__ / CODE15.__chagas_label_file__,
+        "label_file": Path(LABEL_CACHE_DIR) / CODE15.__name__ / CODE15.__label_file__,
+        "chagas_label_file": Path(LABEL_CACHE_DIR) / CODE15.__name__ / CODE15.__chagas_label_file__,
     }
     dr = CODE15(**reader_kwargs)
 

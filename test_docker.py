@@ -68,8 +68,8 @@ def test_dataset() -> None:
     echo_write_permission(ds_config.working_dir)
 
     reader_kwargs = {
-        "code15_label_file": Path(LABEL_CACHE_DIR) / CODE15.__name__ / CODE15.__label_file__,
-        "code15_chagas_label_file": Path(LABEL_CACHE_DIR) / CODE15.__name__ / CODE15.__chagas_label_file__,
+        "label_file": Path(LABEL_CACHE_DIR) / CODE15.__name__ / CODE15.__label_file__,
+        "chagas_label_file": Path(LABEL_CACHE_DIR) / CODE15.__name__ / CODE15.__chagas_label_file__,
     }
 
     ds_train = CINC2025Dataset(ds_config, training=True, lazy=True, **reader_kwargs)
