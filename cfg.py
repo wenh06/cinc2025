@@ -8,7 +8,7 @@ from copy import deepcopy
 import numpy as np
 import torch
 from torch_ecg.cfg import CFG
-from torch_ecg.model_configs import linear
+from torch_ecg.model_configs import linear  # noqa: F401
 
 __all__ = [
     "BaseCfg",
@@ -62,14 +62,23 @@ TrainCfg.aux_tasks = CFG(
         loss_kw={},  # keyword arguments for the loss function
     ),
     arrhythmia_classification=CFG(
-        enabled=True,
+        enabled=False,
         loss="AsymmetricLoss",
         loss_weight=1.0,
         loss_kw={},  # keyword arguments for the loss function
     ),
 )
 
-TrainCfg.train_ratio = 0.9
+TrainCfg.resample = CFG(
+    fs=TrainCfg.fs,
+)
+# TrainCfg.baseline_remove = {}  # default values
+TrainCfg.bandpass = CFG(
+    filter_type="butter",
+)
+
+
+TrainCfg.train_ratio = 0.8
 TrainCfg.input_len = 4096  # approximately 10s
 
 
@@ -84,11 +93,12 @@ ModelCfg = CFG()
 ModelCfg.torch_dtype = BaseCfg.torch_dtype
 ModelCfg.model_dir = BaseCfg.model_dir
 ModelCfg.checkpoints = BaseCfg.checkpoints
+ModelCfg.fs = BaseCfg.fs
 
-ModelCfg.arr_diag_head = deepcopy(linear)
-ModelCfg.arr_diag_head.update(
-    CFG(
-        enabled=True,
-        out_channels=[512] + [len(BaseCfg.arr_diag_classes)],
-    )
-)
+# ModelCfg.arr_diag_head = deepcopy(linear)
+# ModelCfg.arr_diag_head.update(
+#     CFG(
+#         enabled=True,
+#         out_channels=[512] + [len(BaseCfg.arr_diag_classes)],
+#     )
+# )

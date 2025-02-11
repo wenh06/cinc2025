@@ -1971,6 +1971,7 @@ class CINC2025(_DataBase):
 
         # drop records with missing chagas label
         self._df_records = self._df_records.dropna(subset=["chagas"])
+        self._df_records["chagas"] = self._df_records["chagas"].apply(str2bool)
         self._all_records = self._df_records.index.tolist()
 
     def load_data(
