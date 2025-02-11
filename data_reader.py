@@ -19,6 +19,7 @@ from torch_ecg.databases.base import DEFAULT_FIG_SIZE_PER_SEC, DataBaseInfo, _Da
 from torch_ecg.databases.physionet_databases import PTBXL as PTBXL_Reader
 from torch_ecg.utils.download import http_get
 from torch_ecg.utils.misc import add_docstring, str2bool
+from torch_ecg.utils.utils_data import stratified_train_test_split
 from tqdm.auto import tqdm
 
 from cfg import BaseCfg
@@ -652,6 +653,53 @@ class CODE15(_DataBase):
     def database_info(self) -> DataBaseInfo:
         return _CODE15_INFO
 
+    def _train_test_split(self, train_ratio: float = 0.8) -> Dict[str, List[str]]:
+        """Split the dataset into training and validation sets
+        in a stratified manner.
+
+        Parameters
+        ----------
+        train_ratio : float, default 0.8
+            The ratio of the training set.
+        force_recompute : bool, default False
+            Whether to recompute the split.
+
+        Returns
+        -------
+        data_split : dict
+            Dictionary containing the training and test (validation) sets
+            of the record names.
+
+        """
+        _train_ratio = int(train_ratio * 100)
+        _test_ratio = 100 - _train_ratio
+        assert _train_ratio * _test_ratio > 0, "train_ratio and test_ratio must be positive"
+
+        df_subjects = self._df_records[["age", "sex", "death", "patient_id"]].copy()
+        df_subjects["chagas"] = self._df_chagas["chagas"]
+        # group by patient_id, and set `chagas` to `True` if any record of the patient is chagas
+        df_subjects = df_subjects.groupby("patient_id").agg(
+            {
+                "age": "first",
+                "sex": "first",
+                "death": "first",
+                "chagas": "max",
+            }
+        )
+        # make `age` categorical
+        df_subjects["age"] = df_subjects["age"].apply(lambda x: f"{int(x // 10)}0s")
+        df_train, df_test = stratified_train_test_split(
+            df_subjects,
+            ["age", "sex", "death", "chagas"],
+            test_ratio=1 - train_ratio,
+            reset_index=False,
+        )
+        data_split = {
+            "train": self._df_records[self._df_records["patient_id"].isin(df_train.index)].index.tolist(),
+            "test": self._df_records[self._df_records["patient_id"].isin(df_test.index)].index.tolist(),
+        }
+        return data_split
+
     def _convert_to_wfdb_format(
         self,
         signal_format: Literal["dat", "mat"] = "dat",
@@ -696,32 +744,6 @@ class CODE15(_DataBase):
         self._ls_rec()
 
         return excep_list
-
-    @staticmethod
-    def load_chagas_label_from_header(record_name: Union[str, bytes, os.PathLike]) -> int:
-        """Load the Chagas label from the header file of the record.
-
-        Parameters
-        ----------
-        record_name : str or `path-like`
-            Record name or path to the record.
-
-        Returns
-        -------
-        chagas_label : int
-            Chagas label of the record.
-            0 for negative, 1 for positive.
-
-        """
-        header_file = Path(record_name).expanduser().resolve().with_suffix(".hea")
-        with open(header_file, "r") as f:
-            for line in f:
-                if "Chagas label" in line:
-                    chagas_label = int(str2bool(line.split(":")[-1].strip()))
-                    break
-            else:
-                raise ValueError(f"Chagas label not found in the header file {header_file}")
-        return chagas_label
 
     @staticmethod
     def convert_to_wfdb_format(
@@ -879,6 +901,32 @@ class CODE15(_DataBase):
                         code15_fix_checksums(str(output_path / record), checksums)
 
         return excep_list
+
+    @staticmethod
+    def load_chagas_label_from_header(record_name: Union[str, bytes, os.PathLike]) -> int:
+        """Load the Chagas label from the header file of the record.
+
+        Parameters
+        ----------
+        record_name : str or `path-like`
+            Record name or path to the record.
+
+        Returns
+        -------
+        chagas_label : int
+            Chagas label of the record.
+            0 for negative, 1 for positive.
+
+        """
+        header_file = Path(record_name).expanduser().resolve().with_suffix(".hea")
+        with open(header_file, "r") as f:
+            for line in f:
+                if "Chagas label" in line:
+                    chagas_label = int(str2bool(line.split(":")[-1].strip()))
+                    break
+            else:
+                raise ValueError(f"Chagas label not found in the header file {header_file}")
+        return chagas_label
 
 
 _SamiTrop_INFO = DataBaseInfo(
@@ -1380,6 +1428,44 @@ class SamiTrop(_DataBase):
     def database_info(self) -> DataBaseInfo:
         return _SamiTrop_INFO
 
+    def _train_test_split(self, train_ratio: float = 0.8) -> Dict[str, List[str]]:
+        """Split the dataset into training and validation sets
+        in a stratified manner.
+
+        Parameters
+        ----------
+        train_ratio : float, default 0.8
+            The ratio of the training set.
+        force_recompute : bool, default False
+            Whether to recompute the split.
+
+        Returns
+        -------
+        data_split : dict
+            Dictionary containing the training and test (validation) sets
+            of the record names.
+
+        """
+        _train_ratio = int(train_ratio * 100)
+        _test_ratio = 100 - _train_ratio
+        assert _train_ratio * _test_ratio > 0, "train_ratio and test_ratio must be positive"
+
+        df_records = self._df_records[["age", "sex", "death"]].copy()
+        df_records["chagas"] = self._df_chagas["chagas"]
+        # make `age` categorical
+        df_records["age"] = df_records["age"].apply(lambda x: f"{int(x // 10)}0s")
+        df_train, df_test = stratified_train_test_split(
+            df_records,
+            ["age", "sex", "death", "chagas"],
+            test_ratio=1 - train_ratio,
+            reset_index=False,
+        )
+        data_split = {
+            "train": df_train.index.tolist(),
+            "test": df_test.index.tolist(),
+        }
+        return data_split
+
     def _convert_to_wfdb_format(
         self,
         signal_format: Literal["dat", "mat"] = "dat",
@@ -1560,6 +1646,49 @@ class SamiTrop(_DataBase):
 
 
 class PTBXL(PTBXL_Reader):
+
+    def _train_test_split(self, train_ratio: float = 0.8) -> Dict[str, List[str]]:
+        """Split the dataset into training and validation sets
+        in a stratified manner.
+
+        Parameters
+        ----------
+        train_ratio : float, default 0.8
+            The ratio of the training set.
+        force_recompute : bool, default False
+            Whether to recompute the split.
+
+        Returns
+        -------
+        data_split : dict
+            Dictionary containing the training and test (validation) sets
+            of the record names.
+
+        """
+        _train_ratio = int(train_ratio * 100)
+        _test_ratio = 100 - _train_ratio
+        assert _train_ratio * _test_ratio > 0, "train_ratio and test_ratio must be positive"
+
+        df_subjects = self._df_records[["age", "sex", "patient_id"]].copy()
+        df_subjects = df_subjects.groupby("patient_id").agg(
+            {
+                "age": "first",
+                "sex": "first",
+            }
+        )
+        # make `age` categorical
+        df_subjects["age"] = df_subjects["age"].apply(lambda x: f"{int(x // 10)}0s")
+        df_train, df_test = stratified_train_test_split(
+            df_subjects,
+            ["age", "sex"],
+            test_ratio=1 - train_ratio,
+            reset_index=False,
+        )
+        data_split = {
+            "train": self._df_records[self._df_records["patient_id"].isin(df_train.index)].index.tolist(),
+            "test": self._df_records[self._df_records["patient_id"].isin(df_test.index)].index.tolist(),
+        }
+        return data_split
 
     def _convert_to_wfdb_format(
         self,
