@@ -1554,9 +1554,9 @@ class PTBXL(PTBXL_Reader):
 
     def _convert_to_wfdb_format(
         self,
+        output_path: Union[str, bytes, os.PathLike] = "wfdb_format_files",
         fs: Literal[100, 500] = 500,
         signal_format: Literal["dat", "mat"] = "dat",
-        trim_zeros: bool = True,
         overwrite: bool = False,
     ) -> None:
         """Convert the PTB-XL dataset to WFDB format.
@@ -1565,12 +1565,13 @@ class PTBXL(PTBXL_Reader):
 
         Parameters
         ----------
+        output_path : `path-like`, default "wfdb_format_files"
+            Output path to store the converted files.
+            If not absolute, it is resolved relative to the database directory.
         fs : {100, 500}, default 500
             Sampling frequency of the signals to convert.
         signal_format : {"dat", "mat"}, default "dat"
             The format of the signal files.
-        trim_zeros : bool, default True
-            Whether to trim the zero padding at the start and end of the signals.
         overwrite : bool, default False
             Whether to overwrite the existing files.
 
@@ -1579,12 +1580,15 @@ class PTBXL(PTBXL_Reader):
         None
 
         """
+        output_path = Path(output_path).expanduser()
+        if not output_path.is_absolute():
+            output_path = self.db_dir / output_path
         PTBXL.convert_to_wfdb_format(
+            signal_dir=self.db_dir,
             df_demographics=self._df_metadata,
-            output_path=self.wfdb_data_dir,
+            output_path=output_path,
             fs=fs,
             signal_format=signal_format,
-            trim_zeros=trim_zeros,
             overwrite=overwrite,
         )
 
@@ -1595,7 +1599,6 @@ class PTBXL(PTBXL_Reader):
         output_path: Union[str, bytes, os.PathLike],
         fs: Literal[100, 500] = 500,
         signal_format: Literal["dat", "mat"] = "dat",
-        trim_zeros: bool = True,
         overwrite: bool = False,
     ) -> None:
         """Convert the PTB-XL dataset to WFDB format.
@@ -1614,8 +1617,6 @@ class PTBXL(PTBXL_Reader):
             Sampling frequency of the signals to convert.
         signal_format : {"dat", "mat"}, default "dat"
             The format of the signal files.
-        trim_zeros : bool, default True
-            Whether to trim the zero padding at the start and end of the signals.
         overwrite : bool, default False
             Whether to overwrite the existing files.
 
@@ -1631,7 +1632,7 @@ class PTBXL(PTBXL_Reader):
         assert signal_format in ["dat", "mat"], f"Unsupported signal format: {signal_format}"
         df_demographics = df_demographics.copy()
         df_demographics["recording_date"] = pd.to_datetime(df_demographics["recording_date"])
-        df_demographics["recording_date"] = df_demographics["recording_date"].dt.strftime("%X %Y/%m/%d")
+        df_demographics["recording_date"] = df_demographics["recording_date"].dt.strftime("%X %d/%m/%Y")
 
         for row in tqdm(
             df_demographics.itertuples(),
@@ -1640,10 +1641,10 @@ class PTBXL(PTBXL_Reader):
             dynamic_ncols=True,
             mininterval=1,
         ):
-            age = row["age"]
+            age = row.age
             age = int(age) if is_integer(age) else float(age)
 
-            sex = row["sex"]
+            sex = row.sex
             if sex == 0:
                 sex = "Male"
             elif sex == 1:
@@ -1651,21 +1652,21 @@ class PTBXL(PTBXL_Reader):
             else:
                 sex = "Unknown"
 
-            height = row["height"]
+            height = row.height
             height = int(height) if is_integer(height) else float(height)
 
-            weight = row["weight"]
+            weight = row.weight
             weight = int(weight) if is_integer(weight) else float(weight)
 
-            recording_date = row["recording_date"]
+            recording_date = row.recording_date
 
             # Assume that all of the patients are negative for Chagas, which is likely to be the case for every or almost every patient
             # in the PTB-XL dataset.
             label = False
 
             # Update the header file.
-            input_header_file = (signal_dir / row[file_col]).with_suffix(".hea")
-            output_header_file = (output_path / row[file_col]).with_suffix(".hea")
+            input_header_file = (signal_dir / getattr(row, file_col)).with_suffix(".hea")
+            output_header_file = (output_path / getattr(row, file_col)).with_suffix(".hea")
             output_header_file.parent.mkdir(parents=True, exist_ok=True)
 
             if not output_header_file.exists() or overwrite:
@@ -1697,9 +1698,9 @@ class PTBXL(PTBXL_Reader):
                 output_header_file.write_text(output_header)
 
             # Copy the signal files if the input and output folders are different.
-            output_signal_file = (output_path / row[file_col]).with_suffix(f".{signal_format}")
+            output_signal_file = (output_path / getattr(row, file_col)).with_suffix(f".{signal_format}")
             if not output_signal_file.exists():
-                input_signal_file = (signal_dir / row[file_col]).with_suffix(".dat")
+                input_signal_file = (signal_dir / getattr(row, file_col)).with_suffix(".dat")
                 shutil.copy2(input_signal_file, output_signal_file.with_suffix(".dat"))
                 # Convert data from .dat files to .mat files as requested.
                 if signal_format in ("mat", ".mat"):
@@ -1781,11 +1782,17 @@ class CINC2025(_DataBase):
         self.__config = CFG(BaseCfg.copy())
         self.__config.update(kwargs)
 
+        self._df_records = pd.DataFrame()
+        self._all_records = []
+        self._ls_rec()
+
     def _ls_rec(self) -> None:
         """Find all records in the database directory
         and store them (path, metadata, etc.) in a dataframe.
         """
-        raise NotImplementedError
+        self._df_records = pd.DataFrame(self.db_dir.rglob("*.hea"), columns=["path"])
+        self._df_records["path"] = self._df_records["path"].apply(lambda x: x.with_suffix(""))
+        self._df_records["record"] = self._df_records["path"].apply(lambda x: x.stem)
 
     def load_data(
         self,
