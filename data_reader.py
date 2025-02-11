@@ -1,6 +1,7 @@
 """
 """
 
+import multiprocessing as mp
 import os
 import re
 import shutil
@@ -14,7 +15,7 @@ import numpy as np
 import pandas as pd
 import wfdb
 from torch_ecg.cfg import CFG
-from torch_ecg.databases.base import DEFAULT_FIG_SIZE_PER_SEC, DataBaseInfo, _DataBase
+from torch_ecg.databases.base import DEFAULT_FIG_SIZE_PER_SEC, DataBaseInfo, _DataBase, wfdb_get_version
 from torch_ecg.databases.physionet_databases import PTBXL as PTBXL_Reader
 from torch_ecg.utils.download import http_get
 from torch_ecg.utils.misc import add_docstring, str2bool
@@ -186,7 +187,7 @@ class CODE15(_DataBase):
         if self._chagas_label_file is None:
             self._chagas_label_file = self.db_dir / self.__chagas_label_file__
             if not self._chagas_label_file.exists():
-                # self.download(["chagas_labels"], refresh=False)
+                # self.download(["chagas-labels"], refresh=False)
                 self._chagas_label_file = None
         else:
             self._chagas_label_file = Path(self._chagas_label_file).expanduser().resolve()
@@ -346,6 +347,8 @@ class CODE15(_DataBase):
             data = data * 1e3
         if fs is not None and fs != self.fs:
             data = wfdb.processing.resample_sig(data, self.fs, fs)
+        else:
+            fs = self.fs
         if data_format.lower() in ["channel_first", "lead_first"]:
             data = data.T
         if return_fs:
@@ -592,11 +595,11 @@ class CODE15(_DataBase):
 
     @property
     def url(self) -> Dict[str, str]:
-        files = {f"exams_part{i}": f"{self.__dl_base_url__}exams_part{i}.zip?download=1" for i in range(18)}
+        files = {f"exams-part{i}": f"{self.__dl_base_url__}exams_part{i}.zip?download=1" for i in range(18)}
         files.update(
             {
                 "labels": f"{self.__dl_base_url__}{self.__label_file__}?download=1",
-                "chagas_labels": self.__chagas_label_file_url__,
+                "chagas-labels": self.__chagas_label_file_url__,
             }
         )
         return files
@@ -610,9 +613,10 @@ class CODE15(_DataBase):
             The files to download.
             If not specified, download all files.
             The available files are:
-                - "exams_part{i}" for i in range(18)
+
+                - "exams-part{i}" for i in range(18)
                 - "labels"
-                - "chagas_labels"
+                - "chagas-labels"
         refresh : bool, default True
             Whether to call `self._ls_rec()` after downloading the files.
 
@@ -642,7 +646,7 @@ class CODE15(_DataBase):
 
     def download_subset(self) -> None:
         """Download a subset of the database files."""
-        self.download(["exams_part17", "labels", "chagas_labels"])
+        self.download(["exams-part17", "labels", "chagas-labels"])
 
     @property
     def database_info(self) -> DataBaseInfo:
@@ -733,6 +737,8 @@ class CODE15(_DataBase):
 
         Modified from the original script in `prepare_code15_data.py`,
         which is simplifed and enhanced with progress bar and error handling.
+
+        TODO: use multi-processing for faster conversion.
 
         Parameters
         ----------
@@ -1005,7 +1011,7 @@ class SamiTrop(_DataBase):
         if self._chagas_label_file is None:
             self._chagas_label_file = self.db_dir / self.__chagas_label_file__
             if not self._chagas_label_file.exists():
-                # self.download(["chagas_labels"], refresh=False)
+                # self.download(["chagas-labels"], refresh=False)
                 self._chagas_label_file = None
         else:
             self._chagas_label_file = Path(self._chagas_label_file).expanduser().resolve()
@@ -1151,6 +1157,8 @@ class SamiTrop(_DataBase):
             data = data * 1e3
         if fs is not None and fs != self.fs:
             data = wfdb.processing.resample_sig(data, self.fs, fs)
+        else:
+            fs = self.fs
         if data_format.lower() in ["channel_first", "lead_first"]:
             data = data.T
         if return_fs:
@@ -1325,7 +1333,7 @@ class SamiTrop(_DataBase):
         return {
             "exams": f"{self.__dl_base_url__}{self.__data_file__}?download=1",
             "labels": f"{self.__dl_base_url__}{self.__label_file__}?download=1",
-            "chagas_labels": self.__chagas_label_file_url__,
+            "chagas-labels": self.__chagas_label_file_url__,
         }
 
     def download(self, files: Optional[Union[str, Sequence[str]]] = None, refresh: bool = True) -> None:
@@ -1337,9 +1345,10 @@ class SamiTrop(_DataBase):
             The files to download.
             If not specified, download all files.
             The available files are:
+
                 - "exams"
                 - "labels"
-                - "chagas_labels"
+                - "chagas-labels"
         refresh : bool, default True
             Whether to call `self._ls_rec()` after downloading the files.
 
@@ -1605,6 +1614,8 @@ class PTBXL(PTBXL_Reader):
 
         Typically, the chagas labels are added to the header files as comments.
 
+        TODO: use multi-processing for faster conversion.
+
         Parameters
         ----------
         signal_dir : `path-like`
@@ -1782,6 +1793,8 @@ class CINC2025(_DataBase):
         self.__config = CFG(BaseCfg.copy())
         self.__config.update(kwargs)
 
+        self.all_leads = ["I", "II", "III", "AVR", "AVL", "AVF", "V1", "V2", "V3", "V4", "V5", "V6"]
+
         self._df_records = pd.DataFrame()
         self._all_records = []
         self._ls_rec()
@@ -1793,6 +1806,43 @@ class CINC2025(_DataBase):
         self._df_records = pd.DataFrame(self.db_dir.rglob("*.hea"), columns=["path"])
         self._df_records["path"] = self._df_records["path"].apply(lambda x: x.with_suffix(""))
         self._df_records["record"] = self._df_records["path"].apply(lambda x: x.stem)
+        # load the metadata (age, sex) and chagas labels from the header files
+        columns = ["age", "sex", "fs", "chagas"]
+        self._df_records[columns] = None
+
+        # comment_pattern = re.compile("(?P<key>[^:\\s]+): (?P<value>.+)", re.MULTILINE)
+        # for row in tqdm(
+        #     self._df_records.itertuples(),
+        #     total=len(self._df_records),
+        #     desc="Loading metadata",
+        #     dynamic_ncols=True,
+        #     mininterval=1,
+        # ):
+        #     comments = "\n".join(wfdb.rdheader(row.path).comments)
+        #     for key, val in comment_pattern.findall(comments):
+        #         key = key.lower().replace("label", "").strip()
+        #         if key in columns:
+        #             self._df_records.loc[row.Index, key] = val
+
+        with mp.Pool(processes=max(1, mp.cpu_count() - 3)) as pool:
+            metadata = pool.starmap(
+                load_metadata_from_header,
+                tqdm(
+                    [(row.path,) for row in self._df_records.itertuples()],
+                    total=len(self._df_records),
+                    desc="Loading metadata",
+                    dynamic_ncols=True,
+                    mininterval=1,
+                ),
+            )
+        metadata = pd.DataFrame(metadata, columns=columns + ["record"])
+        metadata.set_index("record", inplace=True)
+        self._df_records.set_index("record", inplace=True)
+        self._df_records[columns] = metadata
+
+        # drop records with missing chagas label
+        self._df_records = self._df_records.dropna(subset=["chagas"])
+        self._all_records = self._df_records.index.tolist()
 
     def load_data(
         self,
@@ -1800,7 +1850,7 @@ class CINC2025(_DataBase):
         data_format: str = "channel_first",
         units: Union[str, type(None)] = "mV",
         fs: Optional[Real] = None,
-        return_fs: bool = False,
+        return_fs: bool = True,
     ) -> Union[np.ndarray, Tuple[np.ndarray, Real]]:
         """Load physical (converted from digital) ECG data,
         or load digital signal directly.
@@ -1822,7 +1872,7 @@ class CINC2025(_DataBase):
             Sampling frequency of the output signal.
             If not None, the loaded data will be resampled to this frequency,
             otherwise, the original sampling frequency will be used.
-        return_fs : bool, default False
+        return_fs : bool, default True
             Whether to return the sampling frequency of the output signal.
 
         Returns
@@ -1838,7 +1888,23 @@ class CINC2025(_DataBase):
             parameters `sampfrom` and `sampto` are not provided.
 
         """
-        raise NotImplementedError
+        if isinstance(rec, int):
+            rec = self[rec]
+        record_path = self._df_records.loc[rec, "path"]
+        data = wfdb.rdsamp(record_path)[0]  # shape (n_samples, n_leads)
+        data = data.astype(np.float32)  # typically in most deep learning tasks, we use float32
+        data_fs = wfdb.rdheader(record_path).fs
+        if units.lower() in ["uv", "μv", "muv"]:
+            data = data * 1e3
+        if fs is not None and fs != data_fs:
+            data = wfdb.processing.resample_sig(data, data_fs, fs)
+        else:
+            fs = data_fs
+        if data_format.lower() in ["channel_first", "lead_first"]:
+            data = data.T
+        if return_fs:
+            return data, fs
+        return data
 
     def load_ann(self, rec: Union[str, int]) -> int:
         """Load the chagas annotations of the record.
@@ -1856,9 +1922,20 @@ class CINC2025(_DataBase):
             0 for negative, 1 for positive.
 
         """
-        raise NotImplementedError
+        if isinstance(rec, int):
+            rec = self[rec]
+        chagas_ann = int(self._df_records.loc[rec, "chagas"])
+        return chagas_ann
 
-    def plot(self, rec: Union[str, int], **kwargs: Any) -> None:
+    def plot(
+        self,
+        rec: Union[str, int],
+        data: Optional[np.ndarray] = None,
+        ticks_granularity: int = 0,
+        leads: Optional[Union[str, Sequence[str]]] = None,
+        same_range: bool = False,
+        **kwargs: Any,
+    ) -> None:
         """Plot the signals of a record or external signals (units in μV),
         along with the annotations.
 
@@ -1866,14 +1943,125 @@ class CINC2025(_DataBase):
         ----------
         rec : str or int
             Record name or index of the record in :attr:`all_records`.
+        data : numpy.ndarray, optional
+            (12-lead) ECG signal to plot,
+            should be of the format "channel_first",
+            and compatible with `leads`.
+            If is not None, data of `rec` will not be used.
+            This is useful when plotting filtered data.
+        ticks_granularity : int, default 0
+            Granularity to plot axis ticks, the higher the more ticks.
+            0 (no ticks) --> 1 (major ticks) --> 2 (major + minor ticks)
+        leads : str or List[str], optional
+            The leads of the ECG signal to plot.
+        same_range : bool, default False
+            If True, all leads are forced to have the same y range.
         kwargs : dict, optional
-            Additional keyword arguments to pass to corresponding reader's `plot()` method.
+            Additional keyword arguments to pass to :func:`matplotlib.pyplot.plot`.
 
         """
-        raise NotImplementedError
+        if isinstance(rec, int):
+            rec = self[rec]
 
-    def download(self, files: Optional[Union[str, Sequence[str]]] = None) -> None:
-        """Download the database files, and convert them to WFDB format.
+        if "plt" not in dir():
+            import matplotlib.pyplot as plt
+
+            plt.MultipleLocator.MAXTICKS = 3000
+
+        _leads = self._normalize_leads(leads, numeric=False)
+        lead_indices = [self.all_leads.index(ld) for ld in _leads]
+
+        if data is None:
+            _data, fs = self.load_data(rec, data_format="channel_first", units="μV")
+            _data = _data[lead_indices]
+        else:
+            units = self._auto_infer_units(data)
+            fs = self._df_records.loc[rec, "fs"]
+            self.logger.info(f"input data is auto detected to have units in {units}")
+            if units.lower() == "mv":
+                _data = 1000 * data
+            else:
+                _data = data
+            assert _data.shape[0] == len(
+                _leads
+            ), f"number of leads from data of shape ({_data.shape[0]}) does not match the length ({len(_leads)}) of `leads`"
+
+        if same_range:
+            y_ranges = np.ones((_data.shape[0],)) * np.max(np.abs(_data)) + 100
+        else:
+            y_ranges = np.max(np.abs(_data), axis=1) + 100
+
+        row = self._df_records.loc[rec]
+        ann = f"Chagas - {row.chagas}"
+
+        plot_alpha = 0.4
+        nb_leads = len(_leads)
+
+        t = np.arange(_data.shape[1]) / fs
+        duration = len(t) / fs
+        fig_sz_w = int(round(DEFAULT_FIG_SIZE_PER_SEC * duration))
+        fig_sz_h = 6 * np.maximum(y_ranges, 750) / 1500
+        fig, axes = plt.subplots(nb_leads, 1, sharex=False, figsize=(fig_sz_w, np.sum(fig_sz_h)))
+        if nb_leads == 1:
+            axes = [axes]
+        for idx in range(nb_leads):
+            axes[idx].plot(
+                t,
+                _data[idx],
+                color="black",
+                linewidth="2.0",
+                label=f"lead - {_leads[idx]}",
+            )
+            axes[idx].axhline(y=0, linestyle="-", linewidth="1.0", color="red")
+            # NOTE that `Locator` has default `MAXTICKS` equal to 1000
+            if ticks_granularity >= 1:
+                axes[idx].xaxis.set_major_locator(plt.MultipleLocator(0.2))
+                axes[idx].yaxis.set_major_locator(plt.MultipleLocator(500))
+                axes[idx].grid(which="major", linestyle="-", linewidth="0.4", color="red")
+            if ticks_granularity >= 2:
+                axes[idx].xaxis.set_minor_locator(plt.MultipleLocator(0.04))
+                axes[idx].yaxis.set_minor_locator(plt.MultipleLocator(100))
+                axes[idx].grid(which="minor", linestyle=":", linewidth="0.2", color="gray")
+            # add extra info. to legend
+            # https://stackoverflow.com/questions/16826711/is-it-possible-to-add-a-string-as-a-legend-item-in-matplotlib
+            axes[idx].plot(
+                [],
+                [],
+                " ",
+                label=f"Record ID - {rec}; Age - {row.age}; Sex - {row.sex}",
+            )
+            axes[idx].plot([], [], " ", label=ann)
+            axes[idx].legend(loc="upper left", fontsize=14)
+            axes[idx].set_xlim(t[0], t[-1])
+            axes[idx].set_ylim(min(-600, -y_ranges[idx]), max(600, y_ranges[idx]))
+            axes[idx].set_xlabel("Time [s]", fontsize=16)
+            axes[idx].set_ylabel("Voltage [μV]", fontsize=16)
+        plt.subplots_adjust(hspace=0.05)
+        fig.tight_layout()
+        if kwargs.get("save_path", None):
+            plt.savefig(kwargs["save_path"], dpi=200, bbox_inches="tight")
+        else:
+            plt.show()
+
+    @property
+    def database_info(self) -> DataBaseInfo:
+        return _CINC2025_INFO
+
+    @property
+    def url(self) -> Dict[str, str]:
+        links = {
+            "ptb-xl": f"s3://physionet-open/ptb-xl/{wfdb_get_version('ptb-xl')}/",
+            "sami-trop-exams": f"{SamiTrop.__dl_base_url__}{SamiTrop.__data_file__}?download=1",
+            "sami-trop-labels": f"{SamiTrop.__dl_base_url__}{SamiTrop.__label_file__}?download=1",
+            "sami-trop-chagas-labels": SamiTrop.__chagas_label_file_url__,
+            "code-15-labels": f"{CODE15.__dl_base_url__}{CODE15.__label_file__}?download=1",
+            "code-15-chagas-labels": CODE15.__chagas_label_file_url__,
+        }
+        links.update({f"code-15-exams-part{i}": f"{CODE15.__dl_base_url__}exams_part{i}.zip?download=1" for i in range(18)})
+        return links
+
+    def download(self, files: Optional[Union[str, Sequence[str]]] = None, convert: bool = True) -> None:
+        """Download the database files.
 
         Parameters
         ----------
@@ -1883,11 +2071,69 @@ class CINC2025(_DataBase):
             The available files are:
 
                 - "code-15-exams-part{0-17}"
-                - "sami-trop"
+                - "code-15-labels"
+                - "code-15-chagas-labels"
+                - "sami-trop-exams"
+                - "sami-trop-labels"
+                - "sami-trop-chagas-labels"
                 - "ptb-xl"
+        convert : bool, default True
+            Whether to convert the downloaded files to WFDB format.
 
         """
-        raise NotImplementedError
+        if files is None:
+            files = list(self.url.keys())
+        elif isinstance(files, str):
+            files = [files]
+
+        code15_files = [item for item in files if item.startswith("code-15")]
+        samitrop_files = [item for item in files if item.startswith("sami-trop")]
+        ptbxl_files = [item for item in files if item == "ptb-xl"]
+
+        if code15_files:
+            dr = CODE15(db_dir=self.db_dir / "code-15-original", wfdb_data_dir=self.db_dir)
+            dr.download(code15_files, refresh=False)
+            if convert:
+                dr._ls_rec()
+                dr._convert_to_wfdb_format()
+            del dr
+        if samitrop_files:
+            dr = SamiTrop(db_dir=self.db_dir / "sami-trop-original", wfdb_data_dir=self.db_dir)
+            dr.download(samitrop_files, refresh=False)
+            if convert:
+                dr._ls_rec()
+                dr._convert_to_wfdb_format()
+            del dr
+        if ptbxl_files:
+            dr = PTBXL(db_dir=self.db_dir / "ptb-xl-original")
+            dr.download()
+            if convert:
+                dr._ls_rec()
+                dr._convert_to_wfdb_format(output_path=self.db_dir)
+            del dr
+
+
+def load_metadata_from_header(header_file: Union[str, bytes, os.PathLike]) -> Dict[str, Any]:
+    """Load metadata from the header file.
+
+    Parameters
+    ----------
+    header_file : `path-like`
+        Path to the header file.
+
+    Returns
+    -------
+    metadata : dict
+        Metadata extracted from the header file.
+
+    """
+    comment_pattern = re.compile("(?P<key>[^:\\n]+): (?P<value>.+)", re.MULTILINE)
+    header = wfdb.rdheader(str(header_file))
+    comments = "\n".join(header.comments)
+    metadata = {key.lower().replace("label", "").strip(): val for key, val in comment_pattern.findall(comments)}
+    metadata["record"] = Path(header_file).stem
+    metadata["fs"] = header.fs
+    return metadata
 
 
 if __name__ == "__main__":
@@ -1901,7 +2147,6 @@ if __name__ == "__main__":
         type=str,
         choices=[
             "download",
-            "convert_to_wfdb_format",
         ],
     )
     parser.add_argument(
@@ -1912,6 +2157,13 @@ if __name__ == "__main__":
         dest="db_dir",
     )
     parser.add_argument(
+        "-c",
+        "--convert",
+        action="store_true",
+        help="Whether to convert the downloaded files to WFDB format.",
+        dest="convert",
+    )
+    parser.add_argument(
         "-w",
         "--working-dir",
         type=str,
@@ -1920,62 +2172,35 @@ if __name__ == "__main__":
         dest="working_dir",
     )
     parser.add_argument(
-        "-o",
-        "--output-folder",
-        type=str,
-        help="The output directory to store the converted wfdb format files, used when `operations` contain `convert_to_wfdb_format`.",
-        default=None,
-        dest="output_folder",
-    )
-    parser.add_argument(
         "-f",
         "--files",
         type=str,
-        help="H5 data files to download, used when `operations` contain `download`. e.g., '0,3-6,9,SamiTrop,PTBXL'.",
+        help=(
+            "H5 data files to download, used when `operations` contain `download`. "
+            "e.g., 'code-15-exams-part0,code-15-exams-part17,sami-trop-exams,ptb-xl'."
+        ),
         dest="files",
     )
 
     args = parser.parse_args()
     operations = args.operations
-    if "convert_to_wfdb_format" in operations and args.output_folder is not None:
-        dr = CODE15(db_dir=args.db_dir, wfdb_data_dir=args.output_folder)
-    else:
-        dr = CODE15(db_dir=args.db_dir)
+    files = args.files.split(",") if args.files else None
+    if files is not None and "labels" in files:
+        files.remove("labels")
+        files.extend(["code-15-labels", "sami-trop-labels"])
+    if files is not None and "chagas-labels" in files:
+        files.remove("chagas-labels")
+        files.extend(["code-15-chagas-labels", "sami-trop-chagas-labels"])
 
-    if "download" in operations:
-        if args.files:
-            files = set()
-            for item in args.files.split(","):
-                item = item.strip()
-                if item.isdigit():
-                    if int(item) < 18:
-                        files.add(f"exams_part{item}")
-                    else:
-                        warnings.warn(f"Invalid file number: {item}, skipped.")
-                elif re.match(r"\d+-\d+", item):
-                    start, end = map(int, item.split("-"))
-                    if start > end or end >= 18:
-                        warnings.warn(f"Invalid file range: {item}, skipped.")
-                    else:
-                        files.update([f"exams_part{i}" for i in range(start, end + 1)])
-                elif item in ["labels", "chagas_labels"]:
-                    files.add(item)
-                else:
-                    warnings.warn(f"Unknown file: {item}, skipped.")
-            if "convert_to_wfdb_format" in operations:
-                files.update(["labels", "chagas_labels"])
-            dr.download(files, refresh=False)
-        else:
-            dr.download(refresh=False)
-
-    if "convert_to_wfdb_format" in operations:
-        if args.output_folder is None:
-            warnings.warn(f"Output folder not specified. Default to {dr.wfdb_data_dir}.")
-        dr._ls_rec()
-        dr._convert_to_wfdb_format()
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        dr = CINC2025(db_dir=args.db_dir, working_dir=args.working_dir)
+        convert = True if "convert_to_wfdb_format" in operations else False
+        if "download" in operations:
+            dr.download(files, convert)
 
     print("Done.")
 
     # usage examples:
-    # python data_reader.py download -d /path/to/db_dir
-    # python data_reader.py download convert_to_wfdb_format --db-dir /path/to/db_dir --files 0,17
+    # python data_reader.py download -d /path/to/db_dir -c
+    # python data_reader.py download --db-dir /path/to/db_dir --files "code-15-exams-part0,code-15-exams-part17,sami-trop-exams,ptb-xl" -c
