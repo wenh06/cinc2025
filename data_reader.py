@@ -2256,6 +2256,7 @@ class CINC2025(_DataBase):
         ptbxl_files = [item for item in files if item.startswith("ptb-xl")]
 
         if code15_files:
+            (self.db_dir / CODE15.__name__).mkdir(parents=True, exist_ok=True)
             dr = CODE15(db_dir=self.db_dir / CODE15.__name__, wfdb_data_dir=self.db_dir)
             dr.download(code15_files, refresh=False)
             if convert:
@@ -2263,6 +2264,7 @@ class CINC2025(_DataBase):
                 dr._convert_to_wfdb_format()
             del dr
         if samitrop_files:
+            (self.db_dir / SamiTrop.__name__).mkdir(parents=True, exist_ok=True)
             dr = SamiTrop(db_dir=self.db_dir / SamiTrop.__name__, wfdb_data_dir=self.db_dir)
             dr.download(samitrop_files, refresh=False)
             if convert:
@@ -2270,6 +2272,7 @@ class CINC2025(_DataBase):
                 dr._convert_to_wfdb_format()
             del dr
         if ptbxl_files:
+            (self.db_dir / PTBXL.__name__).mkdir(parents=True, exist_ok=True)
             if "ptb-xl-subset" in ptbxl_files:
                 http_get(
                     self.url["ptb-xl-subset"],
