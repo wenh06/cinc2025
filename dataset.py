@@ -153,6 +153,9 @@ class CINC2025Dataset(Dataset, ReprMixin):
         part = "train" if self.training else "test"
         records = code_15_data_split[part] + ptb_xl_data_split[part] + sami_trop_data_split[part]
 
+        # keep only the records that are in the database (self.reader.all_records)
+        records = [rec for rec in records if rec in self.reader.all_records]
+
         if self.training:
             DEFAULTS.RNG.shuffle(records)
 
