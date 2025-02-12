@@ -7,7 +7,7 @@ from torch_ecg.utils.download import http_get, url_is_reachable  # noqa: F401
 from torch_ecg.utils.misc import str2bool
 
 from const import DATA_CACHE_DIR, LABEL_CACHE_DIR, MODEL_CACHE_DIR, TEST_DATA_CACHE_DIR
-from data_reader import CODE15
+from data_reader import CINC2025, CODE15, SamiTrop
 
 try:
     TEST_FLAG = os.environ.get("CINC2025_REVENGER_TEST", False)
@@ -45,28 +45,38 @@ def cache_data():
     reader_kwargs = {
         "db_dir": Path(TEST_DATA_CACHE_DIR),
     }
-    dr = CODE15(**reader_kwargs)
+    dr = CINC2025(**reader_kwargs)
     # dr.download_subset()
-    dr.download(files=["labels", "chagas_labels"])
+    dr.download(files=["code-15-labels", "code-15-chagas-labels", "sami-trop-labels", "sami-trop-chagas-labels"])
     print("   Caching necessary data done.   ".center(80, "#"))
 
     # move the label files to `LABEL_CACHE_DIR`
     print("   Moving the label files   ".center(80, "#"))
     (Path(LABEL_CACHE_DIR) / CODE15.__name__).mkdir(parents=True, exist_ok=True)
-    shutil.move(dr._label_file, Path(LABEL_CACHE_DIR) / CODE15.__name__)
-    shutil.move(dr._chagas_label_file, LABEL_CACHE_DIR / CODE15.__name__)
+    (Path(LABEL_CACHE_DIR) / SamiTrop.__name__).mkdir(parents=True, exist_ok=True)
+    # shutil.move(dr._label_file, Path(LABEL_CACHE_DIR) / CODE15.__name__)
+    # shutil.move(dr._chagas_label_file, LABEL_CACHE_DIR / CODE15.__name__)
+    dr_code15 = CODE15(db_dir=Path(TEST_DATA_CACHE_DIR) / CODE15.__name__)
+    shutil.move(dr_code15._label_file, Path(LABEL_CACHE_DIR) / CODE15.__name__)
+    shutil.move(dr_code15._chagas_label_file, Path(LABEL_CACHE_DIR) / CODE15.__name__)
+    del dr_code15
+    dr_sami_trop = SamiTrop(db_dir=Path(TEST_DATA_CACHE_DIR) / SamiTrop.__name__)
+    shutil.move(dr_sami_trop._label_file, Path(LABEL_CACHE_DIR) / SamiTrop.__name__)
+    shutil.move(dr_sami_trop._chagas_label_file, Path(LABEL_CACHE_DIR) / SamiTrop.__name__)
+    del dr_sami_trop
     print("In the LABEL_CACHE_DIR:")
     print(list((Path(LABEL_CACHE_DIR) / CODE15.__name__).rglob("*")))
+    print(list((Path(LABEL_CACHE_DIR) / SamiTrop.__name__).rglob("*")))
     print("   Moving the label files done.   ".center(80, "#"))
 
     # re-init the reader with the new label file paths
-    del dr
-    reader_kwargs = {
-        "db_dir": Path(TEST_DATA_CACHE_DIR),
-        "label_file": Path(LABEL_CACHE_DIR) / CODE15.__name__ / CODE15.__label_file__,
-        "chagas_label_file": Path(LABEL_CACHE_DIR) / CODE15.__name__ / CODE15.__chagas_label_file__,
-    }
-    dr = CODE15(**reader_kwargs)
+    # del dr
+    # reader_kwargs = {
+    #     "db_dir": Path(TEST_DATA_CACHE_DIR),
+    #     "label_file": Path(LABEL_CACHE_DIR) / CODE15.__name__ / CODE15.__label_file__,
+    #     "chagas_label_file": Path(LABEL_CACHE_DIR) / CODE15.__name__ / CODE15.__chagas_label_file__,
+    # }
+    # dr = CODE15(**reader_kwargs)
 
     # print("   Checking the action test data   ".center(80, "#"))
     # print(f"{len(dr._df_records) = }")

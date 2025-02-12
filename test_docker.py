@@ -11,8 +11,6 @@ import torch
 from torch_ecg.utils.misc import str2bool
 
 from cfg import _BASE_DIR, ModelCfg, TrainCfg
-from const import LABEL_CACHE_DIR
-from data_reader import CODE15
 from dataset import CINC2025Dataset
 from utils.misc import func_indicator
 
@@ -32,9 +30,9 @@ tmp_data_dir.mkdir(parents=True, exist_ok=True)
 print("data directory content:")
 print(os.listdir(tmp_data_dir))
 
-dr = CODE15(tmp_data_dir)
 # downloading is done outside the docker container
 # and the data folder is mounted to the docker container as read-only
+# dr = CODE15(tmp_data_dir)
 # dr.download()
 # dr._ls_rec()
 
@@ -68,8 +66,8 @@ def test_dataset() -> None:
     echo_write_permission(ds_config.working_dir)
 
     reader_kwargs = {
-        "label_file": Path(LABEL_CACHE_DIR) / CODE15.__name__ / CODE15.__label_file__,
-        "chagas_label_file": Path(LABEL_CACHE_DIR) / CODE15.__name__ / CODE15.__chagas_label_file__,
+        # "label_file": Path(LABEL_CACHE_DIR) / CODE15.__name__ / CODE15.__label_file__,
+        # "chagas_label_file": Path(LABEL_CACHE_DIR) / CODE15.__name__ / CODE15.__chagas_label_file__,
     }
 
     ds_train = CINC2025Dataset(ds_config, training=True, lazy=True, **reader_kwargs)

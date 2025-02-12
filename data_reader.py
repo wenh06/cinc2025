@@ -2221,21 +2221,21 @@ class CINC2025(_DataBase):
         ptbxl_files = [item for item in files if item == "ptb-xl"]
 
         if code15_files:
-            dr = CODE15(db_dir=self.db_dir / "code-15-original", wfdb_data_dir=self.db_dir)
+            dr = CODE15(db_dir=self.db_dir / CODE15.__name__, wfdb_data_dir=self.db_dir)
             dr.download(code15_files, refresh=False)
             if convert:
                 dr._ls_rec()
                 dr._convert_to_wfdb_format()
             del dr
         if samitrop_files:
-            dr = SamiTrop(db_dir=self.db_dir / "sami-trop-original", wfdb_data_dir=self.db_dir)
+            dr = SamiTrop(db_dir=self.db_dir / SamiTrop.__name__, wfdb_data_dir=self.db_dir)
             dr.download(samitrop_files, refresh=False)
             if convert:
                 dr._ls_rec()
                 dr._convert_to_wfdb_format()
             del dr
         if ptbxl_files:
-            dr = PTBXL(db_dir=self.db_dir / "ptb-xl-original")
+            dr = PTBXL(db_dir=self.db_dir / PTBXL.__name__)
             dr.download()
             if convert:
                 dr._ls_rec()
@@ -2325,9 +2325,8 @@ if __name__ == "__main__":
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         dr = CINC2025(db_dir=args.db_dir, working_dir=args.working_dir)
-        convert = True if "convert_to_wfdb_format" in operations else False
         if "download" in operations:
-            dr.download(files, convert)
+            dr.download(files, convert=args.convert)
 
     print("Done.")
 
