@@ -17,7 +17,7 @@ import wfdb
 from torch_ecg.cfg import CFG
 from torch_ecg.databases.base import DEFAULT_FIG_SIZE_PER_SEC, DataBaseInfo, _DataBase, wfdb_get_version
 from torch_ecg.databases.physionet_databases import PTBXL as PTBXL_Reader
-from torch_ecg.utils.download import http_get
+from torch_ecg.utils.download import http_get, url_is_reachable
 from torch_ecg.utils.misc import add_docstring, str2bool
 from torch_ecg.utils.utils_data import stratified_train_test_split
 from tqdm.auto import tqdm
@@ -1953,6 +1953,10 @@ class CINC2025(_DataBase):
         """
         self._df_records = pd.DataFrame(self.db_dir.rglob("*.hea"), columns=["path"])
         self._df_records["path"] = self._df_records["path"].apply(lambda x: x.with_suffix(""))
+        # keep only those records that have a corresponding .dat file or .mat file
+        self._df_records = self._df_records[
+            self._df_records["path"].apply(lambda x: x.with_suffix(".dat").exists() or x.with_suffix(".mat").exists())
+        ]
         self._df_records["record"] = self._df_records["path"].apply(lambda x: x.stem)
         # load the metadata (age, sex) and chagas labels from the header files
         columns = ["age", "sex", "fs", "chagas"]
@@ -2207,6 +2211,10 @@ class CINC2025(_DataBase):
             "code-15-chagas-labels": CODE15.__chagas_label_file_url__,
         }
         links.update({f"code-15-exams-part{i}": f"{CODE15.__dl_base_url__}exams_part{i}.zip?download=1" for i in range(18)})
+        if url_is_reachable("https://drive.google.com/"):
+            links["ptb-xl-subset"] = "https://drive.google.com/u/0/uc?id=1wq9r6rbhaMhMe-GWHpi5lQQIVwBU8UPL"
+        else:
+            links["ptb-xl-subset"] = "https://deep-psp.tech/Data/ptb-xl-subset-tiny.zip"
         return links
 
     def download(self, files: Optional[Union[str, Sequence[str]]] = None, convert: bool = True) -> None:
@@ -2226,6 +2234,7 @@ class CINC2025(_DataBase):
                 - "sami-trop-labels"
                 - "sami-trop-chagas-labels"
                 - "ptb-xl"
+                - "ptb-xl-subset"
         convert : bool, default True
             Whether to convert the downloaded files to WFDB format.
 
@@ -2234,10 +2243,11 @@ class CINC2025(_DataBase):
             files = list(self.url.keys())
         elif isinstance(files, str):
             files = [files]
+        files = [item for item in files if item in self.url]
 
         code15_files = [item.replace("code-15-", "") for item in files if item.startswith("code-15")]
         samitrop_files = [item.replace("sami-trop-", "") for item in files if item.startswith("sami-trop")]
-        ptbxl_files = [item for item in files if item == "ptb-xl"]
+        ptbxl_files = [item for item in files if item.startswith("ptb-xl")]
 
         if code15_files:
             dr = CODE15(db_dir=self.db_dir / CODE15.__name__, wfdb_data_dir=self.db_dir)
@@ -2254,8 +2264,17 @@ class CINC2025(_DataBase):
                 dr._convert_to_wfdb_format()
             del dr
         if ptbxl_files:
-            dr = PTBXL(db_dir=self.db_dir / PTBXL.__name__)
-            dr.download()
+            if "ptb-xl-subset" in ptbxl_files:
+                http_get(
+                    self.url["ptb-xl-subset"],
+                    dst_dir=self.db_dir / PTBXL.__name__,
+                    filename="ptb-xl-subset-tiny.zip",
+                    extract=True,
+                )
+                dr = PTBXL(db_dir=self.db_dir / PTBXL.__name__)
+            if "ptb-xl" in ptbxl_files:
+                dr = PTBXL(db_dir=self.db_dir / PTBXL.__name__)
+                dr.download()
             if convert:
                 dr._ls_rec()
                 dr._convert_to_wfdb_format(output_path=self.db_dir)
