@@ -1661,6 +1661,15 @@ class SamiTrop(_DataBase):
 
 class PTBXL(PTBXL_Reader):
 
+    def _ls_rec(self) -> None:
+        """Find all records in the database directory
+        and store them (path, metadata, etc.) in a dataframe.
+        """
+        super()._ls_rec()
+        # fix errors when we have a subset of the PTB-XL dataset
+        # the `_df_metadata` contains the metadata of the entire dataset
+        self._df_metadata = self._df_metadata.loc[self._df_records.index]
+
     def _train_test_split(self, train_ratio: float = 0.8) -> Dict[str, List[str]]:
         """Split the dataset into training and validation sets
         in a stratified manner.
