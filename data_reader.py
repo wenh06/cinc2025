@@ -177,6 +177,9 @@ class CODE15(_DataBase):
                 "exam_id": None,
             }
         )
+        df_wfdb_records.wfdb_signal_file = df_wfdb_records.wfdb_signal_file.apply(lambda x: x.with_suffix(""))
+        # note that the ".mat" files are named {exam_id}m.mat in function `convert_dat_to_mat`
+        df_wfdb_records.exam_id = df_wfdb_records.wfdb_signal_file.apply(lambda x: int(re.sub("\\D", "", x.stem)))
 
         if self._label_file is None:
             self._label_file = self.db_dir / self.__label_file__
@@ -232,6 +235,7 @@ class CODE15(_DataBase):
         )
         self._df_records = self._df_records[self._df_records.exam_id.isin(self._all_records)]
         self._df_chagas = self._df_chagas[self._df_chagas.exam_id.isin(self._all_records)]
+        df_wfdb_records = df_wfdb_records[df_wfdb_records.exam_id.isin(self._all_records)]
 
         if df_wfdb_records.empty:
             self._is_converted_to_wfdb_format = False
@@ -257,9 +261,6 @@ class CODE15(_DataBase):
             return
 
         self._is_converted_to_wfdb_format = True
-        df_wfdb_records.wfdb_signal_file = df_wfdb_records.wfdb_signal_file.apply(lambda x: x.with_suffix(""))
-        # note that the ".mat" files are named {exam_id}m.mat in function `convert_dat_to_mat`
-        df_wfdb_records.exam_id = df_wfdb_records.wfdb_signal_file.apply(lambda x: int(re.sub("\\D", "", x.stem)))
         self._df_records = pd.merge(self._df_records, df_wfdb_records, on="exam_id", how="inner")
         self._df_records["record"] = self._df_records["exam_id"].astype(str)
         self._subject_records = self._df_records.groupby("patient_id")["record"].apply(sorted).to_dict()
@@ -1064,6 +1065,9 @@ class SamiTrop(_DataBase):
                 "exam_id": None,
             }
         )
+        df_wfdb_records.wfdb_signal_file = df_wfdb_records.wfdb_signal_file.apply(lambda x: x.with_suffix(""))
+        # note that the ".mat" files are named {exam_id}m.mat in function `convert_dat_to_mat`
+        df_wfdb_records.exam_id = df_wfdb_records.wfdb_signal_file.apply(lambda x: int(re.sub("\\D", "", x.stem)))
 
         if self._label_file is None:
             self._label_file = self.db_dir / self.__label_file__
@@ -1080,9 +1084,11 @@ class SamiTrop(_DataBase):
         else:
             self._chagas_label_file = Path(self._chagas_label_file).expanduser().resolve()
 
+        early_exit = False
+
         if len(self._h5_data_files) == 0 and df_wfdb_records.empty:
             self.logger.warning("No data files found in the database directory. Call `download()` to download the database.")
-            return
+            early_exit = True
 
         # else: some data files are found, proceed to load the metadata
 
@@ -1095,10 +1101,16 @@ class SamiTrop(_DataBase):
         if self._label_file is None or not self._label_file.exists():
             self.logger.warning(f"Label file {self.__label_file__} not found in the given directory.")
             self._label_file = None
-            return
+            early_exit = True
         if self._chagas_label_file is None or not self._chagas_label_file.exists():
             self.logger.warning(f"Chagas label file {self.__chagas_label_file__} not found in the given directory.")
             self._chagas_label_file = None
+            early_exit = True
+
+        if early_exit:
+            self._df_records = pd.DataFrame()
+            self._df_chagas = pd.DataFrame()
+            self._all_records = []
             return
 
         self._df_records = pd.read_csv(self._label_file)
@@ -1109,6 +1121,7 @@ class SamiTrop(_DataBase):
         )
         self._df_records = self._df_records[self._df_records.exam_id.isin(self._all_records)]
         self._df_chagas = self._df_chagas[self._df_chagas.exam_id.isin(self._all_records)]
+        df_wfdb_records = df_wfdb_records[df_wfdb_records.exam_id.isin(self._all_records)]
 
         if df_wfdb_records.empty:
             self._is_converted_to_wfdb_format = False
@@ -1122,9 +1135,6 @@ class SamiTrop(_DataBase):
             return
 
         self._is_converted_to_wfdb_format = True
-        df_wfdb_records.wfdb_signal_file = df_wfdb_records.wfdb_signal_file.apply(lambda x: x.with_suffix(""))
-        # note that the ".mat" files are named {exam_id}m.mat in function `convert_dat_to_mat`
-        df_wfdb_records.exam_id = df_wfdb_records.wfdb_signal_file.apply(lambda x: int(re.sub("\\D", "", x.stem)))
         self._df_records = pd.merge(self._df_records, df_wfdb_records, on="exam_id", how="inner")
         self._df_records["record"] = self._df_records["exam_id"].astype(str)
         self._df_records.set_index("record", inplace=True)
