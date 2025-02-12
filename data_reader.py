@@ -193,9 +193,11 @@ class CODE15(_DataBase):
         else:
             self._chagas_label_file = Path(self._chagas_label_file).expanduser().resolve()
 
+        early_exit = False
+
         if len(self._h5_data_files) == 0 and df_wfdb_records.empty:
             self.logger.warning("No data files found in the database directory. Call `download()` to download the database.")
-            return
+            early_exit = True
 
         # else: some data files are found, proceed to load the metadata
 
@@ -208,10 +210,18 @@ class CODE15(_DataBase):
         if self._label_file is None or not self._label_file.exists():
             self.logger.warning(f"Label file {self.__label_file__} not found in the given directory.")
             self._label_file = None
-            return
+            early_exit = True
         if self._chagas_label_file is None or not self._chagas_label_file.exists():
             self.logger.warning(f"Chagas label file {self.__chagas_label_file__} not found in the given directory.")
             self._chagas_label_file = None
+            early_exit = True
+
+        if early_exit:
+            self._df_records = pd.DataFrame()
+            self._df_chagas = pd.DataFrame()
+            self._all_records = []
+            self._all_subjects = []
+            self._subject_records = {}
             return
 
         self._df_records = pd.read_csv(self._label_file)
@@ -2225,8 +2235,8 @@ class CINC2025(_DataBase):
         elif isinstance(files, str):
             files = [files]
 
-        code15_files = [item for item in files if item.startswith("code-15")]
-        samitrop_files = [item for item in files if item.startswith("sami-trop")]
+        code15_files = [item.replace("code-15-", "") for item in files if item.startswith("code-15")]
+        samitrop_files = [item.replace("sami-trop-", "") for item in files if item.startswith("sami-trop")]
         ptbxl_files = [item for item in files if item == "ptb-xl"]
 
         if code15_files:
