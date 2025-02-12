@@ -18,7 +18,7 @@ from torch_ecg.cfg import CFG
 from torch_ecg.databases.base import DEFAULT_FIG_SIZE_PER_SEC, DataBaseInfo, _DataBase, wfdb_get_version
 from torch_ecg.databases.physionet_databases import PTBXL as PTBXL_Reader
 from torch_ecg.utils.download import http_get, url_is_reachable
-from torch_ecg.utils.misc import add_docstring, str2bool
+from torch_ecg.utils.misc import add_docstring, str2bool, timeout
 from torch_ecg.utils.utils_data import stratified_train_test_split
 from tqdm.auto import tqdm
 
@@ -912,6 +912,10 @@ class CODE15(_DataBase):
                         checksums = np.sum(digital_signals, axis=0, dtype=np.int16)
                         code15_fix_checksums(str(output_path / record), checksums)
 
+        print("Conversion of the CODE-15% database is complete.")
+        print(f"{num_exam_ids - len(excep_list)} signals converted successfully.")
+        print(f"{len(excep_list)} signals failed to convert.")
+
         return excep_list
 
     @staticmethod
@@ -1656,6 +1660,10 @@ class SamiTrop(_DataBase):
                 checksums = np.sum(digital_signals, axis=0, dtype=np.int16)
                 samitrop_fix_checksums(str(output_path / record), checksums)
 
+        print("Conversion of the SaMi-Trop database is complete.")
+        print(f"{num_exam_ids - len(excep_list)} signals converted successfully.")
+        print(f"{len(excep_list)} signals failed to convert.")
+
         return excep_list
 
 
@@ -1877,12 +1885,15 @@ class PTBXL(PTBXL_Reader):
                 # Recompute the checksums as needed.
                 ptbxl_fix_checksums(str(output_signal_file.with_suffix("")))
 
+        print("Conversion of the PTB-XL database is complete.")
+        print(f"{len(df_demographics)} signals converted successfully.")
+
 
 _CINC2025_INFO = DataBaseInfo(
     title="Detection of Chagas Disease from the ECG: The George B. Moody PhysioNet Challenge 2025",
     about="""
-    1. The Challenge [1]_ uese the CODE-15\\% dataset [2]_, the SaMi-Trop dataset [3]_, and the PTB-XL dataset [4]_. It combines a large dataset with weak labels and two small datasets with strong labels.
-    2. The CODE-15\\% dataset contains over 300,000 12-lead ECG records collected in Brazil between 2010 and 2016. Most recordings have a duration of either 7.3 s or 10.2 s and a sampling frequency of 400 Hz. The binary Chagas labels are self-reported and therefore may or may not have been validated.
+    1. The Challenge [1]_ uese the CODE-15% dataset [2]_, the SaMi-Trop dataset [3]_, and the PTB-XL dataset [4]_. It combines a large dataset with weak labels and two small datasets with strong labels.
+    2. The CODE-15% dataset contains over 300,000 12-lead ECG records collected in Brazil between 2010 and 2016. Most recordings have a duration of either 7.3 s or 10.2 s and a sampling frequency of 400 Hz. The binary Chagas labels are self-reported and therefore may or may not have been validated.
     3. The SaMi-Trop dataset contains 1,631 12-lead ECG records collected from Chagas patients in Brazil between 2011 and 2012. Most recordings have a duration of either 7.3 s or 10.2 s and a sampling frequency of 400 Hz. The binary Chagas labels are validated by serological tests, and all are positive.
     4. The PTB-XL dataset contains 21,799 12-lead ECG records collected from presumably non-Chagas patients in Europe between 1989 and 1996. The recordings have a duration of 10 s and a sampling frequency of 500 Hz (or optionally 100 Hz). Based on geography, all or almost all of the patients are likely to be Chagas negative.
     """,
@@ -2217,8 +2228,13 @@ class CINC2025(_DataBase):
 
     @property
     def url(self) -> Dict[str, str]:
+        try:
+            with timeout(1):
+                ptb_xl_version = wfdb_get_version("ptb-xl")
+        except Exception:
+            ptb_xl_version = "1.0.3"  # latest as of 2025-02-12
         links = {
-            "ptb-xl": f"s3://physionet-open/ptb-xl/{wfdb_get_version('ptb-xl')}/",
+            "ptb-xl": f"s3://physionet-open/ptb-xl/{ptb_xl_version}/",
             "sami-trop-exams": f"{SamiTrop.__dl_base_url__}{SamiTrop.__data_file__}?download=1",
             "sami-trop-labels": f"{SamiTrop.__dl_base_url__}{SamiTrop.__label_file__}?download=1",
             "sami-trop-chagas-labels": SamiTrop.__chagas_label_file_url__,
@@ -2250,6 +2266,9 @@ class CINC2025(_DataBase):
                 - "sami-trop-chagas-labels"
                 - "ptb-xl"
                 - "ptb-xl-subset"
+
+            or "code-15" containing all the code-15 files,
+            "sami-trop" containing all the sami-trop files.
         convert : bool, default True
             Whether to convert the downloaded files to WFDB format.
 
@@ -2258,13 +2277,18 @@ class CINC2025(_DataBase):
             files = list(self.url.keys())
         elif isinstance(files, str):
             files = [files]
-        files = [item for item in files if item in self.url]
+        files = [item for item in files if item in list(self.url.keys()) + ["code-15", "sami-trop"]]
 
         code15_files = [item.replace("code-15-", "") for item in files if item.startswith("code-15")]
         samitrop_files = [item.replace("sami-trop-", "") for item in files if item.startswith("sami-trop")]
         ptbxl_files = [item for item in files if item.startswith("ptb-xl")]
+        if "code-15" in code15_files:
+            code15_files = None  # download all code-15 files
+        if "sami-trop" in samitrop_files:
+            samitrop_files = None  # download all sami-trop files
+        # print(f"{code15_files=}\n{samitrop_files=}\n{ptbxl_files=}")
 
-        if code15_files:
+        if code15_files is None or len(code15_files) > 0:
             (self.db_dir / CODE15.__name__).mkdir(parents=True, exist_ok=True)
             dr = CODE15(db_dir=self.db_dir / CODE15.__name__, wfdb_data_dir=self.db_dir)
             dr.download(code15_files, refresh=False)
@@ -2272,7 +2296,7 @@ class CINC2025(_DataBase):
                 dr._ls_rec()
                 dr._convert_to_wfdb_format()
             del dr
-        if samitrop_files:
+        if samitrop_files is None or len(samitrop_files) > 0:
             (self.db_dir / SamiTrop.__name__).mkdir(parents=True, exist_ok=True)
             dr = SamiTrop(db_dir=self.db_dir / SamiTrop.__name__, wfdb_data_dir=self.db_dir)
             dr.download(samitrop_files, refresh=False)
@@ -2388,4 +2412,4 @@ if __name__ == "__main__":
 
     # usage examples:
     # python data_reader.py download -d /path/to/db_dir -c
-    # python data_reader.py download --db-dir /path/to/db_dir --files "code-15-exams-part0,code-15-exams-part17,sami-trop-exams,ptb-xl" -c
+    # python data_reader.py download --db-dir /path/to/db_dir --files "code-15-exams-part0,code-15-exams-part17,sami-trop,ptb-xl-subset,labels,chagas-labels" -c
