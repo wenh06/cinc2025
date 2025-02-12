@@ -137,6 +137,9 @@ def run(args):
         # in the PTB-XL dataset.
         label = False
 
+        # Specify the label.
+        source = 'PTB-XL'
+
         # Update the header file.
         input_header_file = os.path.join(args.input_folder, record + '.hea')
         output_header_file = os.path.join(args.output_folder, record + '.hea')
@@ -154,11 +157,11 @@ def run(args):
         signal_lines = '\n'.join(l.strip() for l in lines[1:] \
             if l.strip() and not l.startswith('#')) + '\n'
         comment_lines = '\n'.join(l.strip() for l in lines[1:] \
-            if l.startswith('#') and not any((l.startswith(x) for x in ('# Age:', '# Sex:', '# Height:', '# Weight:', '# Chagas label:')))) + '\n'
+            if l.startswith('#') and not any((l.startswith(x) for x in ('# Age:', '# Sex:', '# Height:', '# Weight:', '# Chagas label:', '# Source:')))) + '\n'
 
         record_line = record_line.strip() + f' {time_string} {date_string} ' + '\n'
         signal_lines = signal_lines.strip() + '\n'
-        comment_lines = comment_lines.strip() + f'# Age: {age}\n# Sex: {sex}\n# Height: {height}\n# Weight: {weight}\n# Chagas label: {label}\n'
+        comment_lines = comment_lines.strip() + f'# Age: {age}\n# Sex: {sex}\n# Height: {height}\n# Weight: {weight}\n# Chagas label: {label}\n# Source: {source}\n'
 
         output_header = record_line + signal_lines + comment_lines
 

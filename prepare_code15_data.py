@@ -191,11 +191,12 @@ def run(args):
                 digital_signals[~np.isfinite(digital_signals)] = -2**(num_bits-1)
                 digital_signals = np.asarray(digital_signals, dtype=np.int32) # We need to promote from 16-bit integers due to an error in the Python WFDB library.
 
-                # Add the exam ID, age, sex, and the Chagas label.
+                # Add the exam ID, the patient ID, age, sex, Chagas label, and data source.
                 age = exam_id_to_age[exam_id]
                 sex = exam_id_to_sex[exam_id]
                 chagas = exam_id_to_chagas[exam_id]
-                comments = [f'Age: {age}', f'Sex: {sex}', f'Chagas label: {chagas}']
+                source = 'CODE-15%'
+                comments = [f'Age: {age}', f'Sex: {sex}', f'Chagas label: {chagas}', f'Source: {source}']
 
                 # Save the signal.
                 record = str(exam_id)

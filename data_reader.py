@@ -863,17 +863,19 @@ class CODE15(_DataBase):
                         # We need to promote from 16-bit integers due to an error in the Python WFDB library.
                         digital_signals = np.asarray(digital_signals, dtype=np.int32)
 
-                        # Add the exam ID, the patient ID, age, sex, and the Chagas label.
+                        # Add the exam ID, the patient ID, age, sex, the Chagas label, and data source.
                         patient_id = exam_id_to_demographics[exam_id]["patient_id"]
                         age = exam_id_to_demographics[exam_id]["age"]
                         sex = exam_id_to_demographics[exam_id]["sex"]
                         chagas = exam_id_to_chagas[exam_id]
+                        source = "CODE-15%"
                         comments = [
                             # f"Exam ID: {exam_id}",
                             # f"Patient ID: {patient_id}",
                             f"Age: {age}",
                             f"Sex: {sex}",
                             f"Chagas label: {chagas}",
+                            f"Source: {source}",
                         ]
 
                         # Save the signal.
@@ -1608,16 +1610,18 @@ class SamiTrop(_DataBase):
                     digital_signals, dtype=np.int32
                 )  # We need to promote from 16-bit integers due to an error in the Python WFDB library.
 
-                # Add the exam ID, age, sex, and the Chagas label.
+                # Add the exam ID, age, sex, the Chagas label, and data source.
                 age = exam_id_to_demographics[exam_id]["age"]
                 sex = exam_id_to_demographics[exam_id]["sex"]
                 chagas = exam_id_to_chagas[exam_id]
+                source = "SaMi-Trop"
                 comments = [
                     # f"Exam ID: {exam_id}",
                     # f"Patient ID: {patient_id}",
                     f"Age: {age}",
                     f"Sex: {sex}",
                     f"Chagas label: {chagas}",
+                    f"Source: {source}",
                 ]
 
                 # Save the signal.
@@ -1803,6 +1807,7 @@ class PTBXL(PTBXL_Reader):
             # Assume that all of the patients are negative for Chagas, which is likely to be the case for every or almost every patient
             # in the PTB-XL dataset.
             label = False
+            source = "PTB-XL"
 
             # Update the header file.
             input_header_file = (signal_dir / getattr(row, file_col)).with_suffix(".hea")
@@ -1821,7 +1826,10 @@ class PTBXL(PTBXL_Reader):
                         for line in lines[1:]
                         if line.startswith("#")
                         and not any(
-                            (line.startswith(x) for x in ("# Age:", "# Sex:", "# Height:", "# Weight:", "# Chagas label:"))
+                            (
+                                line.startswith(x)
+                                for x in ("# Age:", "# Sex:", "# Height:", "# Weight:", "# Chagas label:", "# Source:")
+                            )
                         )
                     )
                     + "\n"
@@ -1831,7 +1839,8 @@ class PTBXL(PTBXL_Reader):
                 signal_lines = signal_lines.strip() + "\n"
                 comment_lines = (
                     comment_lines.strip()
-                    + f"# Age: {age}\n# Sex: {sex}\n# Height: {height}\n# Weight: {weight}\n# Chagas label: {label}\n"
+                    + f"# Age: {age}\n# Sex: {sex}\n# Height: {height}\n# Weight: {weight}\n"
+                    + f"# Chagas label: {label}\n# Source: {source}\n"
                 )
 
                 output_header = record_line + signal_lines + comment_lines
