@@ -8,10 +8,13 @@ from typing import Union
 
 import numpy as np
 import torch
+from torch.utils.data import DataLoader
 from torch_ecg.utils.misc import str2bool
+from torch_ecg.utils.utils_nn import default_collate_fn as collate_fn
 
 from cfg import _BASE_DIR, ModelCfg, TrainCfg
 from dataset import CINC2025Dataset
+from models import CRNN_CINC2025
 from utils.misc import func_indicator
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -114,7 +117,38 @@ def test_models() -> None:
     echo_write_permission(tmp_model_dir)
     echo_write_permission(tmp_output_dir)
 
-    raise NotImplementedError("The models test is not implemented yet.")
+    model = CRNN_CINC2025(ModelCfg)
+    model.to(DEVICE)
+
+    ds_config = deepcopy(TrainCfg)
+    ds_config.db_dir = tmp_data_dir
+    ds_config.working_dir = tmp_model_dir / "working_dir"
+    ds_config.working_dir.mkdir(parents=True, exist_ok=True)
+
+    ds_val = CINC2025Dataset(ds_config, training=False, lazy=True)
+    # ds_val._load_all_data()
+    dl = DataLoader(
+        dataset=ds_val,
+        batch_size=4,
+        shuffle=True,
+        pin_memory=True,
+        drop_last=False,
+        collate_fn=collate_fn,
+    )
+
+    for idx, input_tensors in enumerate(dl):
+        if idx == 0:
+            inference_output = model.inference(input_tensors["signals"])
+            print(f"   {idx = }   ".center(80, "#"))
+            print(f"{inference_output = }")
+        elif idx == 1:
+            forward_output = model.forward(input_tensors)
+            print(f"   {idx = }   ".center(80, "#"))
+            print(f"{forward_output = }")
+        else:
+            break
+
+    # TODO: test classmethod "from_checkpoint"
 
     print("models test passed")
 
@@ -181,7 +215,7 @@ if __name__ == "__main__":
     print("#" * 80)
 
     test_dataset()
-    # test_models()  # not implemented
+    test_models()
     # test_challenge_metrics()  # not implemented
     # test_trainer()  # not implemented
     # test_entry()  # not implemented
