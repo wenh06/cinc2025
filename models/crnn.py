@@ -7,21 +7,23 @@ from typing import Any, Dict, Optional, Union
 
 import numpy as np
 import torch
-import torch.nn as nn
 from torch_ecg.cfg import CFG
-from torch_ecg.models import ECG_CRNN, MLP
+from torch_ecg.components import WaveformInput  # noqa: F401
+from torch_ecg.models import ECG_CRNN
+from torch_ecg.models.loss import setup_criterion
 from torch_ecg.utils.misc import add_docstring
+from torch_ecg.utils.utils_data import one_hot_encode
 
 from cfg import ModelCfg
-from outputs import CINC2025Outputs  # noqa: F401
+from outputs import CINC2025Outputs
 
 __all__ = [
-    "MultiHead_CINC2025",
+    "CRNN_CINC2025",
 ]
 
 
-class MultiHead_CINC2025(ECG_CRNN):
-    """Multi-head model for CINC2025.
+class CRNN_CINC2025(ECG_CRNN):
+    """CRNN model for CINC2025.
 
     Parameters
     ----------
@@ -32,20 +34,27 @@ class MultiHead_CINC2025(ECG_CRNN):
     """
 
     __DEBUG__ = True
-    __name__ = "MultiHead_CINC2025"
+    __name__ = "CRNN_CINC2025"
 
     def __init__(self, config: Optional[CFG] = None, **kwargs: Any) -> None:
-        super().__init__()
-        self.__config = deepcopy(ModelCfg)
-        if config is not None:
-            self.__config.update(deepcopy(config))
-        self.__config.update(kwargs)
+        if config is None:
+            _config = deepcopy(ModelCfg)
+        else:
+            _config = deepcopy(config)
+        super().__init__(
+            classes=_config.chagas_classes,
+            n_leads=_config.n_leads,
+            config=_config,
+            **kwargs,
+        )
 
-        self.extra_heads = nn.ModuleDict()
-        if self.__config.arr_diag_head.enabled:
-            arr_diag_head_cfg = deepcopy(self.__config.arr_diag_head)
-            arr_diag_head_cfg.pop("enabled")
-            self.extra_heads["arr_diag"] = MLP(**arr_diag_head_cfg)
+        # self.extra_heads = nn.ModuleDict()
+        # if self.__config.arr_diag_head.enabled:
+        #     arr_diag_head_cfg = deepcopy(self.__config.arr_diag_head)
+        #     arr_diag_head_cfg.pop("enabled")
+        #     self.extra_heads["arr_diag"] = MLP(**arr_diag_head_cfg)
+
+        self.criteria = setup_criterion(_config.criterion, **_config.get("criterion_kw", {}))
 
     def forward(self, input_tensors: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         """Forward pass of the model.
@@ -57,40 +66,31 @@ class MultiHead_CINC2025(ECG_CRNN):
 
             - "signals" : torch.Tensor
                 Input signals. Required.
-            - "chagas_labels" : torch.Tensor, optional
+            - "chagas" : torch.Tensor, optional
                 Labels for Chagas disease diagnosis.
-            - "arr_diag_labels" : torch.Tensor, optional
+            - "arr_diag" : torch.Tensor, optional
                 Labels for arrhythmia diagnosis.
 
         Returns
         -------
         dict
-            Predictions, including "chagas" and "diag".
+            Predictions, including "chagas" and "arr_diag" (if available).
 
         """
-        raise NotImplementedError
-
-    def get_input_tensors(
-        self,
-        sig: torch.Tensor,
-        labels: Optional[Dict[str, torch.Tensor]] = None,
-    ) -> Dict[str, torch.Tensor]:
-        """Get input tensors for the model.
-
-        Parameters
-        ----------
-        sig : torch.Tensor
-            Input signal tensor.
-        labels : dict, optional
-            Not used, but kept for compatibility with other models.
-
-        Returns
-        -------
-        Dict[str, torch.Tensor]
-            Input tensors for the model.
-
-        """
-        raise NotImplementedError
+        chagas_logits = super().forward(input_tensors["signals"])
+        chagas_prob = self.softmax(chagas_logits)
+        chagas_pred = torch.argmax(chagas_prob, dim=-1)
+        if "chagas" in input_tensors:
+            if self.criteria.__class__.__name__ != "CrossEntropyLoss":
+                input_tensors["chagas"] = (
+                    torch.from_numpy(one_hot_encode(input_tensors["chagas"], num_classes=self.n_classes))
+                    .to(self.dtype)
+                    .to(self.device)
+                )
+            chagas_loss = self.criteria(chagas_logits, input_tensors["chagas"])
+        else:
+            chagas_loss = None
+        return {"chagas_logits": chagas_logits, "chagas_prob": chagas_prob, "chagas": chagas_pred, "chagas_loss": chagas_loss}
 
     @torch.no_grad()
     def inference(self, sig: Union[np.ndarray, torch.Tensor, list]) -> CINC2025Outputs:
@@ -104,16 +104,26 @@ class MultiHead_CINC2025(ECG_CRNN):
         Returns
         -------
         CINC2025Outputs
-            Predictions, including "chagas" and "diag".
+            Predictions, including "chagas" and "arr_diag" (if available).
 
         """
-        raise NotImplementedError
+        training = self.training
+        self.eval()
+
+        input_tensors = {"signals": torch.as_tensor(sig, dtype=self.dtype, device=self.device)}
+        if input_tensors["signals"].ndim == 2:
+            input_tensors["signals"] = input_tensors["signals"].unsqueeze(0)  # add a batch dimension
+        # batch_size, channels, seq_len = _input.shape
+        forward_output = self.forward(input_tensors)
+
+        output = CINC2025Outputs(**forward_output)
+
+        # restore the training mode
+        self.train(training)
+
+        return output
 
     @add_docstring(inference.__doc__)
     def inference_CINC2025(self, sig: Union[np.ndarray, torch.Tensor, list]) -> CINC2025Outputs:
         """alias for `self.inference`"""
         return self.inference(sig)
-
-    @property
-    def config(self) -> CFG:
-        return self.__config

@@ -65,7 +65,12 @@ class CINC2025Outputs:
             ]
         ), "at least one of `chagas`, `chagas_logits`, `chagas_prob` prediction should be provided"
         if self.chagas is not None:
-            self.chagas = np.array(self.chagas, dtype=bool).tolist()
+            # self.chagas = np.array(self.chagas, dtype=bool).tolist()
+            if isinstance(self.chagas, torch.Tensor):
+                self.chagas = self.chagas.cpu().detach().numpy().astype(bool)
+            else:
+                self.chagas = np.asarray(self.chagas).astype(bool)
+            self.chagas = self.chagas.tolist()
         if self.chagas_logits is not None:
             if self.chagas_prob is None:
                 self.chagas_prob = torch.softmax(torch.tensor(self.chagas_logits), dim=-1).cpu().detach().numpy()

@@ -1,8 +1,8 @@
 """
 """
 
-from .crnn import MultiHead_CINC2025
+from .crnn import CRNN_CINC2025
 
 __all__ = [
-    "MultiHead_CINC2025",
+    "CRNN_CINC2025",
 ]

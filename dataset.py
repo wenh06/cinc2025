@@ -154,7 +154,7 @@ class CINC2025Dataset(Dataset, ReprMixin):
         records = code_15_data_split[part] + ptb_xl_data_split[part] + sami_trop_data_split[part]
 
         # keep only the records that are in the database (self.reader.all_records)
-        records = [rec for rec in records if rec in self.reader.all_records]
+        records = list(set(records) & set(self.reader.all_records))
 
         if self.training:
             DEFAULTS.RNG.shuffle(records)
@@ -168,7 +168,7 @@ class CINC2025Dataset(Dataset, ReprMixin):
     @property
     def data_fields(self) -> Set[str]:
         # return set(["signals", "chagas", "is_normal", "arr_diag"])
-        return set(["signals", "chagas"])
+        return set(["record_idx", "signals", "chagas"])
 
     def extra_repr_keys(self) -> List[str]:
         return ["reader", "training"]
@@ -223,6 +223,7 @@ class FastDataReader(ReprMixin, Dataset):
         # bin_label: (batch_size,)
         # arr_diag_label: (batch_size, n_classes)
         return {
+            "record_idx": index,
             "signals": signal.astype(self.dtype),  # (n_leads, n_samples)
             "chagas": chagas_label,  # scalar
             # "is_normal": bin_label,  # scalar
