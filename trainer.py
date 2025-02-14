@@ -1,0 +1,381 @@
+"""
+"""
+
+import argparse
+import os
+import sys
+import textwrap  # noqa: F401
+from copy import deepcopy
+from typing import Any, Dict, List, Optional
+
+import numpy as np  # noqa: F401
+import torch
+from torch import nn
+from torch.nn.parallel import DataParallel as DP
+from torch.nn.parallel import DistributedDataParallel as DDP  # noqa: F401
+from torch.utils.data import DataLoader, Dataset
+from torch_ecg.cfg import CFG
+from torch_ecg.components.trainer import BaseTrainer
+from torch_ecg.utils.misc import str2bool
+from torch_ecg.utils.utils_nn import default_collate_fn as collate_fn
+from tqdm.auto import tqdm
+
+from cfg import ModelCfg, TrainCfg
+from const import MODEL_CACHE_DIR
+from dataset import CINC2025Dataset
+from models import CRNN_CINC2025
+from utils.scoring_metrics import compute_challenge_metrics  # noqa: F401
+
+os.environ["HF_HOME"] = str(MODEL_CACHE_DIR)
+
+__all__ = [
+    "CINC2025Trainer",
+]
+
+
+class CINC2025Trainer(BaseTrainer):
+    """Trainer for the CinC2025 challenge.
+
+    Parameters
+    ----------
+    model : torch.nn.Module
+        The model to be trained
+    model_config : dict
+        The configuration of the model,
+        used to keep a record in the checkpoints
+    train_config : dict
+        The configuration of the training,
+        including configurations for the data loader, for the optimization, etc.
+        will also be recorded in the checkpoints.
+        `train_config` should at least contain the following keys:
+
+            - "monitor": obj:`str`,
+            - "loss": obj:`str`,
+            - "n_epochs": obj:`int`,
+            - "batch_size": obj:`int`,
+            - "learning_rate": obj:`float`,
+            - "lr_scheduler": obj:`str`,
+            - "lr_step_size": obj:`int`, optional, depending on the scheduler
+            - "lr_gamma": obj:`float`, optional, depending on the scheduler
+            - "max_lr": obj:`float`, optional, depending on the scheduler
+            - "optimizer": obj:`str`,
+            - "decay": obj:`float`, optional, depending on the optimizer
+            - "momentum": obj:`float`, optional, depending on the optimizer
+
+    device : torch.device, optional
+        The device to be used for training
+    lazy : bool, default True
+        Whether to initialize the data loader lazily
+
+    """
+
+    __DEBUG__ = True
+    __name__ = "CINC2025Trainer"
+
+    def __init__(
+        self,
+        model: nn.Module,
+        model_config: dict,
+        train_config: dict,
+        device: Optional[torch.device] = None,
+        lazy: bool = True,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(
+            model=model,
+            dataset_cls=CINC2025Dataset,
+            model_config=model_config,
+            train_config=train_config,
+            device=device,
+            lazy=lazy,
+        )
+        if hasattr(self._model.config, "monitor") and self._model.config.monitor is not None:
+            self._train_config["monitor"] = self._model.config.monitor
+
+    def _setup_dataloaders(
+        self,
+        train_dataset: Optional[Dataset] = None,
+        val_dataset: Optional[Dataset] = None,
+    ) -> None:
+        """
+        setup the dataloaders for training and validation
+
+        Parameters
+        ----------
+        train_dataset: Dataset, optional,
+            the training dataset
+        val_dataset: Dataset, optional,
+            the validation dataset
+
+        """
+        if train_dataset is None:
+            train_dataset = self.dataset_cls(
+                config=self.train_config,
+                training=True,
+                lazy=True,
+            )
+
+        if self.train_config.debug:
+            val_train_dataset = train_dataset
+        else:
+            val_train_dataset = None
+        if val_dataset is None:
+            val_dataset = self.dataset_cls(
+                config=self.train_config,
+                training=False,
+                lazy=True,
+            )
+
+        # https://discuss.pytorch.org/t/guidelines-for-assigning-num-workers-to-dataloader/813/4
+        if self.device == torch.device("cpu"):
+            num_workers = 1
+        else:
+            num_workers = 4
+
+        self.train_loader = DataLoader(
+            dataset=train_dataset,
+            batch_size=self.batch_size,
+            shuffle=True,
+            num_workers=num_workers,
+            pin_memory=True,
+            drop_last=False,
+            collate_fn=collate_fn,
+        )
+
+        if self.train_config.debug:
+            self.val_train_loader = DataLoader(
+                dataset=val_train_dataset,
+                batch_size=self.batch_size,
+                shuffle=True,
+                num_workers=num_workers,
+                pin_memory=True,
+                drop_last=False,
+                collate_fn=collate_fn,
+            )
+        else:
+            self.val_train_loader = None
+        self.val_loader = DataLoader(
+            dataset=val_dataset,
+            batch_size=self.batch_size,
+            shuffle=True,
+            num_workers=num_workers,
+            pin_memory=True,
+            drop_last=False,
+            collate_fn=collate_fn,
+        )
+
+    def train_one_epoch(self, pbar: tqdm) -> None:
+        """Train one epoch, and update the progress bar
+
+        Parameters
+        ----------
+        pbar : tqdm
+            the progress bar for training
+
+        """
+        for epoch_step, input_tensors in enumerate(self.train_loader):
+            self.global_step += 1
+            n_samples = input_tensors["signals"].shape[self.batch_dim]
+
+            out_tensors = self.run_one_step(input_tensors)
+
+            # NOTE: loss is computed in the model, and kept in the out_tensors
+            loss = out_tensors["chagas_loss"]
+
+            if self.train_config.flooding_level > 0:
+                flood = (loss - self.train_config.flooding_level).abs() + self.train_config.flooding_level
+                self.epoch_loss += loss.item()
+                self.optimizer.zero_grad()
+                flood.backward()
+            else:
+                self.epoch_loss += loss.item()
+                self.optimizer.zero_grad()
+                loss.backward()
+            self.optimizer.step()
+            self._update_lr()
+
+            if self.global_step % self.train_config.log_step == 0:
+                train_step_metrics = {"loss": loss.item()}
+                if self.scheduler:
+                    train_step_metrics.update({"lr": self.scheduler.get_last_lr()[0]})
+                    pbar.set_postfix(
+                        **{
+                            "loss (batch)": loss.item(),
+                            "lr": self.scheduler.get_last_lr()[0],
+                        }
+                    )
+                else:
+                    pbar.set_postfix(
+                        **{
+                            "loss (batch)": loss.item(),
+                        }
+                    )
+                if self.train_config.flooding_level > 0:
+                    train_step_metrics.update({"flood": flood.item()})
+                self.log_manager.log_metrics(
+                    metrics=train_step_metrics,
+                    step=self.global_step,
+                    epoch=self.epoch,
+                    part="train",
+                )
+            pbar.update(n_samples)
+
+    def run_one_step(self, input_tensors: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+        """Run one step (batch) of training.
+
+        Parameters
+        ----------
+        input_tensors : dict
+            the tensors to be processed for training one step (batch), with the following items:
+                - "signals" (required): the input ECG signals
+                - "chagas" (optional): the chagas classification labels
+
+        Returns
+        -------
+        out_tensors : dict
+            with the following items (some are optional):
+            - "chagas": the chagas classification predictions, of shape ``(batch_size,)``.
+            - "chagas_logits": the chagas classification logits, of shape ``(batch_size, n_classes)``.
+            - "chagas_prob": the chagas classification probabilities, of shape ``(batch_size, n_classes)``.
+            - "chagas_loss": the Dx classification loss
+
+        """
+        return self.model(input_tensors)
+
+    @torch.no_grad()
+    def evaluate(self, data_loader: DataLoader) -> Dict[str, float]:
+        """Evaluate the model on the given data loader"""
+
+        self.model.eval()
+
+        all_outputs = []
+        all_labels = []
+        all_eval_res = []
+
+        with tqdm(
+            total=len(data_loader.dataset),
+            desc="Evaluation",
+            unit="signal",
+            dynamic_ncols=True,
+            mininterval=1.0,
+            leave=False,
+        ) as pbar:
+            for input_tensors in data_loader:
+                # input_tensors is assumed to be a dict of tensors, with the following items:
+                # "signals" (required): the input image list
+                # "chagas" (optional): the chagas classification labels
+                # TODO: implement the evaluation logic
+                raise NotImplementedError
+
+        self.model.train()
+
+        # return eval_res
+
+    @property
+    def batch_dim(self) -> int:
+        """
+        batch dimension, usually 0,
+        but can be 1 for some models, e.g. RR_LSTM
+        """
+        return 0
+
+    @property
+    def extra_required_train_config_fields(self) -> List[str]:
+        raise NotImplementedError
+
+    @property
+    def save_prefix(self) -> str:
+        raise NotImplementedError
+
+    def extra_log_suffix(self) -> str:
+        raise NotImplementedError
+
+    def _setup_criterion(self) -> None:
+        # since criterion is defined in the model,
+        # override this method to do nothing
+        pass
+
+    def save_checkpoint(self, path: str) -> None:
+        """Save the current state of the trainer to a checkpoint.
+
+        Parameters
+        ----------
+        path : str
+            Path to save the checkpoint
+
+        """
+        raise NotImplementedError
+
+
+def get_args(**kwargs: Any):
+    """NOT checked,"""
+    cfg = deepcopy(kwargs)
+    parser = argparse.ArgumentParser(
+        description="Train the Model on CINC2025 database",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser.add_argument(
+        "-b",
+        "--batch-size",
+        type=int,
+        default=24,
+        help="the batch size for training",
+        dest="batch_size",
+    )
+    parser.add_argument(
+        "--keep-checkpoint-max",
+        type=int,
+        default=10,
+        help="maximum number of checkpoints to keep. If set 0, all checkpoints will be kept",
+        dest="keep_checkpoint_max",
+    )
+    # parser.add_argument(
+    #     "--optimizer", type=str, default="adam",
+    #     help="training optimizer",
+    #     dest="train_optimizer")
+    parser.add_argument(
+        "--debug",
+        type=str2bool,
+        default=False,
+        help="train with more debugging information",
+        dest="debug",
+    )
+
+    args = vars(parser.parse_args())
+
+    cfg.update(args)
+
+    return CFG(cfg)
+
+
+if __name__ == "__main__":
+    # WARNING: most training were done in notebook,
+    # NOT in cli
+    train_config = get_args(**TrainCfg)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    # TODO: adjust for CINC2025
+    model_config = deepcopy(ModelCfg)
+    # adjust the model configuration if necessary
+    model = CRNN_CINC2025(config=model_config)
+
+    if torch.cuda.device_count() > 1:
+        model = DP(model)
+        # model = DDP(model)
+    model.to(device=device)
+
+    trainer = CINC2025Trainer(
+        model=model,
+        model_config=model_config,
+        train_config=train_config,
+        device=device,
+        lazy=True,
+    )
+
+    try:
+        best_model_state_dict = trainer.train()
+    except KeyboardInterrupt:
+        try:
+            sys.exit(0)
+        except SystemExit:
+            os._exit(0)
