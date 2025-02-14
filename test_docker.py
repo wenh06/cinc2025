@@ -15,7 +15,9 @@ from torch_ecg.utils.utils_nn import default_collate_fn as collate_fn
 from cfg import _BASE_DIR, ModelCfg, TrainCfg
 from dataset import CINC2025Dataset
 from models import CRNN_CINC2025
+from outputs import CINC2025Outputs
 from utils.misc import func_indicator
+from utils.scoring_metrics import compute_challenge_metrics
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 if ModelCfg.torch_dtype == torch.float64:
@@ -156,7 +158,34 @@ def test_models() -> None:
 def test_challenge_metrics() -> None:
     """Test the challenge metrics."""
 
-    raise NotImplementedError("The challenge metrics test is not implemented yet.")
+    outputs = [
+        CINC2025Outputs(
+            chagas=[False, False, False, False],
+            chagas_logits=torch.Tensor([[0.0090, -0.0561], [-0.0070, -0.0512], [-0.0080, -0.0487], [-0.0087, -0.0480]]),
+            chagas_prob=np.array(
+                [[0.51627094, 0.48372903], [0.5110359, 0.48896402], [0.510169, 0.48983097], [0.5098051, 0.49019495]]
+            ),
+        ),
+        CINC2025Outputs(
+            chagas=[False, False, False],
+            chagas_logits=np.array([[0.00514201, -0.07293116], [0.00042483, -0.05155159], [0.0076459, -0.05799032]]),
+            chagas_prob=np.array([[0.5195084, 0.48049164], [0.5129912, 0.48700884], [0.5164032, 0.48359686]]),
+        ),
+    ]
+
+    labels = [
+        {"chagas": [False, False, False, False]},
+        {"chagas": [False, False, True]},
+    ]
+
+    metrics = compute_challenge_metrics(labels, outputs)
+
+    print(f"{metrics = }")
+
+    assert set(metrics.keys()) == {"challenge_score", "chagas_auroc", "chagas_auprc", "chagas_accuracy", "chagas_f_measure"}
+
+    for k, v in metrics.items():
+        assert isinstance(v, float), f"{k = }, {v = }"
 
     print("challenge metrics test passed")
 
@@ -215,7 +244,7 @@ if __name__ == "__main__":
 
     test_dataset()  # passed
     test_models()  # passed
-    # test_challenge_metrics()  # not implemented
+    test_challenge_metrics()  # passed
     # test_trainer()  # not implemented
     # test_entry()  # not implemented
     # set_entry_test_flag(False)

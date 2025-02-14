@@ -1,6 +1,7 @@
 from typing import Dict, List, Optional, Sequence, Union
 
 import numpy as np
+import torch
 from torch_ecg.components.metrics import ClassificationMetrics
 from torch_ecg.utils.misc import make_serializable
 
@@ -13,7 +14,7 @@ __all__ = [
 
 
 def compute_challenge_metrics(
-    labels: Sequence[Dict[str, Union[np.ndarray, List[dict]]]],
+    labels: Sequence[Dict[str, Union[np.ndarray, torch.Tensor, List[dict]]]],
     outputs: Sequence[CINC2025Outputs],
     keeps: Optional[Union[str, Sequence[str]]] = None,
 ) -> Dict[str, float]:
@@ -21,7 +22,7 @@ def compute_challenge_metrics(
 
     Parameters
     ----------
-    labels : Sequence[Dict[str, Union[np.ndarray, List[dict]]]]
+    labels : Sequence[Dict[str, Union[np.ndarray, torch.Tensor, List[dict]]]]
         The labels for the records.
         `labels` is produced by the dataset class (ref. dataset.py).
     outputs : Sequence[CINC2025Outputs]
@@ -61,33 +62,35 @@ def compute_challenge_metrics(
     """
     metrics = {}
     if keeps is None:
-        keeps = ["chagas", "arr_diag"]
+        # keeps = ["chagas", "arr_diag"]
+        keeps = ["chagas"]
     elif isinstance(keeps, str):
         keeps = [keeps]
     keeps = [keep.lower() for keep in keeps]
     if "chagas" in keeps:
         metrics.update({f"chagas_{metric}": value for metric, value in compute_chagas_metrics(labels, outputs).items()})
+        metrics["challenge_score"] = metrics.pop("chagas_challenge_score")
     if "arr_diag" in keeps:
         metrics.update({f"arr_diag_{metric}": value for metric, value in compute_arr_diag_metrics(labels, outputs).items()})
     return metrics
 
 
 def compute_chagas_metrics(
-    labels: Sequence[Dict[str, Union[np.ndarray, List[dict]]]],
+    labels: Sequence[Dict[str, Union[np.ndarray, torch.Tensor, List[dict]]]],
     outputs: Sequence[CINC2025Outputs],
 ) -> Dict[str, float]:
     """Compute the metrics for the "chagas" prediction (binary classification) task.
 
     Parameters
     ----------
-    labels : Sequence[Dict[str, Union[np.ndarray, List[dict]]]]
+    labels : Sequence[Dict[str, Union[np.ndarray, torch.Tensor, List[dict]]]]
         The labels for the records, containing the "chagas" field.
-        The "chagas" field is a 1D numpy array of shape `(num_samples,)` with binary values,
-        or a 2D numpy array of shape `(num_samples, num_classes)` with probabilities (0 or 1).
+        The "chagas" field is a 1D array of shape `(num_samples,)` with binary values,
+        or a 2D array of shape `(num_samples, num_classes)` with probabilities (0 or 1).
     outputs : Sequence[CINC2025Outputs]
         The outputs for the records, containing the "chagas" field.
-        The "chagas" field is a 1D numpy array of shape `(num_samples,)` with binary values,
-        or a 2D numpy array of shape `(num_samples, num_samples)` with probabilities (0 to 1).
+        The "chagas" field is a 1D array of shape `(num_samples,)` with binary values,
+        or a 2D array of shape `(num_samples, num_samples)` with probabilities (0 to 1).
 
     Returns
     -------
@@ -102,12 +105,18 @@ def compute_chagas_metrics(
     {'challenge_score': 0.0, 'auroc': 1.0, 'auprc': 1.0, 'accuracy': 0.6666666666666666, 'f_measure': 0.6666666666666666}
 
     """
+    # check validity of the input data
     assert len(labels) == len(outputs), "The number of labels and outputs should be the same"
     if not all([item.chagas is not None for item in outputs]):
         return {m: np.nan for m in ["challenge_score", "auroc", "auprc", "accuracy", "f_measure"]}
     assert all(
         [len(label["chagas"]) == len(output.chagas) for label, output in zip(labels, outputs)]
     ), "The number of 'chagas' labels and outputs should be the same"
+
+    # convert the tensors to numpy arrays
+    for label in labels:
+        if isinstance(label["chagas"], torch.Tensor):
+            label["chagas"] = label["chagas"].cpu().detach().numpy()
     # concatenate the labels and outputs
     labels = np.concat([label["chagas"] for label in labels])
     # probability_outputs is the probability of the positive class
@@ -131,14 +140,14 @@ def compute_chagas_metrics(
 
 
 def compute_arr_diag_metrics(
-    labels: Sequence[Dict[str, Union[np.ndarray, List[dict]]]],
+    labels: Sequence[Dict[str, Union[np.ndarray, torch.Tensor, List[dict]]]],
     outputs: Sequence[CINC2025Outputs],
 ) -> Dict[str, float]:
     """Compute the metrics for the arrhythmia diagnosis (multi-label classification) task.
 
     Parameters
     ----------
-    labels : Sequence[Dict[str, Union[np.ndarray, List[dict]]]]
+    labels : Sequence[Dict[str, Union[np.ndarray, torch.Tensor, List[dict]]]]
         The labels for the records.
     outputs : Sequence[CINC2025Outputs]
         The outputs for the records.
@@ -166,12 +175,18 @@ def compute_arr_diag_metrics(
     >>> compute_arr_diag_metrics(labels, outputs)
 
     """
+    # check validity of the input data
     assert len(labels) == len(outputs), "The number of labels and outputs should be the same"
     if not all([item.arr_diag is not None for item in outputs]):
         return {m: np.nan for m in ["f_measure", "accuracy", "sensitivity", "specificity", "precision"]}
     assert all(
         [len(label["arr_diag"]) == len(output.arr_diag) for label, output in zip(labels, outputs)]
     ), "The number of 'arr_diag' labels and outputs should be the same"
+
+    # convert the tensors to numpy arrays
+    for label in labels:
+        if isinstance(label["arr_diag"], torch.Tensor):
+            label["arr_diag"] = label["arr_diag"].cpu().detach().numpy()
     # concatenate the labels and outputs
     labels = np.concat([label["arr_diag"] for label in labels])
     probability_outputs = np.concat([output.arr_diag_prob for output in outputs], axis=0)

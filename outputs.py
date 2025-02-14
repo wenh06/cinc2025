@@ -72,12 +72,16 @@ class CINC2025Outputs:
                 self.chagas = np.asarray(self.chagas).astype(bool)
             self.chagas = self.chagas.tolist()
         if self.chagas_logits is not None:
+            if isinstance(self.chagas_logits, torch.Tensor):
+                self.chagas_logits = self.chagas_logits.cpu().detach().numpy()
+            else:
+                self.chagas_logits = np.asarray(self.chagas_logits)
             if self.chagas_prob is None:
                 self.chagas_prob = torch.softmax(torch.tensor(self.chagas_logits), dim=-1).cpu().detach().numpy()
             elif isinstance(self.chagas_prob, torch.Tensor):
                 self.chagas_prob = self.chagas_prob.cpu().detach().numpy()
             else:
-                self.chagas_prob = np.array(self.chagas_prob)
+                self.chagas_prob = np.asarray(self.chagas_prob)
             if self.chagas is None:
                 self.chagas = np.argmax(self.chagas_prob, axis=-1).astype(bool).tolist()
             assert len(self.chagas) == self.chagas_logits.shape[0] == self.chagas_prob.shape[0], "inconsistent length"
@@ -86,7 +90,7 @@ class CINC2025Outputs:
             if isinstance(self.chagas_prob, torch.Tensor):
                 self.chagas_prob = self.chagas_prob.cpu().detach().numpy()
             else:
-                self.chagas_prob = np.array(self.chagas_prob)
+                self.chagas_prob = np.asarray(self.chagas_prob)
             if self.chagas is None:
                 self.chagas = np.argmax(self.chagas_prob, axis=-1).astype(bool).tolist()
             assert len(self.chagas) == self.chagas_prob.shape[0], "inconsistent length"
@@ -94,6 +98,8 @@ class CINC2025Outputs:
         if self.chagas_loss is not None:
             if isinstance(self.chagas_loss, torch.Tensor):
                 self.chagas_loss = self.chagas_loss.cpu().detach().numpy()
+            else:
+                self.chagas_loss = np.asarray(self.chagas_loss)
 
         if self.arr_diag is not None:
             assert self.arr_diag_classes is not None, "arr_diag_classes should be provided if `arr_diag` is provided"
@@ -106,11 +112,11 @@ class CINC2025Outputs:
             if isinstance(self.arr_diag_prob, torch.Tensor):
                 self.arr_diag_prob = self.arr_diag_prob.cpu().detach().numpy()
             else:
-                self.arr_diag_prob = np.array(self.arr_diag_prob)
+                self.arr_diag_prob = np.asarray(self.arr_diag_prob)
             assert self.arr_diag_prob.shape[1] == len(self.arr_diag_classes), "inconsistent number of classes"
             if self.arr_diag is None:
                 self.arr_diag = [
-                    [self.arr_diag_classes[idx] for idx in np.where(np.array(items) > self.arr_diag_threshold)[0]]
+                    [self.arr_diag_classes[idx] for idx in np.where(np.asarray(items) > self.arr_diag_threshold)[0]]
                     for items in self.arr_diag_prob
                 ]
             assert len(self.arr_diag) == len(self.chagas), "inconsistent length"
@@ -119,25 +125,27 @@ class CINC2025Outputs:
             if isinstance(self.arr_diag_logits, torch.Tensor):
                 self.arr_diag_logits = self.arr_diag_logits.cpu().detach().numpy()
             else:
-                self.arr_diag_logits = np.array(self.arr_diag_logits)
+                self.arr_diag_logits = np.asarray(self.arr_diag_logits)
             if self.arr_diag_prob is None:
                 self.arr_diag_prob = torch.sigmoid(torch.from_numpy(self.arr_diag_logits)).cpu().detach().numpy()
             elif isinstance(self.arr_diag_prob, torch.Tensor):
                 self.arr_diag_prob = self.arr_diag_prob.cpu().detach().numpy()
             else:
-                self.arr_diag_prob = np.array(self.arr_diag_prob)
+                self.arr_diag_prob = np.asarray(self.arr_diag_prob)
             assert (
                 self.arr_diag_logits.shape[1] == self.arr_diag_prob.shape[1] == len(self.arr_diag_classes)
             ), "inconsistent number of classes"
             if self.arr_diag is None:
                 self.arr_diag = [
-                    [self.arr_diag_classes[idx] for idx in np.where(np.array(items) > self.arr_diag_threshold)[0]]
+                    [self.arr_diag_classes[idx] for idx in np.where(np.asarray(items) > self.arr_diag_threshold)[0]]
                     for items in self.arr_diag_prob
                 ]
             assert len(self.arr_diag) == len(self.chagas), "inconsistent length"
         if self.arr_diag_loss is not None:
             if isinstance(self.arr_diag_loss, torch.Tensor):
                 self.arr_diag_loss = self.arr_diag_loss.cpu().detach().numpy()
+            else:
+                self.arr_diag_loss = np.asarray(self.arr_diag_loss)
 
     def append(self, values: Union["CINC2025Outputs", Sequence["CINC2025Outputs"]]) -> None:
         """Append other :class:`CINC2025Outputs` to `self`
