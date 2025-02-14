@@ -30,8 +30,7 @@ print(f"tmp_data_dir: {str(tmp_data_dir)}")
 # create the data directory if it does not exist
 tmp_data_dir.mkdir(parents=True, exist_ok=True)
 # list files and folders in the data directory
-print("data directory content:")
-print(os.listdir(tmp_data_dir))
+print("data directory signal files count:", len(list(tmp_data_dir.glob("*.hea"))))
 
 # downloading is done outside the docker container
 # and the data folder is mounted to the docker container as read-only
@@ -214,8 +213,8 @@ if __name__ == "__main__":
     print(f"tmp_output_dir: {str(tmp_output_dir)}")
     print("#" * 80)
 
-    test_dataset()
-    test_models()
+    test_dataset()  # passed
+    test_models()  # passed
     # test_challenge_metrics()  # not implemented
     # test_trainer()  # not implemented
     # test_entry()  # not implemented

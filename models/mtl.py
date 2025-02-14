@@ -1,5 +1,5 @@
 """
-CRNN model for CINC2025.
+Multi-head model (multi-task learning) for CINC2025.
 """
 
 from copy import deepcopy
@@ -10,20 +10,20 @@ import torch
 from torch_ecg.cfg import CFG
 from torch_ecg.components import WaveformInput  # noqa: F401
 from torch_ecg.models import ECG_CRNN
-from torch_ecg.models.loss import setup_criterion
+from torch_ecg.models.loss import setup_criterion  # noqa: F401
 from torch_ecg.utils.misc import add_docstring
-from torch_ecg.utils.utils_data import one_hot_encode
+from torch_ecg.utils.utils_data import one_hot_encode  # noqa: F401
 
 from cfg import ModelCfg
 from outputs import CINC2025Outputs
 
 __all__ = [
-    "CRNN_CINC2025",
+    "MultiHead_CINC2025",
 ]
 
 
-class CRNN_CINC2025(ECG_CRNN):
-    """CRNN model for CINC2025.
+class MultiHead_CINC2025(ECG_CRNN):
+    """MultiHead model for CINC2025.
 
     Parameters
     ----------
@@ -34,7 +34,7 @@ class CRNN_CINC2025(ECG_CRNN):
     """
 
     __DEBUG__ = True
-    __name__ = "CRNN_CINC2025"
+    __name__ = "MultiHead_CINC2025"
 
     def __init__(self, config: Optional[CFG] = None, **kwargs: Any) -> None:
         if config is None:
@@ -48,7 +48,7 @@ class CRNN_CINC2025(ECG_CRNN):
             **kwargs,
         )
 
-        self.criteria = setup_criterion(_config.criterion, **_config.get("criterion_kw", {}))
+        raise NotImplementedError
 
     def forward(self, input_tensors: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         """Forward pass of the model.
@@ -62,28 +62,16 @@ class CRNN_CINC2025(ECG_CRNN):
                 Input signals. Required.
             - "chagas" : torch.Tensor, optional
                 Labels for Chagas disease diagnosis.
+            - "arr_diag" : torch.Tensor, optional
+                Labels for arrhythmia diagnosis.
 
         Returns
         -------
         dict
-            Predictions, including "chagas", "chagas_logits", "chagas_prob",
-            and "chagas_loss".
+            Predictions, including "chagas" and "arr_diag" (if available).
 
         """
-        chagas_logits = super().forward(input_tensors["signals"])
-        chagas_prob = self.softmax(chagas_logits)
-        chagas_pred = torch.argmax(chagas_prob, dim=-1)
-        if "chagas" in input_tensors:
-            if self.criteria.__class__.__name__ != "CrossEntropyLoss":
-                input_tensors["chagas"] = (
-                    torch.from_numpy(one_hot_encode(input_tensors["chagas"], num_classes=self.n_classes))
-                    .to(self.dtype)
-                    .to(self.device)
-                )
-            chagas_loss = self.criteria(chagas_logits, input_tensors["chagas"])
-        else:
-            chagas_loss = None
-        return {"chagas_logits": chagas_logits, "chagas_prob": chagas_prob, "chagas": chagas_pred, "chagas_loss": chagas_loss}
+        raise NotImplementedError
 
     @torch.no_grad()
     def inference(self, sig: Union[np.ndarray, torch.Tensor, list]) -> CINC2025Outputs:
@@ -97,24 +85,10 @@ class CRNN_CINC2025(ECG_CRNN):
         Returns
         -------
         CINC2025Outputs
-            Predictions, including "chagas", "chagas_logits", and "chagas_prob".
+            Predictions, including "chagas" and "arr_diag" (if available).
 
         """
-        training = self.training
-        self.eval()
-
-        input_tensors = {"signals": torch.as_tensor(sig, dtype=self.dtype, device=self.device)}
-        if input_tensors["signals"].ndim == 2:
-            input_tensors["signals"] = input_tensors["signals"].unsqueeze(0)  # add a batch dimension
-        # batch_size, channels, seq_len = _input.shape
-        forward_output = self.forward(input_tensors)
-
-        output = CINC2025Outputs(**forward_output)
-
-        # restore the training mode
-        self.train(training)
-
-        return output
+        raise NotImplementedError
 
     @add_docstring(inference.__doc__)
     def inference_CINC2025(self, sig: Union[np.ndarray, torch.Tensor, list]) -> CINC2025Outputs:
