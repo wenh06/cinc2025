@@ -186,3 +186,27 @@ class CINC2025Outputs:
                     setattr(self, k.name, self_ + v_)
                 else:
                     raise ValueError(f"field `{k.name}` of type `{type(v_)}` is not supported")
+
+    def drop(self, keys: Union[str, Sequence[str]]) -> None:
+        """Drop the specified keys from the :class:`CINC2025Outputs`.
+
+        Used to remove unnecessary fields for specific purposes
+        (e.g. evaluation, visualization, etc.) to save memory.
+
+        Parameters
+        ----------
+        keys : str or Sequence[str]
+            The keys to be dropped.
+
+        Returns
+        -------
+        None
+
+        """
+        if isinstance(keys, str):
+            keys = [keys]
+        for k in keys:
+            if k in fields(self):
+                setattr(self, k, None)
+            else:
+                raise KeyError(f"field `{k}` is not in the class")
