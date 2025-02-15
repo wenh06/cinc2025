@@ -267,7 +267,7 @@ class CINC2025Trainer(BaseTrainer):
                 if torch.cuda.is_available():
                     torch.cuda.synchronize()
                 labels = {"chagas": input_tensors.pop("chagas")}
-                outputs = self.model.inference(input_tensors)
+                outputs = self.model.inference(input_tensors["signals"])
                 outputs.drop(["chagas_logits", "chagas_loss"])  # reduce memory usage
                 all_outputs.append(outputs)
                 all_labels.append(labels)
@@ -288,7 +288,7 @@ class CINC2025Trainer(BaseTrainer):
                 ----------------------------------------------
                 Chagas scalar predictions:    {[round(item, 3) for item in head_scalar_preds[n].tolist()]}
                 Chagas binary predictions:    {head_binary_preds[n]}
-                Chagas labels:                {head_labels[n]}
+                Chagas labels:                {bool(head_labels[n])}
                 ----------------------------------------------
                 """
                 )

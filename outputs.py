@@ -205,8 +205,9 @@ class CINC2025Outputs:
         """
         if isinstance(keys, str):
             keys = [keys]
+        output_fields = [item.name for item in fields(self)]
         for k in keys:
-            if k in fields(self):
+            if k in output_fields:
                 setattr(self, k, None)
             else:
                 raise KeyError(f"field `{k}` is not in the class")

@@ -70,7 +70,7 @@ class CRNN_CINC2025(ECG_CRNN):
             and "chagas_loss".
 
         """
-        chagas_logits = super().forward(input_tensors["signals"])
+        chagas_logits = super().forward(input_tensors["signals"].to(self.dtype).to(self.device))
         chagas_prob = self.softmax(chagas_logits)
         chagas_pred = torch.argmax(chagas_prob, dim=-1)
         if "chagas" in input_tensors:
