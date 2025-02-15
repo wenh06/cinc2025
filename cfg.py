@@ -89,6 +89,41 @@ TrainCfg.label_smooth = 0.05
 #     alpha=0.3,
 # )
 
+# configs of training epochs, batch, etc.
+TrainCfg.n_epochs = 25
+# TODO: automatic adjust batch size according to GPU capacity
+# https://stackoverflow.com/questions/45132809/how-to-select-batch-size-automatically-to-fit-gpu
+# GPU memory limit of the Challenge is 64GB
+TrainCfg.batch_size = 16  # 64, 128, 256
+
+# configs of optimizers and lr_schedulers
+TrainCfg.optimizer = "adamw_amsgrad"  # "sgd", "adam", "adamw"
+TrainCfg.momentum = 0.949  # default values for corresponding PyTorch optimizers
+TrainCfg.betas = (0.9, 0.999)  # default values for corresponding PyTorch optimizers
+TrainCfg.decay = 1e-2  # default values for corresponding PyTorch optimizers
+
+TrainCfg.learning_rate = 1e-4  # 5e-4, 1e-3
+TrainCfg.lr = TrainCfg.learning_rate
+
+TrainCfg.lr_scheduler = "one_cycle"  # "one_cycle", "plateau", "burn_in", "step", None
+TrainCfg.lr_step_size = 50
+TrainCfg.lr_gamma = 0.1
+TrainCfg.max_lr = 1e-4  # for "one_cycle" scheduler, to adjust via expriments
+
+# configs of callbacks, including early stopping, checkpoint, etc.
+TrainCfg.early_stopping = CFG()  # early stopping according to challenge metric
+TrainCfg.early_stopping.min_delta = 0.001  # should be non-negative
+TrainCfg.early_stopping.patience = TrainCfg.n_epochs // 3
+TrainCfg.keep_checkpoint_max = 10
+
+# configs of loss function
+# TrainCfg.loss = "AsymmetricLoss"  # "FocalLoss", "BCEWithLogitsLoss"
+# TrainCfg.loss_kw = CFG(gamma_pos=0, gamma_neg=0.2, implementation="deep-psp")
+TrainCfg.flooding_level = 0.0  # flooding performed if positive,
+
+# configs of logging
+TrainCfg.log_step = 100
+# TrainCfg.eval_every = 20
 
 TrainCfg.criterion = "AsymmetricLoss"  # "FocalLoss", "BCEWithLogitsLoss"
 TrainCfg.criterion_kw = {}  # keyword arguments for the criterion
@@ -102,7 +137,6 @@ TrainCfg.monitor = "challenge_score"
 ###############################################################################
 # configurations for building deep learning models
 ###############################################################################
-
 
 _BASE_MODEL_CONFIG = CFG()
 _BASE_MODEL_CONFIG.torch_dtype = BaseCfg.torch_dtype

@@ -81,6 +81,7 @@ class CINC2025Trainer(BaseTrainer):
         lazy: bool = True,
         **kwargs: Any,
     ) -> None:
+        train_config["classes"] = train_config["chagas_classes"]
         super().__init__(
             model=model,
             dataset_cls=CINC2025Dataset,
@@ -250,7 +251,6 @@ class CINC2025Trainer(BaseTrainer):
 
         all_outputs = []
         all_labels = []
-        all_eval_res = []
 
         with tqdm(
             total=len(data_loader.dataset),
@@ -260,16 +260,43 @@ class CINC2025Trainer(BaseTrainer):
             mininterval=1.0,
             leave=False,
         ) as pbar:
-            for input_tensors in data_loader:
+            for idx, input_tensors in enumerate(data_loader):
                 # input_tensors is assumed to be a dict of tensors, with the following items:
                 # "signals" (required): the input image list
-                # "chagas" (optional): the chagas classification labels
-                # TODO: implement the evaluation logic
-                raise NotImplementedError
+                # "chagas" (required): the chagas classification labels
+                if torch.cuda.is_available():
+                    torch.cuda.synchronize()
+                labels = {"chagas": input_tensors.pop("chagas")}
+                outputs = self.model.inference(input_tensors)
+                outputs.drop(["chagas_logits", "chagas_loss"])  # reduce memory usage
+                all_outputs.append(outputs)
+                all_labels.append(labels)
+
+                pbar.update(input_tensors["signals"].shape[self.batch_dim])
+
+        eval_res = compute_challenge_metrics(all_labels, all_outputs)
+
+        if self.val_train_loader is not None:
+            log_head_num = 5
+            head_scalar_preds = all_outputs[0].chagas_prob[:log_head_num]
+            head_binary_preds = all_outputs[0].chagas[:log_head_num]
+            head_labels = all_labels[0]["chagas"][:log_head_num]
+            log_head_num = min(log_head_num, len(head_scalar_preds))
+            for n in range(log_head_num):
+                msg = textwrap.dedent(
+                    f"""
+                ----------------------------------------------
+                Chagas scalar predictions:    {[round(item, 3) for item in head_scalar_preds[n].tolist()]}
+                Chagas binary predictions:    {head_binary_preds[n]}
+                Chagas labels:                {head_labels[n]}
+                ----------------------------------------------
+                """
+                )
+                self.log_manager.log_message(msg)
 
         self.model.train()
 
-        # return eval_res
+        return eval_res
 
     @property
     def batch_dim(self) -> int:
@@ -281,30 +308,27 @@ class CINC2025Trainer(BaseTrainer):
 
     @property
     def extra_required_train_config_fields(self) -> List[str]:
-        raise NotImplementedError
+        return ["chagas_classes"]
 
     @property
     def save_prefix(self) -> str:
-        raise NotImplementedError
+        prefix = self._model.__name__
+        if hasattr(self.model_config, "cnn"):
+            prefix = f"{prefix}_{self.model_config.cnn.name}_epoch"
+        else:
+            prefix = f"{prefix}_epoch"
+        return prefix
 
     def extra_log_suffix(self) -> str:
-        raise NotImplementedError
+        suffix = super().extra_log_suffix()
+        if hasattr(self.model_config, "cnn"):
+            suffix = f"{suffix}_{self.model_config.cnn.name}"
+        return suffix
 
     def _setup_criterion(self) -> None:
         # since criterion is defined in the model,
         # override this method to do nothing
         pass
-
-    def save_checkpoint(self, path: str) -> None:
-        """Save the current state of the trainer to a checkpoint.
-
-        Parameters
-        ----------
-        path : str
-            Path to save the checkpoint
-
-        """
-        raise NotImplementedError
 
 
 def get_args(**kwargs: Any):

@@ -8,6 +8,7 @@ from typing import Union
 
 import numpy as np
 import torch
+from torch.nn.parallel import DataParallel as DP
 from torch.utils.data import DataLoader
 from torch_ecg.utils.misc import str2bool
 from torch_ecg.utils.utils_nn import default_collate_fn as collate_fn
@@ -16,6 +17,7 @@ from cfg import _BASE_DIR, ModelCfg, TrainCfg
 from dataset import CINC2025Dataset
 from models import CRNN_CINC2025
 from outputs import CINC2025Outputs
+from trainer import CINC2025Trainer
 from utils.misc import func_indicator
 from utils.scoring_metrics import compute_challenge_metrics
 
@@ -119,6 +121,9 @@ def test_models() -> None:
     echo_write_permission(tmp_output_dir)
 
     model = CRNN_CINC2025(ModelCfg)
+    # if torch.cuda.device_count() > 1:
+    #     model = DP(model)
+    #     # model = DDP(model)
     model.to(DEVICE)
 
     ds_config = deepcopy(TrainCfg)
@@ -197,7 +202,51 @@ def test_trainer() -> None:
     echo_write_permission(tmp_model_dir)
     echo_write_permission(tmp_output_dir)
 
-    raise NotImplementedError("The trainer test is not implemented yet.")
+    train_config = deepcopy(TrainCfg)
+    train_config.db_dir = tmp_data_dir
+    # train_config.model_dir = model_folder
+    # train_config.final_model_filename = "final_model.pth.tar"
+    train_config.debug = True
+    train_config.working_dir = tmp_model_dir / "working_dir"
+    train_config.working_dir.mkdir(parents=True, exist_ok=True)
+
+    train_config.n_epochs = 1
+    train_config.batch_size = 4  # 16G (Tesla T4)
+    # train_config.log_step = 20
+    # # train_config.max_lr = 1.5e-3
+    # train_config.early_stopping.patience = 20
+
+    model_config = deepcopy(ModelCfg)
+    model = CRNN_CINC2025(config=model_config)
+    # if torch.cuda.device_count() > 1:
+    #     model = DP(model)
+    #     # model = DDP(model)
+    model = model.to(device=DEVICE)
+    if isinstance(model, DP):
+        print("model size:", model.module.module_size, model.module.module_size_)
+    else:
+        print("model size:", model.module_size, model.module_size_)
+
+    ds_train = CINC2025Dataset(train_config, training=True, lazy=True)
+    ds_val = CINC2025Dataset(train_config, training=False, lazy=True)
+    print(f"train size: {len(ds_train)}, val size: {len(ds_val)}")
+
+    trainer = CINC2025Trainer(
+        model=model,
+        model_config=model_config,
+        train_config=train_config,
+        device=DEVICE,
+        lazy=True,
+    )
+    # trainer._setup_dataloaders(ds_train, ds_val)
+    # switch the dataloaders to make the test faster
+    # the first dataloader is used for both training and evaluation
+    # the second dataloader is used for validation only
+    trainer._setup_dataloaders(ds_val, ds_train)
+
+    best_model_state_dict = trainer.train()
+
+    print(f"Saved models: {list(Path(train_config.model_dir).iterdir())}")
 
     print("trainer test passed")
 
@@ -245,6 +294,6 @@ if __name__ == "__main__":
     test_dataset()  # passed
     test_models()  # passed
     test_challenge_metrics()  # passed
-    # test_trainer()  # not implemented
+    test_trainer()  # implemented, under testing
     # test_entry()  # not implemented
     # set_entry_test_flag(False)
