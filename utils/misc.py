@@ -3,6 +3,7 @@ Miscellaneous functions.
 """
 
 from functools import wraps
+from numbers import Real
 from pathlib import Path
 from typing import Any, Callable
 
@@ -17,6 +18,8 @@ __all__ = [
     "load_submission_log",
     "schmidt_spike_removal",
     "trim_zeros",
+    "to_dtype",
+    "remove_spikes_naive",
 ]
 
 
@@ -282,3 +285,87 @@ def trim_zeros(filt, trim="fb", axis=None):
 
     trimmed = filt[sl]
     return trimmed
+
+
+def to_dtype(data: np.ndarray, dtype: np.dtype = np.float32) -> np.ndarray:
+    """Convert the data to the specified data type,
+    and fill the missing values with zeros.
+
+    Parameters
+    ----------
+    data : np.ndarray
+        The input data.
+    dtype : np.dtype, default np.float32
+        The expected data type.
+
+    Returns
+    -------
+    data : np.ndarray
+        The converted data.
+
+    """
+    if data.dtype == dtype:
+        return data
+    if data.dtype in (np.int8, np.uint8, np.int16, np.int32, np.int64):
+        data = data.astype(dtype) / (np.iinfo(data.dtype).max + 1)
+    else:
+        data = data.astype(dtype)
+    data[~np.isfinite(data)] = 0.0
+
+    return data
+
+
+def remove_spikes_naive(sig: np.ndarray, threshold: Real = 20, inplace: bool = True) -> np.ndarray:
+    """Remove signal spikes using a naive method.
+
+    This is a method proposed in entry 0416 of CPSC2019.
+    `spikes` here refers to abrupt large bumps with (abs) value
+    larger than the given threshold,
+    or nan values (read by `wfdb`).
+    Do **NOT** confuse with `spikes` in paced rhythm.
+
+    Parameters
+    ----------
+    sig : numpy.ndarray
+        1D or 2D signal with potential spikes.
+        If is 2D, it should be of lead-first format.
+    threshold : numbers.Real, optional
+        Values of `sig` that are larger than `threshold` will be removed.
+    inplace : bool, optional
+        Whether to modify `sig` in place or not.
+
+    Returns
+    -------
+    numpy.ndarray
+        Signal with `spikes` removed.
+
+    Examples
+    --------
+    .. code-block:: python
+
+        sig = np.random.randn(1000)
+        pos = np.random.randint(0, 1000, 10)
+        sig[pos] = 100
+        sig = remove_spikes_naive(sig)
+        pos = np.random.randint(0, 1000, 1)
+        sig[pos] = np.nan
+        sig = remove_spikes_naive(sig)
+
+    """
+    assert sig.ndim <= 2, f"Only 1D or 2D signal is supported, but got {sig.ndim}D signal"
+    if sig.ndim == 2:
+        return np.apply_along_axis(lambda x: remove_spikes_naive(x, threshold, inplace), axis=0, arr=sig)
+    dtype = sig.dtype
+    b = list(
+        filter(
+            lambda k: k > 0,
+            np.argwhere(np.logical_or(np.abs(sig) > threshold, np.isnan(sig))).squeeze(-1),
+        )
+    )
+    if not inplace:
+        sig = sig.copy()
+    if abs(sig[0]) > threshold or np.isnan(sig[0]):
+        sig[0] = 0
+    for k in b:
+        sig[k] = sig[k - 1]
+    return sig.astype(dtype)
