@@ -10,13 +10,17 @@ import numpy as np
 import torch
 from torch.nn.parallel import DataParallel as DP
 from torch.utils.data import DataLoader
+from torch_ecg.cfg import CFG
 from torch_ecg.utils.misc import str2bool
 from torch_ecg.utils.utils_nn import default_collate_fn as collate_fn
 
 from cfg import _BASE_DIR, ModelCfg, TrainCfg
 from dataset import CINC2025Dataset
+from evaluate_model import run as model_evaluator_func
 from models import CRNN_CINC2025
 from outputs import CINC2025Outputs
+from run_model import run as model_runner_func
+from team_code import train_models
 from trainer import CINC2025Trainer
 from utils.misc import func_indicator
 from utils.scoring_metrics import compute_challenge_metrics
@@ -31,9 +35,7 @@ else:
 
 tmp_data_dir = Path(os.environ.get("mount_data_dir", _BASE_DIR / "tmp" / "CINC2025")).resolve()
 print(f"tmp_data_dir: {str(tmp_data_dir)}")
-# create the data directory if it does not exist
 tmp_data_dir.mkdir(parents=True, exist_ok=True)
-# list files and folders in the data directory
 print("data directory signal files count:", len(list(tmp_data_dir.glob("*.hea"))))
 
 # downloading is done outside the docker container
@@ -259,8 +261,36 @@ def test_entry() -> None:
 
     # run the model training function (script)
     print("   Run model training function   ".center(80, "#"))
+    data_folder = tmp_data_dir
 
-    raise NotImplementedError("The entry test is not implemented yet.")
+    train_models(str(data_folder), str(tmp_model_dir), verbose=2)
+
+    # run the model inference function (script)
+    output_dir = tmp_output_dir
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    print("   Run model   ".center(80, "#"))
+
+    model_runner_args = CFG(
+        data_folder=str(data_folder),
+        model_folder=str(tmp_model_dir),
+        output_folder=str(output_dir),
+        allow_failures=False,
+        verbose=2,
+    )
+    model_runner_func(model_runner_args)
+
+    print("   Evaluate model   ".center(80, "#"))
+
+    model_evaluator_args = CFG(
+        folder_ref=str(data_folder),
+        folder_est=str(output_dir),
+        score_file=str(Path(output_dir) / "score.txt"),
+    )
+    model_evaluator_func(model_evaluator_args)  # metrics are printed
+
+    print("Content of saved score file:")
+    print(Path(output_dir / "score.txt").read_text())
 
     print("Entry test passed")
 
@@ -279,7 +309,8 @@ if __name__ == "__main__":
         print("Please set CINC2025_REVENGER_TEST to true (1, y, yes, true, etc.) to run the test:")
         print("CINC2025_REVENGER_TEST=1 python test_docker.py")
         print("Other environment variables:")
-        print("mount_data_dir: the data directory")
+        print("mount_data_dir: the data directory, usage:")
+        print("CINC2025_REVENGER_TEST=1 mount_data_dir=/path/to/data python test_docker.py")
         # TODO: add more environment variables here
         exit(0)
 
@@ -294,6 +325,6 @@ if __name__ == "__main__":
     # test_dataset()  # passed
     # test_models()  # passed
     # test_challenge_metrics()  # passed
-    test_trainer()  # implemented, under testing
-    # test_entry()  # not implemented
+    # test_trainer()  # passed
+    test_entry()  # implemented, under testing
     # set_entry_test_flag(False)
