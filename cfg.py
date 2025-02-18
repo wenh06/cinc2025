@@ -132,6 +132,7 @@ TrainCfg.train_ratio = 0.8
 TrainCfg.input_len = 4096  # approximately 10s
 
 TrainCfg.monitor = "challenge_score"
+TrainCfg.final_model_name = None
 
 
 ###############################################################################
