@@ -20,7 +20,7 @@ from evaluate_model import run as model_evaluator_func
 from models import CRNN_CINC2025
 from outputs import CINC2025Outputs
 from run_model import run as model_runner_func
-from team_code import train_models
+from team_code import train_model
 from trainer import CINC2025Trainer
 from utils.misc import func_indicator
 from utils.scoring_metrics import compute_challenge_metrics
@@ -46,8 +46,9 @@ print("data directory signal files count:", len(list(tmp_data_dir.glob("*.hea"))
 
 
 tmp_model_dir = Path(os.environ.get("revenger_model_dir", TrainCfg.model_dir)).resolve()
-
+tmp_model_dir.mkdir(parents=True, exist_ok=True)
 tmp_output_dir = Path(os.environ.get("revenger_output_dir", _BASE_DIR / "tmp" / "output")).resolve()
+tmp_output_dir.mkdir(parents=True, exist_ok=True)
 
 
 def echo_write_permission(folder: Union[str, Path]) -> None:
@@ -147,11 +148,11 @@ def test_models() -> None:
     for idx, input_tensors in enumerate(dl):
         if idx == 0:
             inference_output = model.inference(input_tensors["signals"])
-            print(f"   {idx = }   ".center(80, "#"))
+            print(f"   {idx = }   ".center(100, "#"))
             print(f"{inference_output = }")
         elif idx == 1:
             forward_output = model.forward(input_tensors)
-            print(f"   {idx = }   ".center(80, "#"))
+            print(f"   {idx = }   ".center(100, "#"))
             print(f"{forward_output = }")
         else:
             break
@@ -260,16 +261,17 @@ def test_entry() -> None:
     echo_write_permission(tmp_model_dir)
 
     # run the model training function (script)
-    print("   Run model training function   ".center(80, "#"))
+    print("   Run model training function   ".center(100, "#"))
     data_folder = tmp_data_dir
+    model_folder = tmp_model_dir
 
-    train_models(str(data_folder), str(tmp_model_dir), verbose=2)
+    train_model(str(data_folder), str(model_folder), verbose=2)
 
     # run the model inference function (script)
     output_dir = tmp_output_dir
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    print("   Run model   ".center(80, "#"))
+    print("   Run model   ".center(100, "#"))
 
     model_runner_args = CFG(
         data_folder=str(data_folder),
@@ -280,7 +282,7 @@ def test_entry() -> None:
     )
     model_runner_func(model_runner_args)
 
-    print("   Evaluate model   ".center(80, "#"))
+    print("   Evaluate model   ".center(100, "#"))
 
     model_evaluator_args = CFG(
         folder_ref=str(data_folder),
@@ -314,13 +316,13 @@ if __name__ == "__main__":
         # TODO: add more environment variables here
         exit(0)
 
-    print("#" * 80)
+    print("#" * 100)
     print("testing team code")
-    print("#" * 80)
+    print("#" * 100)
     print(f"tmp_data_dir: {str(tmp_data_dir)}")
     print(f"tmp_model_dir: {str(tmp_model_dir)}")
     print(f"tmp_output_dir: {str(tmp_output_dir)}")
-    print("#" * 80)
+    print("#" * 100)
 
     # test_dataset()  # passed
     # test_models()  # passed

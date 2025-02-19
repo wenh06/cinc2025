@@ -27,7 +27,6 @@ from torch_ecg.cfg import CFG
 from torch_ecg.utils.misc import str2bool
 
 from cfg import BaseCfg, ModelCfg, TrainCfg  # noqa: F401
-from const import LABEL_CACHE_DIR, MODEL_CACHE_DIR, TEST_DATA_CACHE_DIR  # noqa: F401
 from data_reader import CINC2025
 from dataset import CINC2025Dataset
 from helper_code import find_records
@@ -47,6 +46,11 @@ try:
     TEST_FLAG = str2bool(TEST_FLAG)
 except Exception:
     TEST_FLAG = False
+
+if TEST_FLAG:
+    print("Running in test mode.")
+else:
+    print("Running in submission mode.")
 
 ################################################################################
 
@@ -76,6 +80,8 @@ CINC2025.__DEBUG__ = False
 CINC2025Dataset.__DEBUG__ = False
 CRNN_CINC2025.__DEBUG__ = False
 CINC2025Trainer.__DEBUG__ = False
+
+print(f"Running on {DEVICE}, using data type {DTYPE}.")
 
 ################################################################################
 
@@ -128,8 +134,8 @@ def train_model(
         print(f"Found {num_records} records.")
 
     # override the default data folder
-    if TEST_FLAG:
-        data_folder = TEST_DATA_CACHE_DIR
+    # if TEST_FLAG:
+    #     data_folder = TEST_DATA_CACHE_DIR
 
     # raise error only when testing in GitHub Actions;
     # in other cases (submissions), errors are caught and printed,
@@ -157,11 +163,6 @@ def train_model(
     ###############################################################################
 
     start_time = datetime.now()
-
-    reader_kwargs = {
-        "db_dir": Path(data_folder).expanduser().resolve(),
-        "working_dir": (Path(model_folder) / "working_dir"),
-    }
 
     if SubmissionCfg.remote_model is not None:
         pass  # not implemented yet
@@ -194,21 +195,25 @@ def train_model(
     model_cls = SubmissionCfg.model_cls
 
     model = model_cls(config=model_config)
-    if torch.cuda.device_count() > 1:
-        model = DP(model)
-        # model = DDP(model)
-    model.to(device=DEVICE)
+    # NOTE: DP models might have issues:
+    # the `parameters` method might not work as expected and return empty generator
+
+    # if torch.cuda.device_count() > 1:
+    #     model = DP(model)
+    #     # model = DDP(model)
+    model.to(DEVICE)
     if verbose:
         if isinstance(model, DP):
             print("model size:", model.module.module_size, model.module.module_size_)
+            print("Using devices:", model.device_ids)
         else:
             print("model size:", model.module_size, model.module_size_)
+            print("Using device:", model.device)
 
     reader_kwargs = {
         "db_dir": Path(data_folder).expanduser().resolve(),
         "working_dir": (Path(model_folder) / "working_dir"),
     }
-
     ds_train = CINC2025Dataset(train_config, training=True, lazy=True, **reader_kwargs)
     ds_val = CINC2025Dataset(train_config, training=False, lazy=True, **reader_kwargs)
     if verbose:
