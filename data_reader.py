@@ -1981,7 +1981,7 @@ class CINC2025(_DataBase):
         """Find all records in the database directory
         and store them (path, metadata, etc.) in a dataframe.
         """
-        columns = ["age", "sex", "fs", "chagas"]
+        columns = ["sig_len", "age", "sex", "fs", "chagas"]
         self._df_records = pd.DataFrame(self.db_dir.rglob("*.hea"), columns=["path"])
         self._df_records["path"] = self._df_records["path"].apply(lambda x: x.with_suffix(""))
         # keep only those records that have a corresponding .dat file or .mat file
@@ -2353,6 +2353,7 @@ def load_metadata_from_header(header_file: Union[str, bytes, os.PathLike]) -> Di
     metadata = {key.lower().replace("label", "").strip(): val for key, val in comment_pattern.findall(comments)}
     metadata["record"] = Path(header_file).stem
     metadata["fs"] = header.fs
+    metadata["sig_len"] = header.sig_len
     return metadata
 
 

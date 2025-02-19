@@ -108,7 +108,7 @@ TrainCfg.lr = TrainCfg.learning_rate
 TrainCfg.lr_scheduler = "one_cycle"  # "one_cycle", "plateau", "burn_in", "step", None
 TrainCfg.lr_step_size = 50
 TrainCfg.lr_gamma = 0.1
-TrainCfg.max_lr = 1e-4  # for "one_cycle" scheduler, to adjust via expriments
+TrainCfg.max_lr = 6e-4  # for "one_cycle" scheduler, to adjust via expriments
 
 # configs of callbacks, including early stopping, checkpoint, etc.
 TrainCfg.early_stopping = CFG()  # early stopping according to challenge metric
@@ -130,6 +130,7 @@ TrainCfg.criterion_kw = {}  # keyword arguments for the criterion
 
 TrainCfg.train_ratio = 0.8
 TrainCfg.input_len = 4096  # approximately 10s
+TrainCfg.min_len = 1200  # minimum length of the raw signal
 
 TrainCfg.monitor = "challenge_score"
 TrainCfg.final_model_name = None

@@ -154,7 +154,11 @@ class CINC2025Dataset(Dataset, ReprMixin):
         records = code_15_data_split[part] + ptb_xl_data_split[part] + sami_trop_data_split[part]
 
         # keep only the records that are in the database (self.reader.all_records)
-        records = list(set(records) & set(self.reader.all_records))
+        # and drop the records that have signal length less than `self.config.min_len`
+        # to avoid data processing errors (e.g. bandpass filtering)
+        records = list(
+            set(records) & set(self.reader._df_records[self.reader._df_records.sig_len >= self.config.min_len].index)
+        )
 
         if self.training:
             DEFAULTS.RNG.shuffle(records)
@@ -208,8 +212,12 @@ class FastDataReader(ReprMixin, Dataset):
             signal, _ = self.ppm(signal, sig_fs)
         # ensure the length of the signal equals to the expected length `self.config.input_len`
         pad_len = self.config.input_len - signal.shape[1]
-        pad_shift = DEFAULTS.RNG.integers(0, pad_len + 1)
-        signal = np.pad(signal, ((0, 0), (pad_shift, pad_len - pad_shift)), mode="constant")
+        if pad_len > 0:
+            pad_shift = DEFAULTS.RNG.integers(0, pad_len + 1)
+            signal = np.pad(signal, ((0, 0), (pad_shift, pad_len - pad_shift)), mode="constant")
+        elif pad_len < 0:
+            pad_shift = DEFAULTS.RNG.integers(0, -pad_len + 1)
+            signal = signal[:, pad_shift : pad_shift + self.config.input_len]
         chagas_label = self.reader.load_ann(rec)
 
         # chagas_label = self.reader.load_chagas_ann(rec)  # categorical: 0 or 1
