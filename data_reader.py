@@ -2384,12 +2384,22 @@ if __name__ == "__main__":
         dest="convert",
     )
     parser.add_argument(
-        "-w",
-        "--working-dir",
-        type=str,
-        default=None,
-        help="The working directory to store the intermediate results.",
-        dest="working_dir",
+        "-c",
+        "--convert",
+        action="store_true",
+        help="Whether to convert the downloaded files to WFDB format.",
+        dest="convert",
+    )
+    # `remove` is added since `helper_code.find_records` might find records
+    # not converted (the PTB-XL database). This will result in a failure
+    # of the function `helper_code.load_label` since theses records contain
+    # no chagas label.
+    parser.add_argument(
+        "-r",
+        "--remove",
+        action="store_true",
+        help="Remove the downloaded files after conversion. Valid only when `convert` is True.",
+        dest="remove",
     )
     parser.add_argument(
         "-f",
@@ -2417,6 +2427,17 @@ if __name__ == "__main__":
         dr = CINC2025(db_dir=args.db_dir, working_dir=args.working_dir)
         if "download" in operations:
             dr.download(files, convert=args.convert)
+        if args.convert and args.remove:
+            code15_dir = dr.db_dir / CODE15.__name__
+            samitrop_dir = dr.db_dir / SamiTrop.__name__
+            ptbxl_dir = dr.db_dir / PTBXL.__name__
+            if code15_dir.exists():
+                shutil.rmtree(code15_dir)
+            if samitrop_dir.exists():
+                shutil.rmtree(samitrop_dir)
+            if ptbxl_dir.exists():
+                shutil.rmtree(ptbxl_dir)
+    del dr
 
     print("Done.")
 
