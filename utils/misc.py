@@ -20,6 +20,7 @@ __all__ = [
     "trim_zeros",
     "to_dtype",
     "remove_spikes_naive",
+    "is_stdtypes",
 ]
 
 
@@ -369,3 +370,40 @@ def remove_spikes_naive(sig: np.ndarray, threshold: Real = 20, inplace: bool = T
     for k in b:
         sig[k] = sig[k - 1]
     return sig.astype(dtype)
+
+
+def is_stdtypes(x: Any) -> bool:
+    """Check if an object is an instance of Python
+    built-in standard data types.
+
+    For more information, see [#stdtypes]_.
+
+    Parameters
+    ----------
+    x : Any
+        Object to be checked.
+
+    Returns
+    -------
+    bool
+        True if `x` is a standard data type, False otherwise.
+
+    References
+    ----------
+    .. [#stdtypes] https://docs.python.org/3/library/stdtypes.html
+
+    """
+    # return type(x).__module__ == "builtins"
+    # fmt: off
+    builtins = (
+        int, float, complex,
+        bool,
+        list, tuple, range,
+        str,
+        bytes, bytearray, memoryview,
+        set, frozenset,
+        dict,
+        type(None),
+    )
+    # fmt: on
+    return isinstance(x, builtins)
