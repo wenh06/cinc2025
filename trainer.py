@@ -2,9 +2,11 @@
 """
 
 import argparse
+import logging
 import os
 import sys
 import textwrap  # noqa: F401
+from collections import OrderedDict
 from copy import deepcopy
 from typing import Any, Dict, List, Optional
 
@@ -16,7 +18,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP  # noqa: F401
 from torch.utils.data import DataLoader, Dataset
 from torch_ecg.cfg import CFG
 from torch_ecg.components.trainer import BaseTrainer
-from torch_ecg.utils.misc import str2bool
+from torch_ecg.utils.misc import get_date_str, str2bool
 from torch_ecg.utils.utils_nn import default_collate_fn as collate_fn
 from tqdm.auto import tqdm
 
@@ -120,12 +122,12 @@ class CINC2025Trainer(BaseTrainer):
             val_train_dataset = train_dataset
         else:
             val_train_dataset = None
-        if val_dataset is None:
-            val_dataset = self.dataset_cls(
-                config=self.train_config,
-                training=False,
-                lazy=True,
-            )
+        # if val_dataset is None:
+        #     val_dataset = self.dataset_cls(
+        #         config=self.train_config,
+        #         training=False,
+        #         lazy=True,
+        #     )
 
         # https://discuss.pytorch.org/t/guidelines-for-assigning-num-workers-to-dataloader/813/4
         if self.device == torch.device("cpu"):
@@ -147,7 +149,7 @@ class CINC2025Trainer(BaseTrainer):
             self.val_train_loader = DataLoader(
                 dataset=val_train_dataset,
                 batch_size=self.batch_size,
-                shuffle=True,
+                shuffle=False,
                 num_workers=num_workers,
                 pin_memory=True,
                 drop_last=False,
@@ -155,15 +157,183 @@ class CINC2025Trainer(BaseTrainer):
             )
         else:
             self.val_train_loader = None
-        self.val_loader = DataLoader(
-            dataset=val_dataset,
-            batch_size=self.batch_size,
-            shuffle=True,
-            num_workers=num_workers,
-            pin_memory=True,
-            drop_last=False,
-            collate_fn=collate_fn,
+        if val_dataset is None:
+            self.val_loader = None
+        else:
+            self.val_loader = DataLoader(
+                dataset=val_dataset,
+                batch_size=self.batch_size,
+                shuffle=True,
+                num_workers=num_workers,
+                pin_memory=True,
+                drop_last=False,
+                collate_fn=collate_fn,
+            )
+
+    def train(self) -> OrderedDict:
+        """Train the model.
+
+        Returns
+        -------
+        best_state_dict : OrderedDict
+            The state dict of the best model.
+
+        """
+        self._setup_optimizer()
+
+        self._setup_scheduler()
+
+        self._setup_criterion()
+
+        if self.train_config.monitor is not None:
+            # if monitor is set but val_loader is None, use train_loader for validation
+            # and choose the best model based on the metrics on the train set
+            if self.val_loader is None and self.val_train_loader is None:
+                self.val_train_loader = self.train_loader
+                self.log_manager.log_message(
+                    (
+                        "No separate validation set is provided, while monitor is set. "
+                        "The training set will be used for validation, "
+                        "and the best model will be selected based on the metrics on the training set"
+                    ),
+                    level=logging.WARNING,
+                )
+
+        msg = textwrap.dedent(
+            f"""
+            Starting training:
+            ------------------
+            Epochs:          {self.n_epochs}
+            Batch size:      {self.batch_size}
+            Learning rate:   {self.lr}
+            Training size:   {self.n_train}
+            Validation size: {self.n_val}
+            Device:          {self.device.type}
+            Optimizer:       {self.train_config.optimizer}
+            Dataset classes: {self.train_config.classes}
+            -----------------------------------------
+            """
         )
+        self.log_manager.log_message(msg)
+
+        start_epoch = self.epoch
+        for _ in range(start_epoch, self.n_epochs):
+            # train one epoch
+            self.model.train()
+            self.epoch_loss = 0
+            with tqdm(
+                total=self.n_train,
+                desc=f"Epoch {self.epoch}/{self.n_epochs}",
+                unit="signals",
+                dynamic_ncols=True,
+                mininterval=1.0,
+            ) as pbar:
+                self.log_manager.epoch_start(self.epoch)
+                # train one epoch
+                self.train_one_epoch(pbar)
+
+                # evaluate on train set, if debug is True
+                if self.val_train_loader is not None:
+                    eval_train_res = self.evaluate(self.val_train_loader)
+                    self.log_manager.log_metrics(
+                        metrics=eval_train_res,
+                        step=self.global_step,
+                        epoch=self.epoch,
+                        part="train",
+                    )
+                else:
+                    eval_train_res = {}
+                # evaluate on val set
+                if self.val_loader is not None:
+                    eval_res = self.evaluate(self.val_loader)
+                    self.log_manager.log_metrics(
+                        metrics=eval_res,
+                        step=self.global_step,
+                        epoch=self.epoch,
+                        part="val",
+                    )
+                elif self.val_train_loader is not None:
+                    # if no separate val set, use the metrics on the train set
+                    eval_res = eval_train_res
+                else:
+                    eval_res = {}
+
+                # update best model and best metric if monitor is set
+                if self.train_config.monitor is not None:
+                    if eval_res[self.train_config.monitor] > self.best_metric:
+                        self.best_metric = eval_res[self.train_config.monitor]
+                        self.best_state_dict = self._model.state_dict()
+                        self.best_eval_res = deepcopy(eval_res)
+                        self.best_epoch = self.epoch
+                        self.pseudo_best_epoch = self.epoch
+                    elif self.train_config.early_stopping:
+                        if eval_res[self.train_config.monitor] >= self.best_metric - self.train_config.early_stopping.min_delta:
+                            self.pseudo_best_epoch = self.epoch
+                        elif self.epoch - self.pseudo_best_epoch >= self.train_config.early_stopping.patience:
+                            msg = f"early stopping is triggered at epoch {self.epoch}"
+                            self.log_manager.log_message(msg)
+                            break
+
+                    msg = textwrap.dedent(
+                        f"""
+                        best metric = {self.best_metric},
+                        obtained at epoch {self.best_epoch}
+                    """
+                    )
+                    self.log_manager.log_message(msg)
+
+                    # save checkpoint
+                    save_suffix = f"epochloss_{self.epoch_loss:.5f}_metric_{eval_res[self.train_config.monitor]:.2f}"
+                else:
+                    save_suffix = f"epochloss_{self.epoch_loss:.5f}"
+                save_filename = f"{self.save_prefix}_epoch{self.epoch}_{get_date_str()}_{save_suffix}.pth.tar"
+                save_path = self.train_config.checkpoints / save_filename
+                if self.train_config.keep_checkpoint_max != 0:
+                    self.save_checkpoint(str(save_path))
+                    self.saved_models.append(save_path)
+                # remove outdated models
+                if len(self.saved_models) > self.train_config.keep_checkpoint_max > 0:
+                    model_to_remove = self.saved_models.popleft()
+                    try:
+                        os.remove(model_to_remove)
+                    except Exception:
+                        self.log_manager.log_message(f"failed to remove {str(model_to_remove)}")
+
+                # update learning rate using lr_scheduler
+                if self.train_config.lr_scheduler.lower() == "plateau":
+                    self._update_lr(eval_res)
+
+                self.log_manager.epoch_end(self.epoch)
+
+            self.epoch += 1
+
+        # save the best model
+        if self.best_metric > -np.inf:
+            if self.train_config.final_model_name:
+                save_filename = self.train_config.final_model_name
+            else:
+                save_suffix = f"metric_{self.best_eval_res[self.train_config.monitor]:.2f}"
+                save_filename = f"BestModel_{self.save_prefix}{self.best_epoch}_{get_date_str()}_{save_suffix}.pth.tar"
+            save_path = self.train_config.model_dir / save_filename
+            self.save_checkpoint(path=str(save_path))
+            self.log_manager.log_message(f"best model is saved at {save_path}")
+        elif self.train_config.monitor is None:
+            self.log_manager.log_message("no monitor is set, the last model is selected and saved as the best model")
+            self.best_state_dict = self._model.state_dict()
+            save_filename = f"BestModel_{self.save_prefix}{self.epoch}_{get_date_str()}.pth.tar"
+            save_path = self.train_config.model_dir / save_filename
+            self.save_checkpoint(path=str(save_path))
+        else:
+            raise ValueError("No best model found!")
+
+        self.log_manager.close()
+
+        if not self.best_state_dict:
+            # in case no best model is found,
+            # e.g. monitor is not set, or keep_checkpoint_max is 0
+            self.best_state_dict = self._model.state_dict()
+
+        return self.best_state_dict
 
     def train_one_epoch(self, pbar: tqdm) -> None:
         """Train one epoch, and update the progress bar
@@ -241,6 +411,7 @@ class CINC2025Trainer(BaseTrainer):
             - "chagas_loss": the Dx classification loss
 
         """
+        # input_tensors = {k: v.to(self.device) for k, v in input_tensors.items()}
         return self.model(input_tensors)
 
     @torch.no_grad()

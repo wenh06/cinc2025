@@ -48,7 +48,7 @@ class CRNN_CINC2025(ECG_CRNN):
             **kwargs,
         )
 
-        self.criteria = setup_criterion(_config.criterion, **_config.get("criterion_kw", {}))
+        self.criterion = setup_criterion(_config.criterion, **_config.get("criterion_kw", {}))
 
     def forward(self, input_tensors: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         """Forward pass of the model.
@@ -74,13 +74,15 @@ class CRNN_CINC2025(ECG_CRNN):
         chagas_prob = self.softmax(chagas_logits)
         chagas_pred = torch.argmax(chagas_prob, dim=-1)
         if "chagas" in input_tensors:
-            if self.criteria.__class__.__name__ != "CrossEntropyLoss":
+            if self.criterion.__class__.__name__ != "CrossEntropyLoss":
                 input_tensors["chagas"] = (
                     torch.from_numpy(one_hot_encode(input_tensors["chagas"], num_classes=self.n_classes))
                     .to(self.dtype)
                     .to(self.device)
                 )
-            chagas_loss = self.criteria(chagas_logits, input_tensors["chagas"])
+            else:
+                input_tensors["chagas"] = input_tensors["chagas"].to(self.device)
+            chagas_loss = self.criterion(chagas_logits, input_tensors["chagas"])
         else:
             chagas_loss = None
         return {"chagas_logits": chagas_logits, "chagas_prob": chagas_prob, "chagas": chagas_pred, "chagas_loss": chagas_loss}
