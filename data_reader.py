@@ -2383,13 +2383,6 @@ if __name__ == "__main__":
         help="Whether to convert the downloaded files to WFDB format.",
         dest="convert",
     )
-    parser.add_argument(
-        "-c",
-        "--convert",
-        action="store_true",
-        help="Whether to convert the downloaded files to WFDB format.",
-        dest="convert",
-    )
     # `remove` is added since `helper_code.find_records` might find records
     # not converted (the PTB-XL database). This will result in a failure
     # of the function `helper_code.load_label` since theses records contain
@@ -2400,6 +2393,14 @@ if __name__ == "__main__":
         action="store_true",
         help="Remove the downloaded files after conversion. Valid only when `convert` is True.",
         dest="remove",
+    )
+    parser.add_argument(
+        "-w",
+        "--working-dir",
+        type=str,
+        default=None,
+        help="The working directory to store the intermediate results.",
+        dest="working_dir",
     )
     parser.add_argument(
         "-f",
