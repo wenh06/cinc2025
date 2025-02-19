@@ -285,11 +285,11 @@ def test_entry() -> None:
     print("   Evaluate model   ".center(100, "#"))
 
     model_evaluator_args = CFG(
-        folder_ref=str(data_folder),
-        folder_est=str(output_dir),
+        data_folder=str(data_folder),
+        output_folder=str(output_dir),
         score_file=str(Path(output_dir) / "score.txt"),
     )
-    model_evaluator_func(model_evaluator_args)  # metrics are printed
+    model_evaluator_func(model_evaluator_args)
 
     print("Content of saved score file:")
     print(Path(output_dir / "score.txt").read_text())
