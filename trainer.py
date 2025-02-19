@@ -26,6 +26,7 @@ from cfg import ModelCfg, TrainCfg
 from const import MODEL_CACHE_DIR
 from dataset import CINC2025Dataset
 from models import CRNN_CINC2025
+from models.crnn import make_safe_globals
 from utils.scoring_metrics import compute_challenge_metrics  # noqa: F401
 
 os.environ["HF_HOME"] = str(MODEL_CACHE_DIR)
@@ -500,6 +501,26 @@ class CINC2025Trainer(BaseTrainer):
         # since criterion is defined in the model,
         # override this method to do nothing
         pass
+
+    def save_checkpoint(self, path: str) -> None:
+        """Save the current state of the trainer to a checkpoint.
+
+        Parameters
+        ----------
+        path : str
+            Path to save the checkpoint
+
+        """
+        torch.save(
+            {
+                "model_state_dict": self._model.state_dict(),
+                "optimizer_state_dict": self.optimizer.state_dict(),
+                "model_config": make_safe_globals(self.model_config),
+                "train_config": make_safe_globals(self.train_config),
+                "epoch": self.epoch,
+            },
+            path,
+        )
 
 
 def get_args(**kwargs: Any):
