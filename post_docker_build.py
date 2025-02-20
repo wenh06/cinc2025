@@ -3,7 +3,7 @@ import shutil
 import time
 from pathlib import Path
 
-from torch_ecg.utils.download import http_get, url_is_reachable
+from torch_ecg.utils.download import url_is_reachable
 from torch_ecg.utils.misc import str2bool
 
 from const import DATA_CACHE_DIR, LABEL_CACHE_DIR, MODEL_CACHE_DIR, REMOTE_MODELS, TEST_DATA_CACHE_DIR
@@ -99,14 +99,10 @@ def cache_pretrained_models():
     else:
         remote_model_source = "deep-psp"
     if SubmissionCfg.remote_model is not None:
-        http_get(
+        model, train_config = CRNN_CINC2025.from_remote(
             url=REMOTE_MODELS[SubmissionCfg.remote_model]["url"][remote_model_source],
-            dst_dir=MODEL_CACHE_DIR,
+            model_dir=MODEL_CACHE_DIR,
             filename=REMOTE_MODELS[SubmissionCfg.remote_model]["filename"],
-            extract=False,
-        )
-        model, train_config = CRNN_CINC2025.from_checkpoint(
-            Path(MODEL_CACHE_DIR) / REMOTE_MODELS[SubmissionCfg.remote_model]["filename"]
         )
         print("Chagas classification loaded")
         print(f"Model: {model}")
