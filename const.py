@@ -9,6 +9,7 @@ __all__ = [
     "DATA_CACHE_DIR",
     "LABEL_CACHE_DIR",
     "TEST_DATA_CACHE_DIR",
+    "REMOTE_MODELS",
 ]
 
 
@@ -42,3 +43,16 @@ LABEL_CACHE_DIR = str(Path(PROJECT_DIR) / "cache")
 
 TEST_DATA_CACHE_DIR = str(Path(DATA_CACHE_DIR).parent / "revenger_action_test_data_dir")
 Path(TEST_DATA_CACHE_DIR).mkdir(parents=True, exist_ok=True)
+
+
+REMOTE_MODELS = {
+    "crnn-resnet_nature_comm_bottle_neck-none-se": {
+        "url": {
+            "google-drive": "https://drive.google.com/u/0/uc?id=1ZXQJkecCDQqKUfkuhJCiqYzCMConXjiy",
+            "deep-psp": (
+                "https://deep-psp.tech/Models/CinC2025/" "BestModel_CRNN_CINC2025_epoch13_02-20_22-00_metric_0.44.pth.tar"
+            ),
+        },
+        "filename": "BestModel_CRNN_CINC2025_epoch13_02-20_22-00_metric_0.44.pth.tar",
+    },
+}

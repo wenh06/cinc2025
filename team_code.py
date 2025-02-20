@@ -20,13 +20,13 @@ import numpy as np
 import torch
 import torch.nn as nn
 import wfdb
-from torch.nn.parallel import DataParallel as DP  # noqa: F401
-from torch.nn.parallel import DistributedDataParallel as DDP  # noqa: F401
+from torch.nn.parallel import DataParallel as DP
 from torch_ecg._preprocessors import PreprocManager
 from torch_ecg.cfg import CFG
 from torch_ecg.utils.misc import str2bool
 
-from cfg import BaseCfg, ModelCfg, TrainCfg  # noqa: F401
+from cfg import ModelCfg, TrainCfg
+from const import MODEL_CACHE_DIR, REMOTE_MODELS
 from data_reader import CINC2025
 from dataset import CINC2025Dataset
 from helper_code import find_records
@@ -59,7 +59,7 @@ else:
 # NOTE: configurable options
 
 SubmissionCfg = CFG()
-SubmissionCfg.remote_model = None
+SubmissionCfg.remote_model = None  # "crnn-resnet_nature_comm_bottle_neck-none-se"
 SubmissionCfg.model_cls = CRNN_CINC2025
 SubmissionCfg.final_model_name = "final_model.pth"
 
@@ -165,7 +165,15 @@ def train_model(
     start_time = datetime.now()
 
     if SubmissionCfg.remote_model is not None:
-        pass  # not implemented yet
+        # fine-tune the remote model
+        model, train_config = SubmissionCfg.model_cls.from_checkpoint(
+            Path(MODEL_CACHE_DIR) / REMOTE_MODELS[SubmissionCfg.remote_model]["filename"],
+            device=DEVICE,
+        )
+        model_config = model.config
+        # if torch.cuda.device_count() > 1:
+        #     model = DP(model)
+        #     # model = DDP(model)
     else:
         # general configs and logger
         train_config = deepcopy(TrainCfg)
@@ -191,17 +199,19 @@ def train_model(
         train_config.log_step = 100
         train_config.early_stopping.patience = int(train_config.n_epochs * 0.3)
 
-    model_config = deepcopy(ModelCfg)
-    model_cls = SubmissionCfg.model_cls
+    if SubmissionCfg.remote_model is None:
+        model_config = deepcopy(ModelCfg)
+        model_cls = SubmissionCfg.model_cls
 
-    model = model_cls(config=model_config)
-    # NOTE: DP models might have issues:
-    # the `parameters` method might not work as expected and return empty generator
+        model = model_cls(config=model_config)
+        # NOTE: DP models might have issues:
+        # the `parameters` method might not work as expected and return empty generator
 
-    # if torch.cuda.device_count() > 1:
-    #     model = DP(model)
-    #     # model = DDP(model)
-    model.to(DEVICE)
+        # if torch.cuda.device_count() > 1:
+        #     model = DP(model)
+        #     # model = DDP(model)
+        model.to(DEVICE)
+
     if verbose:
         if isinstance(model, DP):
             print("model size:", model.module.module_size, model.module.module_size_)

@@ -3,11 +3,13 @@ import shutil
 import time
 from pathlib import Path
 
-from torch_ecg.utils.download import http_get, url_is_reachable  # noqa: F401
+from torch_ecg.utils.download import http_get, url_is_reachable
 from torch_ecg.utils.misc import str2bool
 
-from const import DATA_CACHE_DIR, LABEL_CACHE_DIR, MODEL_CACHE_DIR, TEST_DATA_CACHE_DIR
+from const import DATA_CACHE_DIR, LABEL_CACHE_DIR, MODEL_CACHE_DIR, REMOTE_MODELS, TEST_DATA_CACHE_DIR
 from data_reader import CINC2025, CODE15, SamiTrop
+from models import CRNN_CINC2025
+from team_code import SubmissionCfg
 
 try:
     TEST_FLAG = os.environ.get("CINC2025_REVENGER_TEST", False)
@@ -89,10 +91,33 @@ def cache_data():
     # print("   Converting to wfdb format done.   ".center(80, "#"))
 
 
+def cache_pretrained_models():
+    """Cache the pretrained models."""
+    print("Caching the pretrained models...")
+    if url_is_reachable("https://drive.google.com/"):
+        remote_model_source = "google-drive"
+    else:
+        remote_model_source = "deep-psp"
+    if SubmissionCfg.remote_model is not None:
+        http_get(
+            url=REMOTE_MODELS[SubmissionCfg.remote_model]["url"][remote_model_source],
+            dst_dir=MODEL_CACHE_DIR,
+            filename=REMOTE_MODELS[SubmissionCfg.remote_model]["filename"],
+            extract=False,
+        )
+        model, train_config = CRNN_CINC2025.from_checkpoint(
+            Path(MODEL_CACHE_DIR) / REMOTE_MODELS[SubmissionCfg.remote_model]["filename"]
+        )
+        print("Chagas classification loaded")
+        print(f"Model: {model}")
+        print(f"Train config: {train_config}")
+        del model, train_config
+
+
 if __name__ == "__main__":
     check_env()
     time.sleep(2)
-    # cache_pretrained_models()
-    # time.sleep(2)
     cache_data()
+    time.sleep(2)
+    cache_pretrained_models()
     print("Done.")
