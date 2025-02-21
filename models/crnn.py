@@ -182,13 +182,15 @@ class CRNN_CINC2025(ECG_CRNN):
         )
 
 
-def make_safe_globals(obj: CFG) -> CFG:
+def make_safe_globals(obj: CFG, remove_paths: bool = True) -> CFG:
     """Make a dictionary or a dictionary-like object safe for serialization.
 
     Parameters
     ----------
     obj : dict
         The dictionary or dictionary-like object.
+    remove_paths : bool, default True
+        Whether to remove paths in the dictionary.
 
     Returns
     -------
@@ -216,4 +218,9 @@ def make_safe_globals(obj: CFG) -> CFG:
         sg = obj
     else:
         sg = None
+    if remove_paths:
+        if isinstance(sg, os.PathLike):
+            sg = None
+        elif isinstance(sg, (str, bytes)) and os.path.exists(sg):
+            sg = None
     return sg
