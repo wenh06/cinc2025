@@ -178,16 +178,18 @@ def train_model(
     else:
         # general configs and logger
         train_config = deepcopy(TrainCfg)
-        train_config.db_dir = Path(data_folder).resolve().absolute()
-        train_config.model_dir = Path(model_folder).resolve().absolute()
-        train_config.working_dir = train_config.model_dir / "working_dir"
-        train_config.working_dir.mkdir(parents=True, exist_ok=True)
-        train_config.checkpoints = train_config.working_dir / "checkpoints"
-        train_config.checkpoints.mkdir(parents=True, exist_ok=True)
-        train_config.log_dir = train_config.working_dir / "log"
-        train_config.log_dir.mkdir(parents=True, exist_ok=True)
-        train_config.final_model_name = SubmissionCfg.final_model_name
-        train_config.debug = False
+
+    # override the default directories
+    train_config.db_dir = Path(data_folder).resolve().absolute()
+    train_config.model_dir = Path(model_folder).resolve().absolute()
+    train_config.working_dir = train_config.model_dir / "working_dir"
+    train_config.working_dir.mkdir(parents=True, exist_ok=True)
+    train_config.checkpoints = train_config.working_dir / "checkpoints"
+    train_config.checkpoints.mkdir(parents=True, exist_ok=True)
+    train_config.log_dir = train_config.working_dir / "log"
+    train_config.log_dir.mkdir(parents=True, exist_ok=True)
+    train_config.final_model_name = SubmissionCfg.final_model_name
+    train_config.debug = False
 
     if TEST_FLAG:
         train_config.n_epochs = 2
