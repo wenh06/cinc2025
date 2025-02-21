@@ -316,14 +316,16 @@ class CINC2025Trainer(BaseTrainer):
                 save_suffix = f"metric_{self.best_eval_res[self.train_config.monitor]:.2f}"
                 save_filename = f"BestModel_{self.save_prefix}{self.best_epoch}_{get_date_str()}_{save_suffix}.pth.tar"
             save_path = self.train_config.model_dir / save_filename
-            self.save_checkpoint(path=str(save_path))
+            # self.save_checkpoint(path=str(save_path))
+            self._model.save(path=str(save_path), train_config=self.train_config)
             self.log_manager.log_message(f"best model is saved at {save_path}")
         elif self.train_config.monitor is None:
             self.log_manager.log_message("no monitor is set, the last model is selected and saved as the best model")
             self.best_state_dict = self._model.state_dict()
             save_filename = f"BestModel_{self.save_prefix}{self.epoch}_{get_date_str()}.pth.tar"
             save_path = self.train_config.model_dir / save_filename
-            self.save_checkpoint(path=str(save_path))
+            # self.save_checkpoint(path=str(save_path))
+            self._model.save(path=str(save_path), train_config=self.train_config)
         else:
             raise ValueError("No best model found!")
 
@@ -485,8 +487,8 @@ class CINC2025Trainer(BaseTrainer):
     @property
     def save_prefix(self) -> str:
         prefix = self._model.__name__
-        if hasattr(self.model_config, "cnn"):
-            prefix = f"{prefix}_{self.model_config.cnn.name}_epoch"
+        if hasattr(self._model.config, "cnn"):
+            prefix = f"{prefix}_{self._model.config.cnn.name}_epoch"
         else:
             prefix = f"{prefix}_epoch"
         return prefix

@@ -63,20 +63,33 @@ class CRNN_CINC2025(ECG_CRNN):
 
     def __init__(self, config: Optional[CFG] = None, **kwargs: Any) -> None:
         if config is None:
-            _config = deepcopy(ModelCfg)
+            _config = deepcopy(ModelCfg.crnn)
         else:
             _config = deepcopy(config)
-        kwargs.pop("classes", None)
-        kwargs.pop("n_leads", None)
-        kwargs.pop("config", None)
+        chagas_classes = kwargs.pop("chagas_classes", None) or kwargs.pop("classes", None) or _config.get("chagas_classes", None) or _config.get("classes", None)
+        assert chagas_classes is not None, "`chagas_classes` must be provided"
+        n_leads = kwargs.pop("n_leads", None) or _config.get("n_leads", None)
+        assert n_leads is not None, "`n_leads` must be provided"
+        criterion = kwargs.pop("criterion", None) or _config.get("criterion", None)
+        assert criterion is not None, "`criterion` must be provided"
+        criterion_kw = kwargs.pop("criterion_kw", {}) or _config.get("criterion_kw", {})
+
+        if "crnn" in _config:
+            # in this case, _config.crnn should be the config
+            _config = _config.crnn
+
+        _config.chagas_classes = chagas_classes
+        _config.n_leads = n_leads
+        _config.criterion = criterion
+        _config.criterion_kw = criterion_kw
         super().__init__(
-            classes=_config.chagas_classes,
-            n_leads=_config.n_leads,
+            classes=chagas_classes,
+            n_leads=n_leads,
             config=_config,
             **kwargs,
         )
 
-        self.criterion = setup_criterion(_config.criterion, **_config.get("criterion_kw", {}))
+        self.criterion = setup_criterion(criterion, **criterion_kw)
 
     def forward(self, input_tensors: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         """Forward pass of the model.
