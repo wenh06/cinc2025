@@ -66,7 +66,12 @@ class CRNN_CINC2025(ECG_CRNN):
             _config = deepcopy(ModelCfg.crnn)
         else:
             _config = deepcopy(config)
-        chagas_classes = kwargs.pop("chagas_classes", None) or kwargs.pop("classes", None) or _config.get("chagas_classes", None) or _config.get("classes", None)
+        chagas_classes = (
+            kwargs.pop("chagas_classes", None)
+            or kwargs.pop("classes", None)
+            or _config.get("chagas_classes", None)
+            or _config.get("classes", None)
+        )
         assert chagas_classes is not None, "`chagas_classes` must be provided"
         n_leads = kwargs.pop("n_leads", None) or _config.get("n_leads", None)
         assert n_leads is not None, "`n_leads` must be provided"
