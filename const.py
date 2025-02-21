@@ -48,11 +48,12 @@ Path(TEST_DATA_CACHE_DIR).mkdir(parents=True, exist_ok=True)
 REMOTE_MODELS = {
     "crnn-resnet_nature_comm_bottle_neck-none-se": {
         "url": {
-            "google-drive": "https://drive.google.com/u/0/uc?id=1ZXQJkecCDQqKUfkuhJCiqYzCMConXjiy",
+            "google-drive": "https://drive.google.com/u/0/uc?id=11x5h_-B_fcusUhaSjeDaxF3CxRXuj_or",
             "deep-psp": (
-                "https://deep-psp.tech/Models/CinC2025/" "BestModel_CRNN_CINC2025_epoch13_02-20_22-00_metric_0.44.pth.tar"
+                "https://deep-psp.tech/Models/CinC2025/"
+                "BestModel_CRNN_CINC2025_resnet_nature_comm_bottle_neck_epoch8_02-21_21-41_metric_0.46.pth.tar"
             ),
         },
-        "filename": "BestModel_CRNN_CINC2025_epoch13_02-20_22-00_metric_0.44.pth.tar",
+        "filename": "BestModel_CRNN_CINC2025_resnet_nature_comm_bottle_neck_epoch8_02-21_21-41_metric_0.46.pth.tar",
     },
 }
