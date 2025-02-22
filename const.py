@@ -40,6 +40,7 @@ DATA_CACHE_DIR = str(
 Path(DATA_CACHE_DIR).mkdir(parents=True, exist_ok=True)
 
 LABEL_CACHE_DIR = str(Path(PROJECT_DIR) / "cache")
+Path(LABEL_CACHE_DIR).mkdir(parents=True, exist_ok=True)
 
 TEST_DATA_CACHE_DIR = str(Path(DATA_CACHE_DIR).parent / "revenger_action_test_data_dir")
 Path(TEST_DATA_CACHE_DIR).mkdir(parents=True, exist_ok=True)

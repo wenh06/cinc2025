@@ -90,11 +90,11 @@ TrainCfg.label_smooth = 0.05
 # )
 
 # configs of training epochs, batch, etc.
-TrainCfg.n_epochs = 25
+TrainCfg.n_epochs = 30
 # TODO: automatic adjust batch size according to GPU capacity
 # https://stackoverflow.com/questions/45132809/how-to-select-batch-size-automatically-to-fit-gpu
 # GPU memory limit of the Challenge is 64GB
-TrainCfg.batch_size = 64  # 64, 128, 256
+TrainCfg.batch_size = 128  # 64, 128, 256
 
 # configs of optimizers and lr_schedulers
 TrainCfg.optimizer = "adamw_amsgrad"  # "sgd", "adam", "adamw"

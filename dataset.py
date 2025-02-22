@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Set, Union
 
 import numpy as np
+import pandas as pd
 import torch
 from torch.utils.data.dataset import Dataset
 from torch_ecg._preprocessors import PreprocManager
@@ -18,7 +19,7 @@ from torch_ecg.utils.utils_nn import default_collate_fn
 from tqdm.auto import tqdm
 
 from cfg import TrainCfg
-from const import PROJECT_DIR
+from const import LABEL_CACHE_DIR, PROJECT_DIR
 from data_reader import CINC2025
 
 __all__ = [
@@ -159,6 +160,21 @@ class CINC2025Dataset(Dataset, ReprMixin):
         records = list(
             set(records) & set(self.reader._df_records[self.reader._df_records.sig_len >= self.config.min_len].index)
         )
+
+        records = []
+
+        # if the cached split has no common records with the current database due to unknown reasons,
+        # re-split the dataset
+        if len(records) == 0:
+            df = self.reader._df_records[self.reader._df_records.sig_len >= self.config.min_len].copy()
+            split_file = Path(LABEL_CACHE_DIR) / "data-split-82.csv"
+            if not split_file.exists():
+                df["split"] = np.where(np.random.rand(len(df)) < 0.8, "train", "test")
+                df[["split"]].to_csv(split_file)
+            else:
+                df_split = pd.read_csv(split_file, dtype={"record": str, "split": str})
+                df = pd.concat([df, df_split.set_index("record", drop=True)], axis=1)
+            records = df[df["split"] == part].index.tolist()
 
         if self.training:
             DEFAULTS.RNG.shuffle(records)

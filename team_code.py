@@ -60,7 +60,7 @@ else:
 
 SubmissionCfg = CFG()
 SubmissionCfg.remote_model = None  # "crnn-resnet_nature_comm_bottle_neck-none-se"
-SubmissionCfg.remote_model = "crnn-resnet_nature_comm_bottle_neck-none-se"  # NOTE: for testing
+# SubmissionCfg.remote_model = "crnn-resnet_nature_comm_bottle_neck-none-se"  # NOTE: for testing
 SubmissionCfg.model_cls = CRNN_CINC2025
 SubmissionCfg.final_model_name = "final_model.pth"
 
@@ -197,8 +197,8 @@ def train_model(
         train_config.log_step = 20
         train_config.early_stopping.patience = 20
     else:
-        train_config.n_epochs = 20
-        train_config.batch_size = 64  # 16G (Tesla T4)
+        train_config.n_epochs = 30
+        train_config.batch_size = 128  # 16G (Tesla T4)
         train_config.log_step = 100
         train_config.early_stopping.patience = int(train_config.n_epochs * 0.3)
 

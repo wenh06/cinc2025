@@ -495,8 +495,8 @@ class CINC2025Trainer(BaseTrainer):
 
     def extra_log_suffix(self) -> str:
         suffix = super().extra_log_suffix()
-        if hasattr(self.model_config, "cnn"):
-            suffix = f"{suffix}_{self.model_config.cnn.name}"
+        if hasattr(self._model.config, "cnn"):
+            suffix = f"{suffix}_{self._model.config.cnn.name}"
         return suffix
 
     def _setup_criterion(self) -> None:
