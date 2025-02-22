@@ -57,4 +57,24 @@ REMOTE_MODELS = {
         },
         "filename": "BestModel_CRNN_CINC2025_resnet_nature_comm_bottle_neck_epoch8_02-21_21-41_metric_0.46.pth.tar",
     },
+    "crnn-resnet_nature_comm_bottle_neck_se-none-se": {
+        "url": {
+            "google-drive": "https://drive.google.com/u/0/uc?id=10jxmMUotziU6mvlsdsa2WuwWFa_By1sY",
+            "deep-psp": (
+                "https://deep-psp.tech/Models/CinC2025/"
+                "BestModel_CRNN_CINC2025_resnet_nature_comm_bottle_neck_se_epoch9_02-22_06-21_metric_0.46.pth.tar"
+            ),
+        },
+        "filename": "BestModel_CRNN_CINC2025_resnet_nature_comm_bottle_neck_se_epoch9_02-22_06-21_metric_0.46.pth.tar",
+    },
+    "crnn-tresnetF-none-se": {
+        "url": {
+            "google-drive": "https://drive.google.com/u/0/uc?id=1mujwFf1mLZUXXowBNIzVtlhURCYYCsMW",
+            "deep-psp": (
+                "https://deep-psp.tech/Models/CinC2025/"
+                "BestModel_CRNN_CINC2025_tresnetF_epoch9_02-22_13-46_metric_0.45.pth.tar"
+            ),
+        },
+        "filename": "BestModel_CRNN_CINC2025_tresnetF_epoch9_02-22_13-46_metric_0.45.pth.tar",
+    },
 }
