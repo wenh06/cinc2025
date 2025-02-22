@@ -9,7 +9,7 @@ from torch_ecg.utils.misc import str2bool
 from const import DATA_CACHE_DIR, LABEL_CACHE_DIR, MODEL_CACHE_DIR, REMOTE_MODELS, TEST_DATA_CACHE_DIR
 from data_reader import CINC2025, CODE15, SamiTrop
 from models import CRNN_CINC2025
-from team_code import SubmissionCfg
+from team_code import SubmissionCfg  # noqa: F401
 
 try:
     TEST_FLAG = os.environ.get("CINC2025_REVENGER_TEST", False)
@@ -98,13 +98,25 @@ def cache_pretrained_models():
         remote_model_source = "google-drive"
     else:
         remote_model_source = "deep-psp"
-    if SubmissionCfg.remote_model is not None:
+    # if SubmissionCfg.remote_model is not None:
+    #     model, train_config = CRNN_CINC2025.from_remote(
+    #         url=REMOTE_MODELS[SubmissionCfg.remote_model]["url"][remote_model_source],
+    #         model_dir=MODEL_CACHE_DIR,
+    #         filename=REMOTE_MODELS[SubmissionCfg.remote_model]["filename"],
+    #     )
+    #     print(f"Chagas classification model {SubmissionCfg.remote_model} cached.")
+    #     print(f"Model: {model}")
+    #     print(f"Train config: {train_config}")
+    #     del model, train_config
+
+    # Cache all models listed in `REMOTE_MODELS`
+    for model_name, model_info in REMOTE_MODELS.items():
         model, train_config = CRNN_CINC2025.from_remote(
-            url=REMOTE_MODELS[SubmissionCfg.remote_model]["url"][remote_model_source],
+            url=model_info["url"][remote_model_source],
             model_dir=MODEL_CACHE_DIR,
-            filename=REMOTE_MODELS[SubmissionCfg.remote_model]["filename"],
+            filename=model_info["filename"],
         )
-        print("Chagas classification loaded")
+        print(f"Chagas classification model {model_name} cached.")
         print(f"Model: {model}")
         print(f"Train config: {train_config}")
         del model, train_config
