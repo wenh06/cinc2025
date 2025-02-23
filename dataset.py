@@ -161,8 +161,6 @@ class CINC2025Dataset(Dataset, ReprMixin):
             set(records) & set(self.reader._df_records[self.reader._df_records.sig_len >= self.config.min_len].index)
         )
 
-        records = []
-
         # if the cached split has no common records with the current database due to unknown reasons,
         # re-split the dataset
         if len(records) == 0:
