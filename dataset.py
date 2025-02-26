@@ -174,6 +174,10 @@ class CINC2025Dataset(Dataset, ReprMixin):
                 df = pd.concat([df, df_split.set_index("record", drop=True)], axis=1)
             records = df[df["split"] == part].index.tolist()
 
+        if self.config.upsample_positive_chagas:
+            pass
+            # TODO: do upsampling of the positive class of the Chagas disease
+
         if self.training:
             DEFAULTS.RNG.shuffle(records)
 
