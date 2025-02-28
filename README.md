@@ -37,6 +37,7 @@ Detection of Chagas Disease from the ECG: The George B. Moody PhysioNet Challeng
 - [evaluate_model.py](evaluate_model.py), [helper_code.py](helper_code.py), [prepare_code15_data.py](prepare_code15_data.py), [run_model.py](run_model.py), [train_model.py](train_model.py): scripts inherited from the [official baseline](https://github.com/physionetchallenges/python-example-2025.git) and [official scoring code](https://github.com/physionetchallenges/evaluation-2025.git). Modifications on these files are invalid and are immediately overwritten after being pulled by the organizers (or the submission system).
 - [sync_official.py](sync_official.py): script for synchronizing data from the official baseline and official scoring code.
 - [team_code.py](team_code.py): entry file for the submissions.
+- [submissions](submissions): log file for the submissions, including the key hyperparameters, the scores received, commit hash, etc. The log file is updated after each submission and organized as a YAML file.
 
 </details>
 
