@@ -20,7 +20,7 @@ def get_parser():
     parser.add_argument('-d', '--demographics_file', type=str, required=True) # exams.csv
     parser.add_argument('-l', '--labels_file', type=str, required=True) # code15_chagas_labels.csv
     parser.add_argument('-f', '--signal_format', type=str, required=False, default='dat', choices=['dat', 'mat'])
-    parser.add_argument('-o', '--output_path', type=str, required=True)
+    parser.add_argument('-o', '--output_paths', type=str, required=True, nargs='*')
     return parser
 
 # Suppress stdout for noisy commands.
@@ -146,10 +146,25 @@ def run(args):
     num_bits = 16
     fmt = str(num_bits)
 
-    os.makedirs(args.output_path, exist_ok=True)
+    # Define the output paths for the signal files, i.e., you can use a different path for each signal file or the same path for
+    # every signal file.
+    if len(args.output_paths) == len(args.signal_files):
+        signal_files = args.signal_files
+        output_paths = args.output_paths
+    elif len(args.output_paths) == 1:
+        signal_files = args.signal_files
+        output_paths = [args.output_paths[0]]*len(args.signal_files)
+    else:
+        raise Exception('The number of signal files must match the number of output paths.')
 
+    num_groups = len(signal_files)
+    
     # Iterate over the input signal files.
-    for signal_file in args.signal_files:
+    for k in range(num_groups):
+        signal_file = signal_files[k]
+        output_path = output_paths[k]
+        os.makedirs(output_path, exist_ok=True)
+
         with h5py.File(signal_file, 'r') as f:
             exam_ids = list(f['exam_id'])
             num_exam_ids = len(exam_ids)
@@ -202,14 +217,14 @@ def run(args):
                 record = str(exam_id)
                 wfdb.wrsamp(record, fs=sampling_frequency, units=[units]*num_leads, sig_name=lead_names,
                             d_signal=digital_signals, fmt=[fmt]*num_leads, adc_gain=[gain]*num_leads, baseline=[baseline]*num_leads,
-                            write_dir=args.output_path, comments=comments)
+                            write_dir=output_path, comments=comments)
 
                 if args.signal_format in ('mat', '.mat'):
-                    convert_dat_to_mat(record, write_dir=args.output_path)
+                    convert_dat_to_mat(record, write_dir=output_path)
 
                 # Recompute the checksums as needed.
                 checksums = np.sum(digital_signals, axis=0, dtype=np.int16)
-                fix_checksums(os.path.join(args.output_path, record), checksums)
+                fix_checksums(os.path.join(output_path, record), checksums)
 
 if __name__=='__main__':
     run(get_parser().parse_args(sys.argv[1:]))
