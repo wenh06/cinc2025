@@ -8,7 +8,7 @@ import sys
 import textwrap  # noqa: F401
 from collections import OrderedDict
 from copy import deepcopy
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence
 
 import numpy as np  # noqa: F401
 import torch
@@ -523,6 +523,75 @@ class CINC2025Trainer(BaseTrainer):
             },
             path,
         )
+
+
+@torch.no_grad()
+def evaluate_chagas_model(
+    chagas_model: CRNN_CINC2025, ds: CINC2025Dataset, thresholds: Sequence[float]
+) -> Dict[float, Dict[str, float]]:
+    """Evaluate the chagas classification model on the
+    given data loader on different thresholds.
+
+    Parameters
+    ----------
+    chagas_model : CRNN_CINC2025
+        The chagas classification model to be evaluated.
+    ds : CINC2025Dataset
+        The dataset for evaluation.
+    thresholds : Sequence[float]
+        The thresholds for the evaluation.
+
+    Returns
+    -------
+    eval_res : dict
+        The evaluation results on different thresholds.
+
+    """
+    all_outputs = []
+    all_labels = []
+    thresholds = sorted(thresholds)
+    data_loader = DataLoader(
+        dataset=ds,
+        batch_size=16,
+        shuffle=False,
+        num_workers=4,
+        pin_memory=True,
+        drop_last=False,
+        collate_fn=collate_fn,
+    )
+    with tqdm(
+        total=len(data_loader.dataset),
+        desc="Evaluation",
+        unit="signal",
+        dynamic_ncols=True,
+        mininterval=1.0,
+        leave=False,
+    ) as pbar:
+        for input_tensors in data_loader:
+            if torch.cuda.is_available():
+                torch.cuda.synchronize()
+            labels = {"chagas": input_tensors.pop("chagas")}
+            outputs = chagas_model.inference(input_tensors["signals"].to(chagas_model.device))
+            outputs.drop(["chagas_logits", "chagas_loss"])  # reduce memory usage
+            all_outputs.append(outputs)
+            all_labels.append(labels)
+
+            pbar.update(input_tensors["signals"].shape[0])
+
+    eval_res = {}
+    for threshold in thresholds:
+        for output in all_outputs:
+            output.chagas = (output.chagas_prob[:, 1] > threshold).tolist()
+            output.chagas_threshold = threshold
+        # note that adjust the threshold for chagas binary classification
+        # only affects accuracy, f_measure
+        # but not auroc, auprc, challenge_score since they are computed based on the probability
+        eval_res[threshold] = compute_challenge_metrics(labels=all_labels, outputs=all_outputs)
+        print(f"threshold: {threshold}")
+        print(f"metrics: {eval_res[threshold]}")
+        print("-" * 80)
+        print("\n")
+    return eval_res
 
 
 def get_args(**kwargs: Any):
