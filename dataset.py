@@ -64,6 +64,8 @@ class CINC2025Dataset(Dataset, ReprMixin):
             assert self.config.db_dir is not None, "db_dir must be specified"
         else:
             reader_kwargs.pop("db_dir", None)
+        if self.config.get("use_dbs", None) is not None:
+            reader_kwargs["use_dbs"] = self.config.use_dbs
         self.config.db_dir = Path(self.config.db_dir).expanduser().resolve()
 
         if self.config.torch_dtype == torch.float64:

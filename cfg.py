@@ -110,7 +110,8 @@ TrainCfg.lr_step_size = 50
 TrainCfg.lr_gamma = 0.1
 TrainCfg.max_lr = 6e-4  # for "one_cycle" scheduler, to adjust via expriments
 
-TrainCfg.upsample_positive_chagas = True
+TrainCfg.upsample_positive_chagas = 1.0  # rate of upsampling positive samples, 1 for no upsampling
+TrainCfg.use_dbs = ["CODE-15%", "SaMi-Trop", "PTB-XL"]  # CODE-15%, SaMi-Trop, PTB-XL
 
 # configs of callbacks, including early stopping, checkpoint, etc.
 TrainCfg.early_stopping = CFG()  # early stopping according to challenge metric

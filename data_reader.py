@@ -1970,6 +1970,7 @@ class CINC2025(_DataBase):
         )
         self.__config = CFG(BaseCfg.copy())
         self.__config.update(kwargs)
+        self._use_dbs = self.__config.get("use_dbs", ["CODE-15%", "SaMi-Trop", "PTB-XL"])
 
         self.all_leads = ["I", "II", "III", "AVR", "AVL", "AVF", "V1", "V2", "V3", "V4", "V5", "V6"]
 
@@ -1981,7 +1982,7 @@ class CINC2025(_DataBase):
         """Find all records in the database directory
         and store them (path, metadata, etc.) in a dataframe.
         """
-        columns = ["sig_len", "age", "sex", "fs", "chagas"]
+        columns = ["sig_len", "age", "sex", "fs", "chagas", "source"]
         self._df_records = pd.DataFrame(self.db_dir.rglob("*.hea"), columns=["path"])
         self._df_records["path"] = self._df_records["path"].apply(lambda x: x.with_suffix(""))
         # keep only those records that have a corresponding .dat file or .mat file
@@ -2027,6 +2028,10 @@ class CINC2025(_DataBase):
         metadata.set_index("record", inplace=True)
         self._df_records.set_index("record", inplace=True)
         self._df_records[columns] = metadata
+
+        # drop records that are not from the selected databases
+        if self._use_dbs is not None:
+            self._df_records = self._df_records[self._df_records["source"].isin(self._use_dbs)]
 
         # drop records with missing chagas label
         self._df_records = self._df_records.dropna(subset=["chagas"])
