@@ -1971,6 +1971,10 @@ class CINC2025(_DataBase):
         self.__config = CFG(BaseCfg.copy())
         self.__config.update(kwargs)
         self._use_dbs = self.__config.get("use_dbs", ["CODE-15%", "SaMi-Trop", "PTB-XL"])
+        if self._use_dbs == ["all"]:
+            self._use_dbs = ["CODE-15%", "SaMi-Trop", "PTB-XL"]
+        if self._use_dbs == ["SaMi-Trop"] or self._use_dbs == ["PTB-XL"]:
+            raise ValueError("Using database with only positive or negative labels is not allowed.")
 
         self.all_leads = ["I", "II", "III", "AVR", "AVL", "AVF", "V1", "V2", "V3", "V4", "V5", "V6"]
 
