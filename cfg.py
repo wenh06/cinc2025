@@ -110,7 +110,10 @@ TrainCfg.lr_step_size = 50
 TrainCfg.lr_gamma = 0.1
 TrainCfg.max_lr = 6e-4  # for "one_cycle" scheduler, to adjust via expriments
 
-TrainCfg.upsample_positive_chagas = 1.0  # rate of upsampling positive samples, 1 for no upsampling
+TrainCfg.upsample_positive_chagas = {
+    "CODE-15%": 10,
+    "SaMi-Trop": 120,
+}  # rate of upsampling positive samples, 1 for no upsampling
 TrainCfg.use_dbs = ["CODE-15%", "SaMi-Trop", "PTB-XL"]  # CODE-15%, SaMi-Trop, PTB-XL
 
 # configs of callbacks, including early stopping, checkpoint, etc.
@@ -129,7 +132,11 @@ TrainCfg.log_step = 100
 # TrainCfg.eval_every = 20
 
 TrainCfg.criterion = "AsymmetricLoss"  # "FocalLoss", "BCEWithLogitsLoss"
-TrainCfg.criterion_kw = {}  # keyword arguments for the criterion
+TrainCfg.criterion_kw = {
+    "gamma_neg": 4,
+    "gamma_pos": 1,
+    "prob_margin": 0.05,
+}  # keyword arguments for the criterion
 
 TrainCfg.train_ratio = 0.8
 TrainCfg.input_len = 4096  # approximately 10s
