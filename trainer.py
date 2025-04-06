@@ -585,7 +585,7 @@ def run_chagas_model(
 
 @torch.no_grad()
 def _evaluate_chagas_model(
-    outputs: List[CINC2025Outputs], labels: List[Dict[str, torch.Tensor]], thresholds: Sequence[float]
+    outputs: List[CINC2025Outputs], labels: List[Dict[str, torch.Tensor]], thresholds: Sequence[float], verbose: bool = False
 ) -> Dict[float, Dict[str, float]]:
     """Evaluate the chagas classification model on the
     given data loader on different thresholds.
@@ -598,6 +598,8 @@ def _evaluate_chagas_model(
         The labels of the dataset.
     thresholds : Sequence[float]
         The thresholds for the evaluation.
+    verbose : bool, default False
+        Whether to print some debug information.
 
     Returns
     -------
@@ -617,18 +619,19 @@ def _evaluate_chagas_model(
         # note that adjust the threshold for chagas binary classification
         # only affects accuracy, f_measure
         # but not auroc, auprc, challenge_score since they are computed based on the probability
-        eval_res[threshold] = compute_challenge_metrics(labels=labels, outputs=outputs)
+        eval_res[threshold] = compute_challenge_metrics(labels=labels, outputs=outputs, verbose=verbose)
         eval_res[threshold].update({"positive_rate": num_positive / num_samples})
-        print(f"threshold: {threshold}")
-        print(f"metrics: {eval_res[threshold]}")
-        print("-" * 80)
-        print("\n")
+        if verbose:
+            print(f"threshold: {threshold}")
+            print(f"metrics: {eval_res[threshold]}")
+            print("-" * 80)
+            print("\n")
     return eval_res
 
 
 @torch.no_grad()
 def evaluate_chagas_model(
-    chagas_model: CRNN_CINC2025, ds: CINC2025Dataset, thresholds: Sequence[float]
+    chagas_model: CRNN_CINC2025, ds: CINC2025Dataset, thresholds: Sequence[float], verbose: bool = False
 ) -> Dict[float, Dict[str, float]]:
     """Evaluate the chagas classification model on the
     given data loader on different thresholds.
@@ -641,6 +644,8 @@ def evaluate_chagas_model(
         The dataset for evaluation.
     thresholds : Sequence[float]
         The thresholds for the evaluation.
+    verbose : bool, default False
+        Whether to print some debug information.
 
     Returns
     -------
@@ -657,6 +662,7 @@ def evaluate_chagas_model(
         outputs=all_outputs,
         labels=all_labels,
         thresholds=thresholds,
+        verbose=verbose,
     )
     return eval_res
 

@@ -1,5 +1,5 @@
 # https://hub.docker.com/r/pytorch/pytorch
-FROM pytorch/pytorch:2.5.1-cuda11.8-cudnn9-runtime
+FROM pytorch/pytorch:2.5.1-cuda11.8-cudnn9-devel
 # NOTE:
 # pytorch/pytorch:1.13.1-cuda11.6-cudnn8-runtime has python version 3.10.8, system version Ubuntu 18.04.6 LTS
 # pytorch/pytorch:1.10.0-cuda11.3-cudnn8-runtime has python version 3.7.x
@@ -8,6 +8,9 @@ FROM pytorch/pytorch:2.5.1-cuda11.8-cudnn9-runtime
 # pytorch/pytorch:2.2.0-cuda11.8-cudnn8-runtime has python version 3.10.13, system version Ubuntu 22.04.3 LTS
 # pytorch/pytorch:2.2.2-cuda12.1-cudnn8-runtime has python version 3.10.14, system version Ubuntu 22.04.4 LTS
 # pytorch/pytorch:2.5.1-cuda11.8-cudnn9-runtime has python version 3.11.10, system version Ubuntu 22.04.5 LTS
+
+# runtime versions has no nvcc, gcc installed
+# pytorch/pytorch:2.5.1-cuda11.8-cudnn9-devel gcc version 11.4.0
 
 
 # set the environment variable to avoid interactive installation
@@ -27,6 +30,13 @@ ENV GIT_CLONE_DIR=/challenge/cache/git_clone_dir
 ENV TF_CPP_MIN_LOG_LEVEL=2
 
 
+ENV CUDA_HOME=/usr/local/cuda-11.8
+ENV PATH="${CUDA_HOME}/bin:${PATH}"
+ENV LD_LIBRARY_PATH="${CUDA_HOME}/lib64:${LD_LIBRARY_PATH}"
+ENV CPATH="${CUDA_HOME}/include:${CPATH}"
+ENV TORCH_CUDA_ARCH_LIST="7.5;8.0;8.6+PTX"
+
+
 # check distribution of the base image
 RUN cat /etc/issue
 
@@ -38,6 +48,13 @@ RUN python --version
 
 # check CUDA version of the base image if is installed
 RUN if [ -x "$(command -v nvcc)" ]; then nvcc --version; fi
+
+# check gcc version of the base image if is installed
+RUN if [ -x "$(command -v gcc)" ]; then gcc --version; fi
+# check CUDA version of the base image if is installed
+RUN if [ -x "$(command -v nvcc)" ]; then nvcc --version; fi
+# check if CUDA header files are installed
+RUN if [ -d "/usr/local/cuda/include" ]; then ls /usr/local/cuda/include; fi
 
 
 # NOTE: The GPU provided by the Challenge is nvidia Tesla T4
@@ -60,7 +77,7 @@ LABEL maintainer="wenh06@gmail.com"
 # latest version of biosppy uses opencv
 # https://stackoverflow.com/questions/55313610/importerror-libgl-so-1-cannot-open-shared-object-file-no-such-file-or-directo
 RUN apt update
-RUN apt install build-essential -y
+RUN apt install build-essential ninja-build -y
 RUN apt install git ffmpeg libsm6 libxext6 vim libsndfile1 libxrender1 unzip wget curl -y
 
 
@@ -98,6 +115,8 @@ RUN pip list
 # RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
 
 RUN python -m pip install --upgrade pip setuptools wheel
+
+RUN pip install torchsort
 
 # RUN pip install torch-ecg
 RUN pip install torch-ecg>=0.0.31
