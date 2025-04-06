@@ -15,7 +15,7 @@ import torch
 from torch import nn
 from torch.nn.parallel import DataParallel as DP
 from torch.nn.parallel import DistributedDataParallel as DDP  # noqa: F401
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler  # noqa: F401
 from torch_ecg.cfg import CFG
 from torch_ecg.components.trainer import BaseTrainer
 from torch_ecg.utils.misc import get_date_str, str2bool

@@ -176,14 +176,73 @@ class CINC2025Dataset(Dataset, ReprMixin):
                 df = pd.concat([df, df_split.set_index("record", drop=True)], axis=1)
             records = df[df["split"] == part].index.tolist()
 
-        if self.config.upsample_positive_chagas:
-            pass
-            # TODO: do upsampling of the positive class of the Chagas disease
+        if self.config.upsample_positive_chagas and self.training:
+            # upsample the positive class of the Chagas disease
+            records = self._upsample_positive_samples(records)
 
         if self.training:
             DEFAULTS.RNG.shuffle(records)
 
         return records
+
+    def _upsample_positive_samples(self, records: List[str]) -> List[str]:
+        """Upsample the positive samples in the dataset.
+
+        Parameters
+        ----------
+        records : list
+            List of record names.
+
+        Returns
+        -------
+        list
+            List of record names after upsampling.
+
+        """
+        print(f"Upsampling positive samples: {self.config.upsample_positive_chagas}")
+        df = self.reader._df_records[self.reader._df_records.index.isin(records)].copy()
+        for source, rate in self.config.upsample_positive_chagas.items():
+            records += df[(df["source"] == source) & (df["chagas"])].sample(frac=rate - 1, replace=True).index.tolist()
+        return records
+
+    def _adjust_upsample_rates(self, ratios: Union[float, Dict[str, float]]) -> None:
+        """Adjust the upsample rates of the positive samples in the dataset.
+
+        Parameters
+        ----------
+        ratios : float or dict
+            Ratio of upsampling for the positive samples.
+            If float, the same ratio is used for all sources.
+            If dict, the keys are the sources and the values are the ratios.
+
+        """
+        if isinstance(ratios, (int, float)):
+            ratios = {k: ratios for k in self.config.upsample_positive_chagas.keys()}
+
+        self.config.upsample_positive_chagas = {
+            k: v * ratios[k] if k in ratios else v for k, v in self.config.upsample_positive_chagas.items()
+        }
+
+    def _get_sample_weights(self) -> torch.Tensor:
+        """Get the sample weights tensor.
+
+        Returns
+        -------
+        torch.Tensor
+            Sample weights tensor.
+
+        """
+        if (not self.training) or (not self.config.upsample_positive_chagas):
+            return torch.ones(len(self), dtype=torch.float32)
+
+        df = self.reader._df_records[self.reader._df_records.index.isin(self.records)].copy()
+        df = df.loc[self.records]
+        df["weight"] = 1.0
+        for source, rate in self.config.upsample_positive_chagas.items():
+            if source in self.records:
+                df.loc[(df["source"] == source) & (df["chagas"]), "weight"] = rate
+
+        return torch.tensor(df["weight"].values, dtype=torch.float32)
 
     @property
     def cache(self) -> Dict[str, np.ndarray]:
