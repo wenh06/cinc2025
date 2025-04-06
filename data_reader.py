@@ -68,6 +68,7 @@ _CODE15_INFO = DataBaseInfo(
     3. The signal files are of the format "exams_part{i}.hdf5", containing two fields named `tracings` and `exam_id`. The `exam_id` is a tensor of dimension `(N,)` containing the exam id (the same as in the csv file) and the field `tracings` is a `(N, 4096, 12)` tensor containing the ECG tracings in the same order.
     4. The signals are sampled at 400 Hz. Some signals originally have a duration of 10 seconds (10 * 400 = 4000 samples) and others of 7 seconds (7 * 400 = 2800 samples). The latter were zero-padded (centered) to 10 seconds. (Actually, the length of the signals is 4096 samples).
     5. The binary Chagas labels are self-reported and therefore may or may not have been validated.
+    6. The ratio of positive samples is 1.795%.
     """,
     usage=[
         "ECG arrhythmia detection",

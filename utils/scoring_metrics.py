@@ -17,6 +17,7 @@ def compute_challenge_metrics(
     labels: Sequence[Dict[str, Union[np.ndarray, torch.Tensor, List[dict]]]],
     outputs: Sequence[CINC2025Outputs],
     keeps: Optional[Union[str, Sequence[str]]] = None,
+    verbose: bool = False,
 ) -> Dict[str, float]:
     """Compute the challenge metrics.
 
@@ -30,6 +31,8 @@ def compute_challenge_metrics(
     keeps : Union[str, Sequence[str]], optional
         Metrics to keep, available options are "chagas", "arr_diag".
         By default all metrics are computed.
+    verbose : bool, default False
+        Whether to print some debug information.
 
     Returns
     -------
@@ -78,6 +81,8 @@ def compute_challenge_metrics(
 def compute_chagas_metrics(
     labels: Sequence[Dict[str, Union[np.ndarray, torch.Tensor, List[dict]]]],
     outputs: Sequence[CINC2025Outputs],
+    max_fraction_positive: float = 0.05,
+    verbose: bool = False,
 ) -> Dict[str, float]:
     """Compute the metrics for the "chagas" prediction (binary classification) task.
 
@@ -91,6 +96,10 @@ def compute_chagas_metrics(
         The outputs for the records, containing the "chagas" field.
         The "chagas" field is a 1D array of shape `(num_samples,)` with binary values,
         or a 2D array of shape `(num_samples, num_samples)` with probabilities (0 to 1).
+    max_fraction_positive : float, default 0.05
+        The maximum fraction of positive instances allowed for the challenge score.
+    verbose : bool, default False
+        Whether to print some debug information.
 
     Returns
     -------
@@ -123,11 +132,11 @@ def compute_chagas_metrics(
     probability_outputs = np.concat([output.chagas_prob[:, 1] for output in outputs])
     binary_outputs = np.concat([output.chagas for output in outputs])
     # Evaluate the model outputs.
-    challenge_score = compute_challenge_score(labels, probability_outputs)
+    challenge_score = compute_challenge_score(labels, probability_outputs, max_fraction_positive, verbose)
     auroc, auprc = compute_auc(labels, probability_outputs)
     accuracy = compute_accuracy(labels, binary_outputs)
     f_measure = compute_f_measure(labels, binary_outputs)
-    tpr = compute_chagas_tpr(labels, binary_outputs)
+    tpr = compute_chagas_tpr(labels, binary_outputs, verbose)
 
     return make_serializable(
         {
@@ -144,6 +153,7 @@ def compute_chagas_metrics(
 def compute_chagas_tpr(
     labels: np.ndarray,
     binary_outputs: np.ndarray,
+    verbose: bool = False,
 ) -> float:
     """Compute the TPR for the "chagas" prediction (binary classification) task.
 
@@ -153,6 +163,9 @@ def compute_chagas_tpr(
         The labels for the records, of shape `(num_samples,)` with binary values.
     binary_outputs : np.ndarray
         The binary outputs for the records, of shape `(num_samples,)` with binary values.
+    verbose : bool, default False
+        Whether to print the confusion matrix values.
+        If True, the TP, FN, TN, and FP values will be printed.
 
     Returns
     -------
@@ -161,13 +174,18 @@ def compute_chagas_tpr(
 
     """
     A = compute_confusion_matrix(labels, binary_outputs)
-    tp, fp, fn, tn = A[0, 0], A[0, 1], A[1, 0], A[1, 1]
+    tp, fn, fp, tn = A[0, 0], A[0, 1], A[1, 0], A[1, 1]
     tpr = tp / (tp + fn) if (tp + fn) > 0 else np.nan
+    if verbose:
+        print(f"compute_chagas_tpr TP: {tp}")
+        print(f"compute_chagas_tpr FN: {fn}")
+        print(f"compute_chagas_tpr TN: {tn}")
+        print(f"compute_chagas_tpr FP: {fp}")
 
     return tpr
 
 
-def compute_challenge_score(labels, probability_outputs, max_fraction_positive=0.05):
+def compute_challenge_score(labels, probability_outputs, max_fraction_positive=0.05, verbose=False):
     """Compute the challenge score for the "chagas" prediction (binary classification) task.
 
     The challenge score is defined as the true positive rate (TPR) for the model outputs,
@@ -185,6 +203,9 @@ def compute_challenge_score(labels, probability_outputs, max_fraction_positive=0
         The probability outputs for the records, of shape `(num_samples,)` with probabilities (0 to 1).
     max_fraction_positive : float, default 0.05
         The maximum fraction of positive instances allowed.
+    verbose : bool, default False
+        Whether to print the confusion matrix values.
+        If True, the TP, FN, TN, and FP values will be printed.
 
     Returns
     -------
@@ -244,7 +265,12 @@ def compute_challenge_score(labels, probability_outputs, max_fraction_positive=0
             k = j - 1
             break
 
-    print(f"Cutoff probability: {thresholds[k]}")
+    print(f"compute_challenge_score cutoff probability: {thresholds[k]}")
+    if verbose:
+        print(f"compute_challenge_score TP: {tp[k]}")
+        print(f"compute_challenge_score FN: {fn[k]}")
+        print(f"compute_challenge_score TN: {tn[k]}")
+        print(f"compute_challenge_score FP: {fp[k]}")
 
     if tp[k] + fn[k] > 0:
         tpr = tp[k] / (tp[k] + fn[k])

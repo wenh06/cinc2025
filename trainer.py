@@ -8,7 +8,7 @@ import sys
 import textwrap  # noqa: F401
 from collections import OrderedDict
 from copy import deepcopy
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np  # noqa: F401
 import torch
@@ -27,6 +27,7 @@ from const import MODEL_CACHE_DIR
 from dataset import CINC2025Dataset
 from models import CRNN_CINC2025
 from models.crnn import make_safe_globals
+from outputs import CINC2025Outputs
 from utils.scoring_metrics import compute_challenge_metrics  # noqa: F401
 
 os.environ["HF_HOME"] = str(MODEL_CACHE_DIR)
@@ -526,30 +527,31 @@ class CINC2025Trainer(BaseTrainer):
 
 
 @torch.no_grad()
-def evaluate_chagas_model(
-    chagas_model: CRNN_CINC2025, ds: CINC2025Dataset, thresholds: Sequence[float]
-) -> Dict[float, Dict[str, float]]:
-    """Evaluate the chagas classification model on the
+def run_chagas_model(
+    chagas_model: CRNN_CINC2025, ds: CINC2025Dataset
+) -> Tuple[List[CINC2025Outputs], List[Dict[str, torch.Tensor]]]:
+    """Run the chagas classification model on the
     given data loader on different thresholds.
 
     Parameters
     ----------
     chagas_model : CRNN_CINC2025
-        The chagas classification model to be evaluated.
+        The chagas classification model to be run.
     ds : CINC2025Dataset
-        The dataset for evaluation.
+        The dataset for running the model.
     thresholds : Sequence[float]
         The thresholds for the evaluation.
 
     Returns
     -------
-    eval_res : dict
-        The evaluation results on different thresholds.
+    outputs : list of CINC2025Outputs
+        The outputs of the model on the dataset.
+    labels : list of dict
+        The labels of the dataset.
 
     """
     all_outputs = []
     all_labels = []
-    thresholds = sorted(thresholds)
     data_loader = DataLoader(
         dataset=ds,
         batch_size=16,
@@ -578,19 +580,84 @@ def evaluate_chagas_model(
 
             pbar.update(input_tensors["signals"].shape[0])
 
+    return all_outputs, all_labels
+
+
+@torch.no_grad()
+def _evaluate_chagas_model(
+    outputs: List[CINC2025Outputs], labels: List[Dict[str, torch.Tensor]], thresholds: Sequence[float]
+) -> Dict[float, Dict[str, float]]:
+    """Evaluate the chagas classification model on the
+    given data loader on different thresholds.
+
+    Parameters
+    ----------
+    outputs : list of CINC2025Outputs
+        The outputs of the model on the dataset.
+    labels : list of dict
+        The labels of the dataset.
+    thresholds : Sequence[float]
+        The thresholds for the evaluation.
+
+    Returns
+    -------
+    eval_res : dict
+        The evaluation results on different thresholds.
+
+    """
     eval_res = {}
     for threshold in thresholds:
-        for output in all_outputs:
+        num_samples = 0
+        num_positive = 0
+        for output in outputs:
             output.chagas = (output.chagas_prob[:, 1] > threshold).tolist()
             output.chagas_threshold = threshold
+            num_samples += len(output.chagas)
+            num_positive += sum(output.chagas)
         # note that adjust the threshold for chagas binary classification
         # only affects accuracy, f_measure
         # but not auroc, auprc, challenge_score since they are computed based on the probability
-        eval_res[threshold] = compute_challenge_metrics(labels=all_labels, outputs=all_outputs)
+        eval_res[threshold] = compute_challenge_metrics(labels=labels, outputs=outputs)
+        eval_res[threshold].update({"positive_rate": num_positive / num_samples})
         print(f"threshold: {threshold}")
         print(f"metrics: {eval_res[threshold]}")
         print("-" * 80)
         print("\n")
+    return eval_res
+
+
+@torch.no_grad()
+def evaluate_chagas_model(
+    chagas_model: CRNN_CINC2025, ds: CINC2025Dataset, thresholds: Sequence[float]
+) -> Dict[float, Dict[str, float]]:
+    """Evaluate the chagas classification model on the
+    given data loader on different thresholds.
+
+    Parameters
+    ----------
+    chagas_model : CRNN_CINC2025
+        The chagas classification model to be evaluated.
+    ds : CINC2025Dataset
+        The dataset for evaluation.
+    thresholds : Sequence[float]
+        The thresholds for the evaluation.
+
+    Returns
+    -------
+    eval_res : dict
+        The evaluation results on different thresholds.
+
+    """
+    all_outputs, all_labels = run_chagas_model(
+        chagas_model=chagas_model,
+        ds=ds,
+        thresholds=thresholds,
+    )
+    eval_res = _evaluate_chagas_model(
+        outputs=all_outputs,
+        labels=all_labels,
+        thresholds=thresholds,
+    )
     return eval_res
 
 
