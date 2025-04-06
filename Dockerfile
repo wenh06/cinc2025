@@ -48,11 +48,8 @@ RUN python --version
 
 # check CUDA version of the base image if is installed
 RUN if [ -x "$(command -v nvcc)" ]; then nvcc --version; fi
-
 # check gcc version of the base image if is installed
 RUN if [ -x "$(command -v gcc)" ]; then gcc --version; fi
-# check CUDA version of the base image if is installed
-RUN if [ -x "$(command -v nvcc)" ]; then nvcc --version; fi
 # check if CUDA header files are installed
 RUN if [ -d "/usr/local/cuda/include" ]; then ls /usr/local/cuda/include; fi
 

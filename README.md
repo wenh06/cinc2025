@@ -52,3 +52,14 @@ Detection of Chagas Disease from the ECG: The George B. Moody PhysioNet Challeng
 </details>
 
 :point_right: [Back to TOC](#cinc2025)
+
+## Key problem to solve
+
+The data is highly imbalanced, with only approximately 2% of the data being positive.
+Dealing with the imbalanced data is the key problem to solve in this challenge. Possible solutions include:
+
+- Upsampling the positive data
+- Downsampling the negative data
+- Using Focal Loss, Asymmetric Loss, etc.
+- Using class weights
+- Using data augmentation, including Mixup, Cutmix, etc.
