@@ -120,7 +120,7 @@ class CRNN_CINC2025(ECG_CRNN):
         chagas_prob = self.softmax(chagas_logits)
         chagas_pred = torch.argmax(chagas_prob, dim=-1)
         if "chagas" in input_tensors:
-            if self.criterion.__class__.__name__ != "CrossEntropyLoss":
+            if input_tensors["chagas"].ndim == 2 and self.criterion.__class__.__name__ != "CrossEntropyLoss":
                 input_tensors["chagas"] = (
                     torch.from_numpy(one_hot_encode(input_tensors["chagas"], num_classes=self.n_classes))
                     .to(self.dtype)

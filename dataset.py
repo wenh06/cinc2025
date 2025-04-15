@@ -19,7 +19,7 @@ from torch_ecg.utils.utils_nn import default_collate_fn
 from tqdm.auto import tqdm
 
 from cfg import TrainCfg
-from const import LABEL_CACHE_DIR, PROJECT_DIR
+from const import LABEL_CACHE_DIR, PROJECT_DIR, SampleType
 from data_reader import CINC2025
 
 __all__ = [
@@ -76,6 +76,32 @@ class CINC2025Dataset(Dataset, ReprMixin):
         self.__cache = None
         self.reader = CINC2025(db_dir=self.config.db_dir, **reader_kwargs)
         self.records = self._train_test_split()
+        # add a column of sample_type to split the samples into 3 categories:
+        # 0: negative samples
+        # 1: self-reported positive samples
+        # 2: doctor-confirmed positive samples
+        self.reader._df_records["sample_type"] = np.full(
+            (len(self.reader._df_records),), fill_value=SampleType.NEGATIVE_SAMPLE.value, dtype=int
+        )
+        self.reader._df_records.loc[
+            self.reader._df_records["chagas"] & (self.reader._df_records["source"] == "CODE-15%"), "sample_type"
+        ] = SampleType.SELF_REPORTED_POSITIVE_SAMPLE.value
+        self.reader._df_records.loc[
+            self.reader._df_records["chagas"] & (self.reader._df_records["source"] == "SaMi-Trop"), "sample_type"
+        ] = SampleType.DOCTOR_CONFIRMED_POSITIVE_SAMPLE.value
+        # add columns of hard labels and soft labels
+        soft_label_dict = {
+            SampleType.NEGATIVE_SAMPLE.value: np.array([1, 0]),
+            SampleType.SELF_REPORTED_POSITIVE_SAMPLE.value: np.array([0, 1]),
+            SampleType.DOCTOR_CONFIRMED_POSITIVE_SAMPLE.value: np.array([0, 1]),
+        }
+        self.reader._df_records["hard_label"] = self.reader._df_records["sample_type"].map(soft_label_dict)
+        soft_label_dict = {
+            st: (1 - self.config.label_smooth.smoothing[st]) * prob
+            + self.config.label_smooth.smoothing[st] / len(self.config.chagas_classes)
+            for st, prob in soft_label_dict.items()
+        }
+        self.reader._df_records["soft_label"] = self.reader._df_records["sample_type"].map(soft_label_dict)
 
         ppm_config = CFG(random=False)
         ppm_config.update(deepcopy(self.config))
@@ -297,7 +323,16 @@ class FastDataReader(ReprMixin, Dataset):
         elif pad_len < 0:
             pad_shift = DEFAULTS.RNG.integers(0, -pad_len + 1)
             signal = signal[:, pad_shift : pad_shift + self.config.input_len]
-        chagas_label = self.reader.load_ann(rec)
+        # chagas_label = self.reader.load_ann(rec)
+        sample_type = self.reader._df_records.at[rec, "sample_type"]
+
+        if self.config.label_smooth:
+            if DEFAULTS.RNG.random() > self.config.label_smooth.prob:
+                chagas_label = self.reader._df_records.at[rec, "soft_label"]
+            else:
+                chagas_label = self.reader._df_records.at[rec, "hard_label"]
+        else:
+            chagas_label = self.reader.load_ann(rec)
 
         # chagas_label = self.reader.load_chagas_ann(rec)  # categorical: 0 or 1
         # bin_label = self.reader.load_binary_ann(rec)  # categorical: 0 or 1
@@ -312,7 +347,8 @@ class FastDataReader(ReprMixin, Dataset):
         return {
             "record_idx": index,
             "signals": signal.astype(self.dtype),  # (n_leads, n_samples)
-            "chagas": chagas_label,  # scalar
+            "chagas": chagas_label,  # scalar or (n_classes,)
             # "is_normal": bin_label,  # scalar
             # "arr_diag": arr_diag_label,  # (n_classes,)
+            "sample_type": sample_type,  # scalar
         }

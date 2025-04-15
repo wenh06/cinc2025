@@ -1,6 +1,7 @@
 """Constants for the project."""
 
 import os
+from enum import Enum
 from pathlib import Path
 
 __all__ = [
@@ -9,6 +10,7 @@ __all__ = [
     "DATA_CACHE_DIR",
     "LABEL_CACHE_DIR",
     "TEST_DATA_CACHE_DIR",
+    "SampleType",
     "REMOTE_MODELS",
 ]
 
@@ -44,6 +46,13 @@ Path(LABEL_CACHE_DIR).mkdir(parents=True, exist_ok=True)
 
 TEST_DATA_CACHE_DIR = str(Path(DATA_CACHE_DIR).parent / "revenger_action_test_data_dir")
 Path(TEST_DATA_CACHE_DIR).mkdir(parents=True, exist_ok=True)
+
+
+class SampleType(Enum):
+
+    NEGATIVE_SAMPLE = 0
+    SELF_REPORTED_POSITIVE_SAMPLE = 1
+    DOCTOR_CONFIRMED_POSITIVE_SAMPLE = 2
 
 
 REMOTE_MODELS = {
