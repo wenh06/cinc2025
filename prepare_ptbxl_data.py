@@ -127,14 +127,8 @@ def run(args):
         else:
             sex = 'Unknown'
 
-        height = row['height']
-        height = int(height) if is_integer(height) else float(height)
-
-        weight = row['weight']
-        weight = int(weight) if is_integer(weight) else float(weight)
-
-        # Assume that all of the patients are negative for Chagas, which is likely to be the case for every or almost every patient
-        # in the PTB-XL dataset.
+        # Assume that all of the patients are negative for Chagas disease, which is likely to be the case for every or almost every
+        # patient in the PTB-XL dataset.
         label = False
 
         # Specify the label.
@@ -161,7 +155,7 @@ def run(args):
 
         record_line = record_line.strip() + f' {time_string} {date_string} ' + '\n'
         signal_lines = signal_lines.strip() + '\n'
-        comment_lines = comment_lines.strip() + f'# Age: {age}\n# Sex: {sex}\n# Height: {height}\n# Weight: {weight}\n# Chagas label: {label}\n# Source: {source}\n'
+        comment_lines = comment_lines.strip() + f'# Age: {age}\n# Sex: {sex}\n# Chagas label: {label}\n# Source: {source}\n'
 
         output_header = record_line + signal_lines + comment_lines
 
@@ -170,16 +164,15 @@ def run(args):
 
         # Copy the signal files if the input and output folders are different.
         if os.path.normpath(args.input_folder) != os.path.normpath(args.output_folder):
-            relative_path = os.path.split(record)[0]
-
             signal_files = get_signal_files(input_header_file)
-            for signal_file in signal_files:
-                input_signal_file = os.path.join(args.input_folder, relative_path, signal_file)
-                output_signal_file = os.path.join(args.output_folder, relative_path, signal_file)
+            for input_signal_file in signal_files:
+                output_signal_file = os.path.join(args.output_folder, os.path.relpath(input_signal_file, args.input_folder))
                 if os.path.isfile(input_signal_file):
                     shutil.copy2(input_signal_file, output_signal_file)
+                else:
+                    raise FileNotFoundError(f'{input_signal_file} not found.')
 
-        # Convert data from .dat files to .mat files as requested.
+        # Convert data from .dat files to .mat files, if requested.
         if args.signal_format in ('mat', '.mat'):
             convert_dat_to_mat(record, write_dir=args.output_folder)
 

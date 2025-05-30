@@ -18,7 +18,6 @@ def get_parser():
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument('-i', '--signal_file', type=str, required=True) # exams.hdf5
     parser.add_argument('-d', '--demographics_file', type=str, required=True) # exams.csv
-    parser.add_argument('-l', '--labels_file', type=str, required=True) # samitrop_chagas_labels.csv
     parser.add_argument('-f', '--signal_format', type=str, required=False, default='dat', choices=['dat', 'mat'])
     parser.add_argument('-o', '--output_path', type=str, required=True)
     return parser
@@ -122,20 +121,6 @@ def run(args):
         sex = 'Male' if is_male else 'Female' # This variable was encoding as a binary value.
         exam_id_to_sex[exam_id] = sex
 
-    # Load the Chagas labels.
-    exam_id_to_chagas = dict()
-
-    df = pd.read_csv(args.labels_file)
-    for idx, row in df.iterrows():
-        exam_id = row['exam_id']
-        assert(is_integer(exam_id))
-        exam_id = int(exam_id)
-
-        chagas = row['chagas']
-        assert(is_boolean(chagas))
-        chagas = sanitize_boolean_value(chagas)
-        exam_id_to_chagas[exam_id] = bool(chagas)
-
     # Load and convert the signal data.
 
     # See https://zenodo.org/records/4905618 for more information about these values.
@@ -157,12 +142,6 @@ def run(args):
         # Iterate over the exam IDs in each signal file.
         for i in range(num_exam_ids):
             exam_id = exam_ids[i]
-
-            # Skip exam IDs without Chagas labels.
-            if not exam_id in exam_id_to_chagas:
-                continue
-            else:
-                pass
 
             physical_signals = np.array(f['tracings'][i], dtype=np.float32)
 
@@ -191,12 +170,16 @@ def run(args):
             digital_signals[~np.isfinite(digital_signals)] = -2**(num_bits-1)
             digital_signals = np.asarray(digital_signals, dtype=np.int32) # We need to promote from 16-bit integers due to an error in the Python WFDB library.
 
-            # Add the exam ID, the patient ID, age, sex, Chagas label, and data source.
+            # Add the age, sex, and data source.
             age = exam_id_to_age[exam_id]
             sex = exam_id_to_sex[exam_id]
-            chagas = exam_id_to_chagas[exam_id]
             source = 'SaMi-Trop'
-            comments = [f'Age: {age}', f'Sex: {sex}', f'Chagas label: {chagas}', f'Source: {source}']
+
+            # All of the patients in the SaMi-Trop dataset are Chagas positive.
+            label = True
+
+            # Add the patient metadata.
+            comments = [f'Age: {age}', f'Sex: {sex}', f'Chagas label: {label}', f'Source: {source}']
 
             # Save the signal.
             record = str(exam_id)
@@ -204,6 +187,7 @@ def run(args):
                         d_signal=digital_signals, fmt=[fmt]*num_leads, adc_gain=[gain]*num_leads, baseline=[baseline]*num_leads,
                         write_dir=args.output_path, comments=comments)
 
+            # Convert data from .dat files to .mat files, if requested.
             if args.signal_format in ('mat', '.mat'):
                 convert_dat_to_mat(record, write_dir=args.output_path)
 

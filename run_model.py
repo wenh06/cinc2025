@@ -23,6 +23,7 @@ def get_parser():
     parser.add_argument('-d', '--data_folder', type=str, required=True)
     parser.add_argument('-m', '--model_folder', type=str, required=True)
     parser.add_argument('-o', '--output_folder', type=str, required=True)
+    parser.add_argument('-p', '--output_file', type=str, required=False)
     parser.add_argument('-v', '--verbose', action='store_true')
     parser.add_argument('-f', '--allow_failures', action='store_true')
     return parser
@@ -56,7 +57,7 @@ def run(args):
     # Iterate over the records.
     for i, record in enumerate(records):
         if args.verbose:
-            width = len(str(record))
+            width = len(str(num_records))
             print(f'- {i+1:>{width}}/{num_records}: {record}...')
 
         # Allow or disallow the model to fail on parts of the data; this can be helpful for debugging.
@@ -71,10 +72,14 @@ def run(args):
                 raise
 
         # Save Challenge outputs.
-        output_path = os.path.join(args.output_folder, os.path.dirname(record))
+        head, tail = os.path.split(record)
+        output_path = os.path.join(args.output_folder, head)
         os.makedirs(output_path, exist_ok=True)
         output_file = os.path.join(args.output_folder, record + '.txt')
-        save_outputs(output_file, record, binary_output, probability_output)
+        save_outputs(output_file, tail, binary_output, probability_output)
+
+    if args.output_file:
+        collect_outputs(args.output_file, records, args.output_folder)
 
     if args.verbose:
         print('Done.')

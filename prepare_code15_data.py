@@ -158,7 +158,7 @@ def run(args):
         raise Exception('The number of signal files must match the number of output paths.')
 
     num_groups = len(signal_files)
-    
+
     # Iterate over the input signal files.
     for k in range(num_groups):
         signal_file = signal_files[k]
@@ -219,6 +219,7 @@ def run(args):
                             d_signal=digital_signals, fmt=[fmt]*num_leads, adc_gain=[gain]*num_leads, baseline=[baseline]*num_leads,
                             write_dir=output_path, comments=comments)
 
+                # Convert data from .dat files to .mat files, if requested.
                 if args.signal_format in ('mat', '.mat'):
                     convert_dat_to_mat(record, write_dir=output_path)
 
