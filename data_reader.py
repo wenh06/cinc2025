@@ -951,7 +951,7 @@ _SamiTrop_INFO = DataBaseInfo(
     title="Sami-Trop: 12-lead ECG traces with age and mortality annotations",
     about="""
     1. The whole Sami-Trop database consists of 12-lead ECG traces from 1959 patients **ALL** with chronic Chagas cardiomyopathy.
-    2. The open-access database is a subset (1631 patients) of the Sami-Trop database, which contains annotations of age and mortality in addition to the 12-lead ECG traces. It can be downloaded from Zenodo [1]_, and also used in the 2025 Moody Challenge [3]_.
+    2. The open-accessible database is a subset (1631 patients) of the Sami-Trop database, which contains annotations of age and mortality in addition to the 12-lead ECG traces. It can be downloaded from Zenodo [1]_, and also used in the 2025 Moody Challenge [3]_.
     3. The "exams.csv" file contains the following annotation columns:
 
         - "exam_id": the unique identifier of the exam
@@ -1863,12 +1863,7 @@ class PTBXL(PTBXL_Reader):
                         line.strip()
                         for line in lines[1:]
                         if line.startswith("#")
-                        and not any(
-                            (
-                                line.startswith(x)
-                                for x in ("# Age:", "# Sex:", "# Height:", "# Weight:", "# Chagas label:", "# Source:")
-                            )
-                        )
+                        and not any((line.startswith(x) for x in ("# Age:", "# Sex:", "# Chagas label:", "# Source:")))
                     )
                     + "\n"
                 )
@@ -1876,9 +1871,7 @@ class PTBXL(PTBXL_Reader):
                 record_line = record_line.strip() + f" {recording_date}" + "\n"
                 signal_lines = signal_lines.strip() + "\n"
                 comment_lines = (
-                    comment_lines.strip()
-                    + f"# Age: {age}\n# Sex: {sex}\n# Height: {height}\n# Weight: {weight}\n"
-                    + f"# Chagas label: {label}\n# Source: {source}\n"
+                    comment_lines.strip() + f"# Age: {age}\n# Sex: {sex}\n# Chagas label: {label}\n# Source: {source}\n"
                 )
 
                 output_header = record_line + signal_lines + comment_lines
