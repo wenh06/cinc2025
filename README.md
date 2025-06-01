@@ -63,3 +63,22 @@ Dealing with the imbalanced data is the key problem to solve in this challenge. 
 - Using Focal Loss, Asymmetric Loss, etc.
 - Using class weights
 - Using data augmentation, including Mixup, Cutmix, etc.
+
+## Background knowledge
+
+### Chagas Disease and ECG
+
+According to a [review paper](https://journals.plos.org/plosntds/article?id=10.1371/journal.pntd.0006567)
+about ECG abnormalities in Chagas Disease, the most common ECG abnormalities are:
+
+- Prevalence of overall ECG abnormalities was higher in participants with CD (40.1%; 95%CIs=39.2-41.0)
+  compared to non-CD (24.1%; 95%CIs=23.5-24.7) (OR=2.78; 95%CIs=2.37-3.26).
+- Among specific ECG abnormalities, prevalence of
+  - complete right bundle branch block (RBBB) (OR=4.60; 95%CIs=2.97-7.11),
+  - left anterior fascicular block (LAFB) (OR=1.60; 95%CIs=1.21-2.13),
+  - combination of complete RBBB/LAFB (OR=3.34; 95%CIs=1.76-6.35),
+  - first-degree atrioventricular block (A-V B) (OR=1.71; 95%CIs=1.25-2.33),
+  - atrial fibrillation (AF) or flutter (OR=2.11; 95%CIs=1.40-3.19),
+  - ventricular extrasystoles (VE) (OR=1.62; 95%CIs=1.14-2.30)
+
+  was higher in CD compared to non-CD participants
