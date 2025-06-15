@@ -20,7 +20,12 @@ Detection of Chagas Disease from the ECG: The George B. Moody PhysioNet Challeng
 ## The Conference
 
 [Conference Website](https://cinc2025.org/) |
-[Unofficial Phase Leaderboard](https://docs.google.com/spreadsheets/d/e/2PACX-1vQIDwTRtZc7goD10lScYl20J0xfjaPb1tHVyeqr5zmgZPMDhXj034S6w7fW8SJwzlAgKezxd5w9vS2i/pubhtml?gid=173721180&single=true&widget=true&headers=false)
+[Official Phase Leaderboard](https://docs.google.com/spreadsheets/d/e/2PACX-1vQtPv9dEP-aC1N7Vds-zy63Jy8XftSeftCbtpdBDXZ7ubKT7eHHKLjSrFyaJ7v881PlHDXrnPiYZwbU/pubhtml?gid=1127050801&single=true)
+
+
+[Unofficial Phase Leaderboard](https://docs.google.com/spreadsheets/d/e/2PACX-1vQIDwTRtZc7goD10lScYl20J0xfjaPb1tHVyeqr5zmgZPMDhXj034S6w7fW8SJwzlAgKezxd5w9vS2i/pubhtml?gid=173721180&single=true&widget=true&headers=false)[^1]
+
+[^1]: As clarified by the organizers, the validation set for the official phase was updated, hence the unofficial and official phase leaderboards are not comparable.
 
 ## Description of the files/folders(modules)
 
