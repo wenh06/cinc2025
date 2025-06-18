@@ -23,7 +23,6 @@ def get_parser():
     parser.add_argument('-d', '--data_folder', type=str, required=True)
     parser.add_argument('-m', '--model_folder', type=str, required=True)
     parser.add_argument('-o', '--output_folder', type=str, required=True)
-    parser.add_argument('-p', '--output_file', type=str, required=False)
     parser.add_argument('-v', '--verbose', action='store_true')
     parser.add_argument('-f', '--allow_failures', action='store_true')
     return parser
@@ -77,9 +76,6 @@ def run(args):
         os.makedirs(output_path, exist_ok=True)
         output_file = os.path.join(args.output_folder, record + '.txt')
         save_outputs(output_file, tail, binary_output, probability_output)
-
-    if args.output_file:
-        collect_outputs(args.output_file, records, args.output_folder)
 
     if args.verbose:
         print('Done.')
