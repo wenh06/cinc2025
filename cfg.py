@@ -11,7 +11,7 @@ from torch_ecg.cfg import CFG
 from torch_ecg.model_configs import ECG_CRNN_CONFIG, linear  # noqa: F401
 from torch_ecg.utils.utils_nn import adjust_cnn_filter_lengths
 
-from const import SampleType
+from const import SampleType  # noqa: F401
 
 __all__ = [
     "BaseCfg",
@@ -83,18 +83,18 @@ TrainCfg.bandpass = CFG(
 )
 
 # augmentations configurations
-# TrainCfg.label_smooth = CFG(
-#     prob=0.8,
-#     smoothing=0.1,
-# )
 TrainCfg.label_smooth = CFG(
-    prob=0.9,
-    smoothing={
-        SampleType.NEGATIVE_SAMPLE.value: 0.2,  # negative samples -> prob vec [0.9, 0.1]
-        SampleType.SELF_REPORTED_POSITIVE_SAMPLE.value: 0.6,  # self-reported positive samples -> prob vec [0.3, 0.7]
-        SampleType.DOCTOR_CONFIRMED_POSITIVE_SAMPLE.value: 0.0,  # doctor-confirmed positive samples -> prob vec [0.0, 1.0]
-    },
+    prob=0.8,
+    smoothing=0.1,
 )
+# TrainCfg.label_smooth = CFG(
+#     prob=0.9,
+#     smoothing={
+#         SampleType.NEGATIVE_SAMPLE.value: 0.2,  # negative samples -> prob vec [0.9, 0.1]
+#         SampleType.SELF_REPORTED_POSITIVE_SAMPLE.value: 0.6,  # self-reported positive samples -> prob vec [0.3, 0.7]
+#         SampleType.DOCTOR_CONFIRMED_POSITIVE_SAMPLE.value: 0.0,  # doctor-confirmed positive samples -> prob vec [0.0, 1.0]
+#     },
+# )
 # TrainCfg.random_masking = False
 # TrainCfg.stretch_compress = False  # stretch or compress in time axis
 # TrainCfg.mixup = CFG(
