@@ -127,10 +127,14 @@ def compute_chagas_metrics(
         if isinstance(label["chagas"], torch.Tensor):
             label["chagas"] = label["chagas"].cpu().detach().numpy()
     # concatenate the labels and outputs
-    labels = np.concat([label["chagas"] for label in labels])
+    labels = np.concat([label["chagas"] for label in labels])  # shape (num_samples, 2)
+    # convert labels from (num_samples, 2) to (num_samples,)
+    labels = np.argmax(labels, axis=1) if labels.ndim > 1 else labels
     # probability_outputs is the probability of the positive class
-    probability_outputs = np.concat([output.chagas_prob[:, 1] for output in outputs])
-    binary_outputs = np.concat([output.chagas for output in outputs])
+    probability_outputs = np.concat([output.chagas_prob[:, 1] for output in outputs])  # shape (num_samples,)
+    binary_outputs = np.concat([output.chagas for output in outputs])  # shape (num_samples,)
+    # if verbose:
+    #     print(f"compute_chagas_metrics input: {labels.shape = }, {probability_outputs.shape = }, {binary_outputs.shape = }")
     # Evaluate the model outputs.
     challenge_score = compute_challenge_score(labels, probability_outputs, fraction_capacity=fraction_capacity, verbose=verbose)
     auroc, auprc = compute_auc(labels, probability_outputs)

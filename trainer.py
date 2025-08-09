@@ -456,6 +456,7 @@ class CINC2025Trainer(BaseTrainer):
             head_scalar_preds = all_outputs[0].chagas_prob[:log_head_num]
             head_binary_preds = all_outputs[0].chagas[:log_head_num]
             head_labels = all_labels[0]["chagas"][:log_head_num]
+            head_labels = np.argmax(head_labels, axis=1) if head_labels.ndim > 1 else head_labels
             log_head_num = min(log_head_num, len(head_scalar_preds))
             for n in range(log_head_num):
                 msg = textwrap.dedent(
