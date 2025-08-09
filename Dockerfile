@@ -113,7 +113,7 @@ RUN pip list
 
 RUN python -m pip install --upgrade pip setuptools wheel
 
-RUN pip install torchsort
+# RUN pip install torchsort
 
 # RUN pip install torch-ecg
 RUN pip install torch-ecg>=0.0.31
