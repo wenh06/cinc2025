@@ -5,7 +5,7 @@ import torch
 from torch_ecg.components.metrics import ClassificationMetrics
 from torch_ecg.utils.misc import make_serializable
 
-from helper_code import compute_accuracy, compute_auc, compute_confusion_matrix, compute_f_measure
+from helper_code import compute_accuracy, compute_auc, compute_f_measure
 from outputs import CINC2025Outputs
 
 __all__ = [
@@ -81,7 +81,7 @@ def compute_challenge_metrics(
 def compute_chagas_metrics(
     labels: Sequence[Dict[str, Union[np.ndarray, torch.Tensor, List[dict]]]],
     outputs: Sequence[CINC2025Outputs],
-    max_fraction_positive: float = 0.05,
+    fraction_capacity: float = 0.05,
     verbose: bool = False,
 ) -> Dict[str, float]:
     """Compute the metrics for the "chagas" prediction (binary classification) task.
@@ -96,7 +96,7 @@ def compute_chagas_metrics(
         The outputs for the records, containing the "chagas" field.
         The "chagas" field is a 1D array of shape `(num_samples,)` with binary values,
         or a 2D array of shape `(num_samples, num_samples)` with probabilities (0 to 1).
-    max_fraction_positive : float, default 0.05
+    fraction_capacity : float, default 0.05
         The maximum fraction of positive instances allowed for the challenge score.
     verbose : bool, default False
         Whether to print some debug information.
@@ -132,7 +132,7 @@ def compute_chagas_metrics(
     probability_outputs = np.concat([output.chagas_prob[:, 1] for output in outputs])
     binary_outputs = np.concat([output.chagas for output in outputs])
     # Evaluate the model outputs.
-    challenge_score = compute_challenge_score(labels, probability_outputs, max_fraction_positive, verbose)
+    challenge_score = compute_challenge_score(labels, probability_outputs, fraction_capacity=fraction_capacity, verbose=verbose)
     auroc, auprc = compute_auc(labels, probability_outputs)
     accuracy = compute_accuracy(labels, binary_outputs)
     f_measure = compute_f_measure(labels, binary_outputs)
@@ -148,6 +148,43 @@ def compute_chagas_metrics(
             "tpr": tpr,
         }
     )
+
+
+def compute_confusion_matrix(labels: np.ndarray, outputs: np.ndarray) -> np.ndarray:
+    """Compute the confusion matrix for binary classification.
+
+    Parameters
+    ----------
+    labels : np.ndarray
+        The ground truth labels, of shape `(num_samples,)` with binary values.
+    outputs : np.ndarray
+        The predicted outputs, of shape `(num_samples,)` with binary values.
+
+    Returns
+    -------
+    np.ndarray
+        The confusion matrix, of shape `(2, 2)`, with the following structure:
+        [[TP, FN],
+         [FP, TN]]
+
+    """
+    assert np.shape(labels) == np.shape(outputs)
+    num_instances = len(labels)
+
+    A = np.zeros((2, 2))
+    for i in range(num_instances):
+        if labels[i] == 1 and outputs[i] == 1:
+            A[0, 0] += 1
+        elif labels[i] == 1 and outputs[i] == 0:
+            A[0, 1] += 1
+        elif labels[i] == 0 and outputs[i] == 1:
+            A[1, 0] += 1
+        elif labels[i] == 0 and outputs[i] == 0:
+            A[1, 1] += 1
+        else:
+            raise ValueError(f"{labels[i]} and/or {outputs[i]} not valid.")
+
+    return A
 
 
 def compute_chagas_tpr(
@@ -185,7 +222,9 @@ def compute_chagas_tpr(
     return tpr
 
 
-def compute_challenge_score(labels, probability_outputs, max_fraction_positive=0.05, verbose=False):
+def compute_challenge_score(
+    labels, probability_outputs, fraction_capacity=0.05, num_permutations=10**4, seed=12345, verbose=False
+):
     """Compute the challenge score for the "chagas" prediction (binary classification) task.
 
     The challenge score is defined as the true positive rate (TPR) for the model outputs,
@@ -201,8 +240,12 @@ def compute_challenge_score(labels, probability_outputs, max_fraction_positive=0
         The labels for the records, of shape `(num_samples,)` with binary values.
     probability_outputs : np.ndarray
         The probability outputs for the records, of shape `(num_samples,)` with probabilities (0 to 1).
-    max_fraction_positive : float, default 0.05
+    fraction_capacity : float, default 0.05
         The maximum fraction of positive instances allowed.
+    num_permutations: int, default 10**4
+        Number of permutations for numerical stability.
+    seed: int, default 12345
+        Random seed for permutations.
     verbose : bool, default False
         Whether to print the confusion matrix values.
         If True, the TP, FN, TN, and FP values will be printed.
@@ -216,66 +259,51 @@ def compute_challenge_score(labels, probability_outputs, max_fraction_positive=0
     # Check the data.
     assert len(labels) == len(probability_outputs)
     num_instances = len(labels)
-    max_num_positive_instances = int(max_fraction_positive * num_instances)
+    capacity = int(fraction_capacity * num_instances)
 
     # Convert the data to NumPy arrays, as needed, for easier indexing.
     labels = np.asarray(labels, dtype=np.float64)
     probability_outputs = np.asarray(probability_outputs, dtype=np.float64)
 
-    # Collect the unique output values as the thresholds for the positive and negative classes.
-    thresholds = np.unique(probability_outputs)
-    thresholds = np.append(thresholds, thresholds[-1] + 1)
-    thresholds = thresholds[::-1]
-    num_thresholds = len(thresholds)
+    # Permute the labels and outputs so that we can approximate the expected confusion matrix for "tied" probabilities.
+    tp = np.zeros(num_permutations)
+    fp = np.zeros(num_permutations)
+    fn = np.zeros(num_permutations)
+    tn = np.zeros(num_permutations)
 
-    idx = np.argsort(probability_outputs)[::-1]
+    if seed is not None:
+        np.random.seed(seed)
 
-    # Initialize the TPs, FPs, FNs, and TNs with no positive outputs.
-    tp = np.zeros(num_thresholds)
-    fp = np.zeros(num_thresholds)
-    fn = np.zeros(num_thresholds)
-    tn = np.zeros(num_thresholds)
+    for i in range(num_permutations):
+        permuted_idx = np.random.permutation(np.arange(num_instances))
+        permuted_labels = labels[permuted_idx]
+        permuted_outputs = probability_outputs[permuted_idx]
 
-    tp[0] = 0
-    fp[0] = 0
-    fn[0] = np.sum(labels == 1)
-    tn[0] = np.sum(labels == 0)
+        ordered_idx = np.argsort(permuted_outputs, stable=True)[::-1]
+        ordered_labels = permuted_labels[ordered_idx]
 
-    # Update the TPs, FPs, FNs, and TNs using the values at the previous threshold.
-    i = 0
-    for j in range(1, num_thresholds):
-        tp[j] = tp[j - 1]
-        fp[j] = fp[j - 1]
-        fn[j] = fn[j - 1]
-        tn[j] = tn[j - 1]
+        tp[i] = np.sum(ordered_labels[:capacity] == 1)
+        fp[i] = np.sum(ordered_labels[:capacity] == 0)
+        fn[i] = np.sum(ordered_labels[capacity:] == 1)
+        tn[i] = np.sum(ordered_labels[capacity:] == 0)
 
-        while i < num_instances and probability_outputs[idx[i]] >= thresholds[j]:
-            if labels[idx[i]] == 1:
-                tp[j] += 1
-                fn[j] -= 1
-            else:
-                fp[j] += 1
-                tn[j] -= 1
-            i += 1
+    tp = np.mean(tp)
+    fp = np.mean(fp)
+    fn = np.mean(fn)
+    tn = np.mean(tn)
 
-    # Find the true positive rate so that the number of positive model outputs are no more than 5% of the total instances.
-    k = num_thresholds
-    for j in range(1, num_thresholds):
-        if tp[j] + fp[j] > max_num_positive_instances:
-            k = j - 1
-            break
-
-    print(f"compute_challenge_score cutoff probability: {thresholds[k]}")
-    if verbose:
-        print(f"compute_challenge_score TP: {tp[k]}")
-        print(f"compute_challenge_score FN: {fn[k]}")
-        print(f"compute_challenge_score TN: {tn[k]}")
-        print(f"compute_challenge_score FP: {fp[k]}")
-
-    if tp[k] + fn[k] > 0:
-        tpr = tp[k] / (tp[k] + fn[k])
+    # Compute the true positive rate.
+    if tp + fn > 0:
+        tpr = tp / (tp + fn)
     else:
         tpr = float("nan")
+
+    # print(f"compute_challenge_score cutoff probability: {thresholds[k]}")
+    if verbose:
+        print(f"compute_challenge_score TP: {tp}")
+        print(f"compute_challenge_score FN: {fn}")
+        print(f"compute_challenge_score TN: {tn}")
+        print(f"compute_challenge_score FP: {fp}")
 
     return tpr
 
