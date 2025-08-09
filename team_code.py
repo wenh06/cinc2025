@@ -22,10 +22,9 @@ import torch.nn as nn
 import wfdb
 from torch.nn.parallel import DataParallel as DP
 from torch_ecg._preprocessors import PreprocManager
-from torch_ecg.cfg import CFG
 from torch_ecg.utils.misc import str2bool
 
-from cfg import ModelCfg, TrainCfg
+from cfg import CFG, ModelCfg, TrainCfg
 from const import MODEL_CACHE_DIR, REMOTE_MODELS
 from data_reader import CINC2025
 from dataset import CINC2025Dataset

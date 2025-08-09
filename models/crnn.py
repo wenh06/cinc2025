@@ -11,14 +11,14 @@ from typing import Any, Dict, Optional, Union
 import numpy as np
 import torch
 from easydict import EasyDict
-from torch_ecg.cfg import CFG, DTYPE
+from torch_ecg.cfg import DTYPE
 from torch_ecg.components import WaveformInput  # noqa: F401
 from torch_ecg.models import ECG_CRNN
 from torch_ecg.models.loss import setup_criterion
 from torch_ecg.utils.misc import add_docstring
 from torch_ecg.utils.utils_data import one_hot_encode
 
-from cfg import ModelCfg
+from cfg import CFG, ModelCfg
 from outputs import CINC2025Outputs
 from utils.misc import is_stdtypes
 

@@ -12,13 +12,13 @@ import pandas as pd
 import torch
 from torch.utils.data.dataset import Dataset
 from torch_ecg._preprocessors import PreprocManager
-from torch_ecg.cfg import CFG, DEFAULTS
+from torch_ecg.cfg import DEFAULTS
 from torch_ecg.utils.misc import ReprMixin
 from torch_ecg.utils.utils_data import one_hot_encode  # noqa: F401
 from torch_ecg.utils.utils_nn import default_collate_fn
 from tqdm.auto import tqdm
 
-from cfg import TrainCfg
+from cfg import CFG, TrainCfg
 from const import LABEL_CACHE_DIR, PROJECT_DIR, SampleType
 from data_reader import CINC2025
 

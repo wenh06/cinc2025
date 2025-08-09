@@ -4,16 +4,17 @@ Configurations for models, training, etc., as well as some constants.
 
 import pathlib
 from copy import deepcopy
+from typing import Any, MutableMapping, Optional
 
 import numpy as np
 import torch
-from torch_ecg.cfg import CFG
 from torch_ecg.model_configs import ECG_CRNN_CONFIG, linear  # noqa: F401
 from torch_ecg.utils.utils_nn import adjust_cnn_filter_lengths
 
 from const import SampleType  # noqa: F401
 
 __all__ = [
+    "CFG",
     "BaseCfg",
     "TrainCfg",
     "ModelCfg",
@@ -21,6 +22,119 @@ __all__ = [
 
 
 _BASE_DIR = pathlib.Path(__file__).absolute().parent
+
+
+###############################################################################
+# Enhanced version of torch_ecg.cfg.CFG
+# which avoids potential deepcopy errors
+###############################################################################
+
+
+class CFG(dict):
+    """This class is created in order to renew the :meth:`update` method,
+    to fit the hierarchical structure of configurations.
+
+    Examples
+    --------
+    >>> c = CFG(hehe={"a": 1, "b": 2})
+    >>> c.update(hehe={"a": [-1]})
+    >>> c
+    {'hehe': {'a': [-1], 'b': 2}}
+    >>> c.update(hehe={"c": -10})
+    >>> c
+    {'hehe': {'a': [-1], 'b': 2, 'c': -10}}
+    >>> c.hehe.pop("a")
+    [-1]
+    >>> c
+    {'hehe': {'b': 2, 'c': -10}}
+
+    """
+
+    __name__ = "CFG"
+
+    def __init__(self, *args, **kwargs) -> None:
+        if len(args) > 1:
+            raise TypeError(f"expected at most 1 arguments, got {len(args)}")
+        elif len(args) == 1:
+            d = args[0]
+            assert isinstance(d, MutableMapping)
+        else:
+            d = {}
+        if kwargs:
+            d.update(**kwargs)
+        for k, v in d.items():
+            # try:
+            #     setattr(self, k, v)
+            # except Exception:
+            #     dict.__setitem__(self, k, v)
+            if isinstance(k, str) and k.isidentifier():
+                setattr(self, k, v)
+            else:
+                dict.__setitem__(self, k, v)
+        # Class attributes
+        exclude_fields = ["update", "pop"]
+        for k in self.__class__.__dict__:
+            if not (k.startswith("__") and k.endswith("__")) and k not in exclude_fields:
+                setattr(self, k, getattr(self, k))
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        if isinstance(value, (list, tuple)):
+            value = [self.__class__(x) if isinstance(x, dict) else x for x in value]
+        elif isinstance(value, dict) and not isinstance(value, self.__class__):
+            value = self.__class__(value)
+
+        if isinstance(name, str) and name.isidentifier():
+            super().__setattr__(name, value)
+        super().__setitem__(name, value)
+
+    __setitem__ = __setattr__
+
+    def update(self, new_cfg: Optional[MutableMapping] = None, **kwargs: Any) -> None:
+        """The new hierarchical update method.
+
+        Parameters
+        ----------
+        new_cfg : MutableMapping, optional
+            The new configuration, by default None.
+        **kwargs : dict, optional
+            Key value pairs, by default None.
+
+        """
+        _new_cfg = new_cfg or CFG()
+        if len(kwargs) > 0:  # avoid RecursionError
+            _new_cfg.update(kwargs)
+        for k in _new_cfg:
+            if isinstance(_new_cfg[k], MutableMapping) and k in self:
+                if isinstance(self[k], MutableMapping):
+                    self[k].update(_new_cfg[k])
+                else:  # for example, self[k] is `None`
+                    self[k] = _new_cfg[k]  # deepcopy?
+            else:
+                try:
+                    setattr(self, k, _new_cfg[k])
+                except Exception:
+                    dict.__setitem__(self, k, _new_cfg[k])
+
+    def pop(self, key: str, default: Optional[Any] = None) -> Any:
+        """The updated pop method.
+
+        Parameters
+        ----------
+        key : str
+            The key to pop.
+        default : Any, optional
+            The default value, by default None.
+
+        """
+        if key in self:
+            delattr(self, key)
+        return super().pop(key, default)
+
+    def __repr__(self) -> str:
+        return repr({k: v for k, v in self.items() if not callable(v)})
+
+    def __str__(self) -> str:
+        return str({k: v for k, v in self.items() if not callable(v)})
 
 
 ###############################################################################
@@ -83,18 +197,18 @@ TrainCfg.bandpass = CFG(
 )
 
 # augmentations configurations
-TrainCfg.label_smooth = CFG(
-    prob=0.8,
-    smoothing=0.1,
-)
 # TrainCfg.label_smooth = CFG(
-#     prob=0.9,
-#     smoothing={
-#         SampleType.NEGATIVE_SAMPLE.value: 0.2,  # negative samples -> prob vec [0.9, 0.1]
-#         SampleType.SELF_REPORTED_POSITIVE_SAMPLE.value: 0.6,  # self-reported positive samples -> prob vec [0.3, 0.7]
-#         SampleType.DOCTOR_CONFIRMED_POSITIVE_SAMPLE.value: 0.0,  # doctor-confirmed positive samples -> prob vec [0.0, 1.0]
-#     },
+#     prob=0.8,
+#     smoothing=0.1,
 # )
+TrainCfg.label_smooth = CFG(
+    prob=0.9,
+    smoothing={
+        SampleType.NEGATIVE_SAMPLE.value: 0.2,  # negative samples -> prob vec [0.9, 0.1]
+        SampleType.SELF_REPORTED_POSITIVE_SAMPLE.value: 0.6,  # self-reported positive samples -> prob vec [0.3, 0.7]
+        SampleType.DOCTOR_CONFIRMED_POSITIVE_SAMPLE.value: 0.0,  # doctor-confirmed positive samples -> prob vec [0.0, 1.0]
+    },
+)
 # TrainCfg.random_masking = False
 # TrainCfg.stretch_compress = False  # stretch or compress in time axis
 # TrainCfg.mixup = CFG(

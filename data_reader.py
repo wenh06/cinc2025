@@ -14,7 +14,6 @@ import h5py
 import numpy as np
 import pandas as pd
 import wfdb
-from torch_ecg.cfg import CFG
 from torch_ecg.databases.base import DEFAULT_FIG_SIZE_PER_SEC, DataBaseInfo, _DataBase, wfdb_get_version
 from torch_ecg.databases.physionet_databases import PTBXL as PTBXL_Reader
 from torch_ecg.utils.download import http_get, url_is_reachable
@@ -22,7 +21,7 @@ from torch_ecg.utils.misc import add_docstring, str2bool, timeout
 from torch_ecg.utils.utils_data import stratified_train_test_split
 from tqdm.auto import tqdm
 
-from cfg import BaseCfg
+from cfg import CFG, BaseCfg
 from helper_code import is_integer
 from prepare_code15_data import convert_dat_to_mat as code15_convert_dat_to_mat
 from prepare_code15_data import fix_checksums as code15_fix_checksums

@@ -16,13 +16,12 @@ from torch import nn
 from torch.nn.parallel import DataParallel as DP
 from torch.nn.parallel import DistributedDataParallel as DDP  # noqa: F401
 from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler  # noqa: F401
-from torch_ecg.cfg import CFG
 from torch_ecg.components.trainer import BaseTrainer
 from torch_ecg.utils.misc import get_date_str, str2bool
 from torch_ecg.utils.utils_nn import default_collate_fn as collate_fn
 from tqdm.auto import tqdm
 
-from cfg import ModelCfg, TrainCfg
+from cfg import CFG, ModelCfg, TrainCfg
 from const import MODEL_CACHE_DIR
 from dataset import CINC2025Dataset
 from models import CRNN_CINC2025
