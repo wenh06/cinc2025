@@ -7,13 +7,14 @@ from typing import Any, Dict, Optional, Union
 
 import numpy as np
 import torch
+from torch_ecg.cfg import CFG
 from torch_ecg.components import WaveformInput  # noqa: F401
 from torch_ecg.models import ECG_CRNN
 from torch_ecg.models.loss import setup_criterion  # noqa: F401
 from torch_ecg.utils.misc import add_docstring
 from torch_ecg.utils.utils_data import one_hot_encode  # noqa: F401
 
-from cfg import CFG, ModelCfg
+from cfg import ModelCfg
 from outputs import CINC2025Outputs
 
 __all__ = [

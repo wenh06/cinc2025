@@ -10,10 +10,11 @@ import numpy as np
 import torch
 from torch.nn.parallel import DataParallel as DP
 from torch.utils.data import DataLoader
+from torch_ecg.cfg import CFG
 from torch_ecg.utils.misc import str2bool
 from torch_ecg.utils.utils_nn import default_collate_fn as collate_fn
 
-from cfg import _BASE_DIR, CFG, ModelCfg, TrainCfg
+from cfg import _BASE_DIR, ModelCfg, TrainCfg
 from dataset import CINC2025Dataset
 from evaluate_model import run as model_evaluator_func
 from models import CRNN_CINC2025
