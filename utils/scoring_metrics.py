@@ -247,7 +247,7 @@ def compute_challenge_score(
     fraction_capacity : float, default 0.05
         The maximum fraction of positive instances allowed.
     num_permutations: int, default 10**4
-        Number of permutations for numerical stability.
+        Number of random permutations to perform for tie-breaking.
     seed: int, default 12345
         Random seed for permutations.
     verbose : bool, default False

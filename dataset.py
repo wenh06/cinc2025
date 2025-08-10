@@ -279,6 +279,10 @@ class CINC2025Dataset(Dataset, ReprMixin):
         # return set(["signals", "chagas", "is_normal", "arr_diag"])
         return set(["record_idx", "signals", "chagas"])
 
+    @property
+    def hard_chagas_labels(self):
+        return (self.reader._df_records.loc[self.records, "chagas"]).astype(int).values
+
     def extra_repr_keys(self) -> List[str]:
         return ["reader", "training"]
 
@@ -303,9 +307,11 @@ class FastDataReader(ReprMixin, Dataset):
     def __len__(self) -> int:
         return len(self.records)
 
-    def __getitem__(self, index: Union[int, slice]) -> Dict[str, np.ndarray]:
+    def __getitem__(self, index: Union[int, list, slice]) -> Dict[str, np.ndarray]:
         if isinstance(index, slice):
             return default_collate_fn([self[i] for i in range(*index.indices(len(self)))])
+        elif isinstance(index, list):
+            return default_collate_fn([self[i] for i in index])
         rec = self.records[index]
         signal, sig_fs = self.reader.load_data(
             rec,
