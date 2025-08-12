@@ -13,6 +13,19 @@ __all__ = [
 ]
 
 
+def allow_extra(cls):
+    """Allow extra fields in dataclass."""
+
+    def from_dict(data: dict):
+        valid_keys = {f.name for f in fields(cls)}
+        filtered_data = {k: v for k, v in data.items() if k in valid_keys}
+        return cls(**filtered_data)
+
+    cls.from_dict = staticmethod(from_dict)
+    return cls
+
+
+@allow_extra
 @dataclass
 class CINC2025Outputs:
     """Output class for CinC2025.

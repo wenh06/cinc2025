@@ -206,7 +206,8 @@ class CRNN_CINC2025(ECG_CRNN):
         # batch_size, channels, seq_len = _input.shape
         forward_output = self.forward(input_tensors)
 
-        output = CINC2025Outputs(**forward_output)
+        # output = CINC2025Outputs(**forward_output)
+        output = CINC2025Outputs.from_dict(forward_output)
 
         # restore the training mode
         self.train(training)
