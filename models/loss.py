@@ -3,30 +3,42 @@ Auxiliary loss functions for training.
 """
 
 import torch
+import torch.nn.functional as F
 
-__all__ = ["PairwiseRankingLoss"]
+__all__ = [
+    "PairwiseRankingLossHinge",
+    "PairwiseRankingLossLogistic",
+]
 
 
-class PairwiseRankingLoss(torch.nn.Module):
-
-    def __init__(self, margin: float = 0.5) -> None:
+class PairwiseRankingLossHinge(torch.nn.Module):
+    def __init__(self, margin: float = 0.5):
         super().__init__()
         self.margin = margin
 
-    def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
-        pos_indices = (y_true == 1).nonzero(as_tuple=True)[0]
-        neg_indices = (y_true == 0).nonzero(as_tuple=True)[0]
-
-        if len(pos_indices) == 0 or len(neg_indices) == 0:
-            return torch.tensor(0.0, requires_grad=True, device=y_pred.device)
-
-        pos_preds = y_pred[pos_indices]
-        neg_preds = y_pred[neg_indices]
-
-        pos_preds = pos_preds.unsqueeze(1)  # [num_pos, 1]
-        neg_preds = neg_preds.unsqueeze(0)  # [1, num_neg]
-
-        diff = self.margin - (pos_preds - neg_preds)  # [num_pos, num_neg]
-        loss = torch.relu(diff)
-
+    def forward(self, scores: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
+        # scores: (B,) logit for positive class; labels: (B,) 0/1
+        pos = scores[labels == 1]
+        neg = scores[labels == 0]
+        if pos.numel() == 0 or neg.numel() == 0:
+            return scores.sum() * 0.0  # keep differentiable
+        # broadcast: (P,1) - (1,N) -> (P,N)
+        diff = self.margin - (pos.unsqueeze(1) - neg.unsqueeze(0))
+        loss = F.relu(diff)
         return loss.mean()
+
+
+class PairwiseRankingLossLogistic(torch.nn.Module):
+    def __init__(self, margin: float = 0.0):
+        super().__init__()
+        self.margin = margin
+
+    def forward(self, scores: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
+        pos = scores[labels == 1]
+        neg = scores[labels == 0]
+        if pos.numel() == 0 or neg.numel() == 0:
+            return scores.sum() * 0.0
+        # broadcast: (P,1) - (1,N) => (P,N)
+        diff = pos.unsqueeze(1) - neg.unsqueeze(0) - self.margin
+        loss = F.softplus(-diff).mean()  # softplus(-diff) = log(1+exp(-diff))
+        return loss

@@ -22,6 +22,8 @@ from cfg import ModelCfg
 from outputs import CINC2025Outputs
 from utils.misc import is_stdtypes
 
+from .loss import PairwiseRankingLossHinge, PairwiseRankingLossLogistic
+
 __all__ = [
     "CRNN_CINC2025",
 ]
@@ -87,6 +89,20 @@ class CRNN_CINC2025(ECG_CRNN):
         _config.n_leads = n_leads
         _config.criterion = criterion
         _config.criterion_kw = criterion_kw
+
+        default_ranking_cfg = CFG(
+            enable=False,
+            type="hinge",  # or "logistic"
+            weight=0.3,
+            margin=0.5,
+        )
+        if not hasattr(_config, "ranking"):
+            _config.ranking = default_ranking_cfg
+        else:
+            # merge
+            for k, v in default_ranking_cfg.items():
+                _config.ranking.setdefault(k, v)
+
         super().__init__(
             classes=chagas_classes,
             n_leads=n_leads,
@@ -95,6 +111,19 @@ class CRNN_CINC2025(ECG_CRNN):
         )
 
         self.criterion = setup_criterion(criterion, **criterion_kw)
+
+        self.use_ranking = bool(self.config.ranking.enable)
+        if self.use_ranking:
+            if self.config.ranking.type.lower() == "hinge":
+                self.ranking_criterion = PairwiseRankingLossHinge(margin=self.config.ranking.margin)
+            elif self.config.ranking.type.lower() == "logistic":
+                self.ranking_criterion = PairwiseRankingLossLogistic(margin=self.config.ranking.margin)
+            else:
+                raise ValueError(f"Unknown ranking type {self.config.ranking.type}")
+            self.ranking_weight = float(self.config.ranking.weight)
+        else:
+            self.ranking_criterion = None
+            self.ranking_weight = 0.0
 
     def forward(self, input_tensors: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         """Forward pass of the model.
@@ -119,19 +148,39 @@ class CRNN_CINC2025(ECG_CRNN):
         chagas_logits = super().forward(input_tensors["signals"].to(self.dtype).to(self.device))
         chagas_prob = self.softmax(chagas_logits)
         chagas_pred = torch.argmax(chagas_prob, dim=-1)
+
+        chagas_loss = None
+        ranking_loss = None
         if "chagas" in input_tensors:
-            if input_tensors["chagas"].ndim == 2 and self.criterion.__class__.__name__ != "CrossEntropyLoss":
-                input_tensors["chagas"] = (
-                    torch.from_numpy(one_hot_encode(input_tensors["chagas"], num_classes=self.n_classes))
-                    .to(self.dtype)
-                    .to(self.device)
-                )
+            labels_in = input_tensors["chagas"]
+            labels_in = labels_in.to(self.device)
+
+            if labels_in.ndim > 1:
+                # 如果已经是 one-hot
+                hard_labels = torch.argmax(labels_in, dim=-1)
             else:
-                input_tensors["chagas"] = input_tensors["chagas"].to(self.device)
-            chagas_loss = self.criterion(chagas_logits, input_tensors["chagas"])
-        else:
-            chagas_loss = None
-        return {"chagas_logits": chagas_logits, "chagas_prob": chagas_prob, "chagas": chagas_pred, "chagas_loss": chagas_loss}
+                hard_labels = labels_in
+
+            if labels_in.ndim == 1 and self.criterion.__class__.__name__ != "CrossEntropyLoss":
+                oh = torch.from_numpy(one_hot_encode(labels_in, num_classes=self.n_classes)).to(self.dtype).to(self.device)
+                base_loss = self.criterion(chagas_logits, oh)
+            else:
+                base_loss = self.criterion(chagas_logits, labels_in)
+
+            if self.use_ranking:
+                pos_channel_scores = chagas_logits[:, 1]
+                ranking_loss = self.ranking_criterion(pos_channel_scores, hard_labels)
+                chagas_loss = base_loss + self.ranking_weight * ranking_loss
+            else:
+                chagas_loss = base_loss
+
+        return {
+            "chagas_logits": chagas_logits,
+            "chagas_prob": chagas_prob,
+            "chagas": chagas_pred,
+            "chagas_loss": chagas_loss,
+            "ranking_loss": ranking_loss,
+        }
 
     @torch.no_grad()
     def inference(self, sig: Union[np.ndarray, torch.Tensor, list]) -> CINC2025Outputs:

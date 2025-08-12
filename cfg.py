@@ -195,3 +195,10 @@ ModelCfg.crnn = adjust_cnn_filter_lengths(ModelCfg.crnn, int(ModelCfg.fs * cnn_f
 
 ModelCfg.criterion = TrainCfg.criterion
 ModelCfg.criterion_kw = TrainCfg.criterion_kw.copy()
+
+ModelCfg.crnn.ranking = CFG(
+    enable=True,
+    type="logistic",  # or "hinge"
+    weight=0.4,
+    margin=0.0,  # logistic 0; hinge 0.5 or other values
+)

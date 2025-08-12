@@ -101,6 +101,7 @@ class CINC2025Dataset(Dataset, ReprMixin):
             + self.config.label_smooth.smoothing[str(st)] / len(self.config.chagas_classes)
             for st, prob in soft_label_dict.items()
         }
+        # print(f"{soft_label_dict = }")
         self.reader._df_records["soft_label"] = self.reader._df_records["sample_type"].map(soft_label_dict)
 
         ppm_config = CFG(random=False)
