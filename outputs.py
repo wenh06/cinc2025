@@ -1,8 +1,8 @@
 """
 """
 
-from dataclasses import dataclass, fields
-from typing import Optional, Sequence, Union
+from dataclasses import dataclass, fields, is_dataclass
+from typing import Optional, Sequence, Union, get_args, get_origin
 
 import numpy as np
 import pandas as pd
@@ -16,12 +16,50 @@ __all__ = [
 def allow_extra(cls):
     """Allow extra fields in dataclass."""
 
+    def _from_dict_recursive(dc_cls, data):
+        if not is_dataclass(dc_cls):
+            return data
+
+        valid_fields = {f.name: f for f in fields(dc_cls)}
+        init_kwargs = {}
+        for key, value in data.items():
+            if key not in valid_fields:
+                continue  # ignore extra fields
+            field_info = valid_fields[key]
+            field_type = field_info.type
+
+            origin = get_origin(field_type)
+            args = get_args(field_type)
+
+            if is_dataclass(field_type):
+                init_kwargs[key] = _from_dict_recursive(field_type, value)
+            elif origin in (list, Sequence, tuple) and args and is_dataclass(args[0]):
+                init_kwargs[key] = type(value)(_from_dict_recursive(args[0], v) for v in value)
+            elif origin is dict and args and is_dataclass(args[1]):
+                init_kwargs[key] = {k: _from_dict_recursive(args[1], v) for k, v in value.items()}
+            else:
+                init_kwargs[key] = value
+
+        return dc_cls(**init_kwargs)
+
     def from_dict(data: dict):
-        valid_keys = {f.name for f in fields(cls)}
-        filtered_data = {k: v for k, v in data.items() if k in valid_keys}
-        return cls(**filtered_data)
+        return _from_dict_recursive(cls, data)
+
+    def _to_dict_recursive(obj):
+        if is_dataclass(obj):
+            return {f.name: _to_dict_recursive(getattr(obj, f.name)) for f in fields(obj)}
+        elif isinstance(obj, (list, tuple)):
+            return type(obj)(_to_dict_recursive(v) for v in obj)
+        elif isinstance(obj, dict):
+            return {k: _to_dict_recursive(v) for k, v in obj.items()}
+        else:
+            return obj
+
+    def to_dict(self):
+        return _to_dict_recursive(self)
 
     cls.from_dict = staticmethod(from_dict)
+    cls.to_dict = to_dict
     return cls
 
 
