@@ -22,7 +22,7 @@ from cfg import ModelCfg
 from outputs import CINC2025Outputs
 from utils.misc import is_stdtypes
 
-from .loss import PairwiseRankingLossHinge, PairwiseRankingLossLogistic
+from .loss import AdaptiveLogisticPairwiseLoss, PairwiseRankingLossHinge, PairwiseRankingLossLogistic
 
 __all__ = [
     "CRNN_CINC2025",
@@ -92,7 +92,7 @@ class CRNN_CINC2025(ECG_CRNN):
 
         default_ranking_cfg = CFG(
             enable=False,
-            type="hinge",  # or "logistic"
+            type="hinge",  # or "logistic", or "adaptive"
             weight=0.3,
             margin=0.5,
         )
@@ -118,6 +118,17 @@ class CRNN_CINC2025(ECG_CRNN):
                 self.ranking_criterion = PairwiseRankingLossHinge(margin=self.config.ranking.margin)
             elif self.config.ranking.type.lower() == "logistic":
                 self.ranking_criterion = PairwiseRankingLossLogistic(margin=self.config.ranking.margin)
+            elif self.config.ranking.type.lower() == "adaptive":
+                self.ranking_criterion = AdaptiveLogisticPairwiseLoss(
+                    margin=self.config.ranking.margin,
+                    return_stats=False,
+                    # hard_negative_pct=0.1,
+                    # subsample_pos=32,
+                    # subsample_neg=160,
+                    # adaptive_margin=True,
+                    # target_active_ratio=0.2,
+                    # grad_threshold=0.1,
+                )
             else:
                 raise ValueError(f"Unknown ranking type {self.config.ranking.type}")
             self.ranking_weight = float(self.config.ranking.weight)

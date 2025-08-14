@@ -198,7 +198,7 @@ ModelCfg.criterion_kw = TrainCfg.criterion_kw.copy()
 
 ModelCfg.crnn.ranking = CFG(
     enable=False,
-    type="logistic",  # or "hinge"
+    type="adaptive",  # or "hinge", or "adaptive"
     weight=0.4,
     margin=0.0,  # logistic 0; hinge 0.5 or other values
 )
