@@ -334,7 +334,7 @@ class FastDataReader(ReprMixin, Dataset):
         sample_type = self.reader._df_records.at[rec, "sample_type"]
 
         if self.config.label_smooth:
-            if DEFAULTS.RNG.random() > self.config.label_smooth.prob:
+            if DEFAULTS.RNG.random() < self.config.label_smooth.prob:
                 chagas_label = self.reader._df_records.at[rec, "soft_label"]
             else:
                 chagas_label = self.reader._df_records.at[rec, "hard_label"]

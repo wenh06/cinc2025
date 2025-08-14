@@ -89,7 +89,7 @@ TrainCfg.bandpass = CFG(
 #     smoothing=0.1,
 # )
 TrainCfg.label_smooth = CFG(
-    prob=0.9,
+    prob=0.7,
     smoothing={
         str(SampleType.NEGATIVE_SAMPLE.value): 0.2,  # negative samples -> prob vec [0.9, 0.1]
         str(SampleType.SELF_REPORTED_POSITIVE_SAMPLE.value): 0.6,  # self-reported positive samples -> prob vec [0.3, 0.7]
@@ -197,7 +197,7 @@ ModelCfg.criterion = TrainCfg.criterion
 ModelCfg.criterion_kw = TrainCfg.criterion_kw.copy()
 
 ModelCfg.crnn.ranking = CFG(
-    enable=True,
+    enable=False,
     type="logistic",  # or "hinge"
     weight=0.4,
     margin=0.0,  # logistic 0; hinge 0.5 or other values
