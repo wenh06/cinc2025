@@ -14,7 +14,6 @@ from torch_ecg.utils.utils_nn import adjust_cnn_filter_lengths
 from const import SampleType  # noqa: F401
 
 __all__ = [
-    "CFG",
     "BaseCfg",
     "TrainCfg",
     "ModelCfg",
@@ -197,8 +196,8 @@ ModelCfg.criterion = TrainCfg.criterion
 ModelCfg.criterion_kw = TrainCfg.criterion_kw.copy()
 
 ModelCfg.crnn.ranking = CFG(
-    enable=False,
+    enable=True,
     type="adaptive",  # or "hinge", or "adaptive"
     weight=0.4,
-    margin=0.0,  # logistic 0; hinge 0.5 or other values
+    margin=0.1,  # logistic 0; hinge 0.5 or other values
 )
