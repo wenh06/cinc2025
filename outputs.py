@@ -1,5 +1,4 @@
-"""
-"""
+""" """
 
 from dataclasses import dataclass, fields, is_dataclass
 from typing import Optional, Sequence, Union, get_args, get_origin
