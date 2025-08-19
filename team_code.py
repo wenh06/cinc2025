@@ -355,7 +355,7 @@ def run_model(
     signal = to_dtype(signal, DTYPE)
     signal = remove_spikes_naive(signal)
     signal, _ = model["preprocessor"](signal, sig_fs)
-    output = model["model"].inference(signal)
+    output = model["model"].inference(signal, crop_infer=True, agg="max")
     binary_output = output.chagas[0]
     probability_output = output.chagas_prob[0][1]
 

@@ -6,7 +6,7 @@ import os
 import warnings
 from copy import deepcopy
 from pathlib import Path, PosixPath, WindowsPath
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Union
 
 import numpy as np
 import torch
@@ -194,13 +194,31 @@ class CRNN_CINC2025(ECG_CRNN):
         }
 
     @torch.no_grad()
-    def inference(self, sig: Union[np.ndarray, torch.Tensor, list]) -> CINC2025Outputs:
+    def inference(
+        self,
+        sig: Union[np.ndarray, torch.Tensor, list],
+        crop_infer: bool = False,
+        crop_len: Optional[float] = None,
+        stride: Optional[float] = None,
+        agg: Literal["max", "top2_mean", "mean"] = "max",
+    ) -> CINC2025Outputs:
         """Inference on a single signal or a batch of signals.
 
         Parameters
         ----------
-        sig : numpy.ndarray or torch.Tensor, or list
-            Input signal(s).
+        sig : array-like
+            Input signal(s). Accepts:
+              - (C, T)
+              - (B, C, T)
+              - list / np.ndarray / torch.Tensor
+        crop_infer : bool, default False
+            If True, apply sliding window inference per signal.
+        crop_len : float, optional
+            Window length in seconds. If None, defaults to 4096/fs (≈10.24s at fs=400).
+        stride : float, optional
+            Step length in seconds. If None, defaults to 1024/fs (≈2.56s at fs=400).
+        agg : {"max","top2_mean","mean"}, default "max"
+            Aggregation strategy for multi-crop probabilities.
 
         Returns
         -------
@@ -211,18 +229,117 @@ class CRNN_CINC2025(ECG_CRNN):
         training = self.training
         self.eval()
 
-        input_tensors = {"signals": torch.as_tensor(sig, dtype=self.dtype, device=self.device)}
-        if input_tensors["signals"].ndim == 2:
-            input_tensors["signals"] = input_tensors["signals"].unsqueeze(0)  # add a batch dimension
-        # batch_size, channels, seq_len = _input.shape
-        forward_output = self.forward(input_tensors)
+        # Normalize input to (B, C, T)
+        if isinstance(sig, list):
+            sig = np.asarray(sig)
+        if isinstance(sig, np.ndarray):
+            sig_t = torch.as_tensor(sig, dtype=self.dtype, device=self.device)
+        else:
+            sig_t = sig.to(self.device).to(self.dtype)
 
-        # output = CINC2025Outputs(**forward_output)
-        output = CINC2025Outputs.from_dict(forward_output)
+        if sig_t.ndim == 2:  # (C, T) -> (1, C, T)
+            sig_t = sig_t.unsqueeze(0)
+        elif sig_t.ndim != 3:
+            raise ValueError(f"Unsupported input shape {sig_t.shape}, expected (C,T) or (B,C,T)")
 
-        # restore the training mode
+        B, C, T = sig_t.shape
+
+        if not crop_infer:
+            forward_output = self.forward({"signals": sig_t})
+            output = CINC2025Outputs.from_dict(forward_output)
+            self.train(training)
+            return output
+
+        # Multi-crop path
+        fs = float(self.config.get("fs", 400))
+        default_crop_len_sec = 4096.0 / fs  # ≈10.24s
+        default_stride_sec = 1024.0 / fs  # ≈2.56s
+        crop_len_sec = crop_len if crop_len is not None else default_crop_len_sec
+        stride_sec = stride if stride is not None else default_stride_sec
+
+        crop_len_samples = int(round(crop_len_sec * fs))
+        stride_samples = int(round(stride_sec * fs))
+        crop_len_samples = max(1, crop_len_samples)
+        stride_samples = max(1, stride_samples)
+
+        batch_logits: List[torch.Tensor] = []
+        batch_probs: List[torch.Tensor] = []
+        batch_preds: List[torch.Tensor] = []
+        multi_crop_probs: List[np.ndarray] = []
+
+        for b in range(B):
+            x = sig_t[b]  # (C, Tb)
+            Tb = x.shape[-1]
+
+            # Short signal: no cropping
+            if Tb <= crop_len_samples:
+                fo = self.forward({"signals": x.unsqueeze(0)})
+                logits_full = fo["chagas_logits"]  # (1,2)
+                probs_full = fo["chagas_prob"]  # (1,2)
+                batch_logits.append(logits_full.squeeze(0))
+                batch_probs.append(probs_full.squeeze(0))
+                batch_preds.append(torch.argmax(probs_full, dim=-1))
+                continue
+
+            # Compute starting indices
+            starts = list(range(0, Tb - crop_len_samples + 1, stride_samples))
+            if starts[-1] != Tb - crop_len_samples:
+                # Add tail window
+                starts.append(Tb - crop_len_samples)
+
+            # Stack windows: (Ncrops, C, crop_len_samples)
+            windows = torch.stack(
+                [x[..., s : s + crop_len_samples] for s in starts],
+                dim=0,
+            )
+            fo = self.forward({"signals": windows})
+            logits_all = fo["chagas_logits"]  # (Ncrops,2)
+            probs_all = fo["chagas_prob"]  # (Ncrops,2)
+
+            pos_probs = probs_all[:, 1]
+
+            if agg == "max":
+                idx = torch.argmax(pos_probs)
+                chosen_logits = logits_all[idx]
+                agg_logits = chosen_logits
+                agg_probs = torch.softmax(agg_logits, dim=-1)
+            elif agg == "top2_mean":
+                k = min(2, probs_all.shape[0])
+                vals, indices = torch.topk(pos_probs, k)
+                mean_pos = vals.mean()
+                # Reconstruct probability vector from aggregated pos prob
+                agg_probs = torch.tensor(
+                    [1.0 - mean_pos.item(), mean_pos.item()],
+                    device=probs_all.device,
+                    dtype=probs_all.dtype,
+                )
+                # Use top1 logits as representative
+                agg_logits = logits_all[indices[0]]
+            elif agg == "mean":
+                agg_probs = probs_all.mean(dim=0)
+                agg_logits = logits_all.mean(dim=0)  # Approximate
+            else:
+                raise ValueError(f"Unsupported agg '{agg}'. Choose from ['max','top2_mean','mean'].")
+
+            batch_logits.append(agg_logits)
+            batch_probs.append(agg_probs)
+            batch_preds.append(torch.argmax(agg_probs).unsqueeze(0))
+
+        logits_tensor = torch.stack(batch_logits, dim=0)  # (B,2)
+        probs_tensor = torch.stack(batch_probs, dim=0)  # (B,2)
+        preds_tensor = torch.argmax(probs_tensor, dim=-1)
+
+        output_dict = {
+            "chagas_logits": logits_tensor,
+            "chagas_prob": probs_tensor,
+            "chagas": preds_tensor,
+            "chagas_loss": None,
+            "ranking_loss": None,
+        }
+
+        output = CINC2025Outputs.from_dict(output_dict)
+
         self.train(training)
-
         return output
 
     @add_docstring(inference.__doc__)
