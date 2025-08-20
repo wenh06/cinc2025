@@ -88,7 +88,7 @@ TrainCfg.bandpass = CFG(
 #     smoothing=0.1,
 # )
 TrainCfg.label_smooth = CFG(
-    prob=0.7,
+    prob=0.8,
     smoothing={
         str(SampleType.NEGATIVE_SAMPLE.value): 0.2,  # negative samples -> prob vec [0.9, 0.1]
         str(SampleType.SELF_REPORTED_POSITIVE_SAMPLE.value): 0.6,  # self-reported positive samples -> prob vec [0.3, 0.7]
@@ -124,8 +124,8 @@ TrainCfg.lr_gamma = 0.1
 TrainCfg.max_lr = 6e-4  # for "one_cycle" scheduler, to adjust via expriments
 
 TrainCfg.upsample_positive_chagas = {
-    "CODE-15%": 3,
-    "SaMi-Trop": 12,
+    "CODE-15%": 6,
+    "SaMi-Trop": 36,
 }  # rate of upsampling positive samples, 1 for no upsampling
 TrainCfg.use_dbs = ["CODE-15%", "SaMi-Trop", "PTB-XL"]  # CODE-15%, SaMi-Trop, PTB-XL
 

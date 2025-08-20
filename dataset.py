@@ -96,9 +96,9 @@ class CINC2025Dataset(Dataset, ReprMixin):
         }
         self.reader._df_records["hard_label"] = self.reader._df_records["sample_type"].map(soft_label_dict)
         soft_label_dict = {
-            st: (1 - self.config.label_smooth.smoothing[str(st)]) * prob
+            st: (1 - self.config.label_smooth.smoothing[str(st)]) * hard_label_vec
             + self.config.label_smooth.smoothing[str(st)] / len(self.config.chagas_classes)
-            for st, prob in soft_label_dict.items()
+            for st, hard_label_vec in soft_label_dict.items()
         }
         # print(f"{soft_label_dict = }")
         self.reader._df_records["soft_label"] = self.reader._df_records["sample_type"].map(soft_label_dict)
