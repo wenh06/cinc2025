@@ -344,3 +344,40 @@ Official Phase:
         SaMi-Trop: 120
     crop_infer: false
     hash: 9d64248
+  submission 8:
+    challenge_score: 0.245
+    submission ID: 2715
+    submission time: 8/19/2025 3:36:14 ET
+    backbone: crnn-resnet_nature_comm_bottle_neck
+    ranking_loss: false
+    train:
+      n_epochs: 30
+      batch_size: 128
+      lr_scheduler: one_cycle
+      lr: 0.0001
+      max_lr: 0.0006
+      early_stopping_patience: 9
+      preprocess: |
+        - name: bandpass
+          params:
+            filter_type: butter
+        - name: resample
+          params:
+            fs: 400
+      use_dbs: |
+        CODE-15%
+        SaMi-Trop
+        PTB-XL
+      augmentations: |
+        label_smoothing:
+          prob: 0.7
+          smoothing:
+            0: 0.2
+            1: 0.6
+            2: 0.0
+      upsample:
+        CODE-15%: 3
+        SaMi-Trop: 12
+    crop_infer:
+      agg: max
+    hash: 9d64248
