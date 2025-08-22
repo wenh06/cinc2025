@@ -381,3 +381,40 @@ Official Phase:
     crop_infer:
       agg: max
     hash: 9d64248
+  submission 9:
+    challenge_score: 0.221
+    submission ID: 2775
+    submission time: 8/20/2025 1:25:15 ET
+    backbone: crnn-resnet_nature_comm_bottle_neck
+    ranking_loss: false
+    train:
+      n_epochs: 30
+      batch_size: 128
+      lr_scheduler: one_cycle
+      lr: 0.0001
+      max_lr: 0.0006
+      early_stopping_patience: 9
+      preprocess: |
+        - name: bandpass
+          params:
+            filter_type: butter
+        - name: resample
+          params:
+            fs: 400
+      use_dbs: |
+        CODE-15%
+        SaMi-Trop
+        PTB-XL
+      augmentations: |
+        label_smoothing:
+          prob: 0.8
+          smoothing:
+            0: 0.2
+            1: 0.6
+            2: 0.0
+      upsample:
+        CODE-15%: 6
+        SaMi-Trop: 36
+    crop_infer:
+      agg: max
+    hash: 710cf01
