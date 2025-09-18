@@ -14,6 +14,9 @@ Detection of Chagas Disease from the ECG: The George B. Moody PhysioNet Challeng
 <!-- toc -->
 
 - [The Conference](#the-conference)
+- [Description of the files/folders(modules)](#description-of-the-filesfoldersmodules)
+- [Key problem to solve](#key-problem-to-solve)
+- [Background knowledge](#background-knowledge)
 
 <!-- tocstop -->
 
@@ -27,6 +30,32 @@ Detection of Chagas Disease from the ECG: The George B. Moody PhysioNet Challeng
 
 [^1]: As clarified by the organizers, the validation set for the official phase was updated, hence the unofficial and official phase leaderboards are not comparable.
 
+<p align="middle">
+  <img src="images/badge-of-recognition-1.png" width="40%" />
+  &nbsp; &nbsp; &nbsp;
+  <img src="images/badge-of-recognition-2.png" width="40%" />
+</p>
+
+### The Conference Poster
+
+<details>
+<summary>Click to view the details</summary>
+
+<div style="text-align:center; margin:20px 0; position:relative;">
+  <img src="images/cinc2025-poster.svg"
+       alt="The Conference Poster"
+       style="width:80%; max-width:800px; border:1px solid #eee; box-shadow:0 2px 8px rgba(0,0,0,0.1);"
+       onerror="this.style.display='none';">
+  <div style="display:none; width:80%; max-width:800px; margin:0 auto; padding:40px; border:1px solid #eee; background:#f9f9f9; text-align:center;"
+       id="fallback-text">
+    The Conference Poster
+  </div>
+</div>
+
+</details>
+
+:point_right: [Back to TOC](#cinc2025)
+
 ## Description of the files/folders(modules)
 
 ### Files
@@ -38,11 +67,17 @@ Detection of Chagas Disease from the ECG: The George B. Moody PhysioNet Challeng
 - [cfg.py](cfg.py): the configuration file for the whole project.
 - [const.py](const.py): constant definitions.
 - [Dockerfile](Dockerfile): docker file for building the docker image for submissions.
-- [requirements.txt](requirements.txt), [requirements-docker.txt](requirements-docker.txt), [requirements-no-torch.txt](requirements-no-torch.txt): requirements files for different purposes.
-- [evaluate_model.py](evaluate_model.py), [helper_code.py](helper_code.py), [prepare_code15_data.py](prepare_code15_data.py), [run_model.py](run_model.py), [train_model.py](train_model.py): scripts inherited from the [official baseline](https://github.com/physionetchallenges/python-example-2025.git) and [official scoring code](https://github.com/physionetchallenges/evaluation-2025.git). Modifications on these files are invalid and are immediately overwritten after being pulled by the organizers (or the submission system).
+- [requirements.txt](requirements.txt), [requirements-docker.txt](requirements-docker.txt), [requirements-no-torch.txt](requirements-no-torch.txt):
+  requirements files for different purposes.
+- [evaluate_model.py](evaluate_model.py), [helper_code.py](helper_code.py), [prepare_code15_data.py](prepare_code15_data.py),
+  [run_model.py](run_model.py), [train_model.py](train_model.py): scripts inherited from the
+  [official baseline](https://github.com/physionetchallenges/python-example-2025.git) and
+  [official scoring code](https://github.com/physionetchallenges/evaluation-2025.git).
+  Modifications on these files are invalid and are immediately overwritten after being pulled by the organizers (or the submission system).
 - [sync_official.py](sync_official.py): script for synchronizing data from the official baseline and official scoring code.
 - [team_code.py](team_code.py): entry file for the submissions.
-- [submissions](submissions): log file for the submissions, including the key hyperparameters, the scores received, commit hash, etc. The log file is updated after each submission and organized as a YAML file.
+- [submissions](submissions): log file for the submissions, including the key hyperparameters, the scores received,
+  commit hash, etc. The log file is updated after each submission and organized as a YAML file.
 
 </details>
 
@@ -53,6 +88,11 @@ Detection of Chagas Disease from the ECG: The George B. Moody PhysioNet Challeng
 
 - [official_baseline](official_baseline): the official baseline code, included as a submodule.
 - [official_scoring_metric](official_scoring_metric): the official scoring code, included as a submodule.
+- [models](models): folder for model definitions, typically we used a [CRNN model](models/crnn.py).
+  Some [custom loss functions](models/loss.py) are also defined in this module.
+- [utils](utils): various utility functions, including [custom scoring functions](utils/scoring_metrics.py),
+  and some training-validation split files.
+- [results](results): folder containing some typical experiment log files, for reproducibility.
 
 </details>
 
