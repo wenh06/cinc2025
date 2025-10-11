@@ -81,6 +81,11 @@ TrainCfg.resample = CFG(
 TrainCfg.bandpass = CFG(
     filter_type="butter",
 )
+TrainCfg.normalize = CFG(  # None or False for no normalization
+    method="z-score",
+    mean=0.0,
+    std=1.0,
+)
 
 # augmentations configurations
 # TrainCfg.label_smooth = CFG(

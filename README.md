@@ -11,22 +11,24 @@ Detection of Chagas Disease from the ECG: The George B. Moody PhysioNet Challeng
 
 [Challenge Website](https://moody-challenge.physionet.org/2025/)
 
+:skull::skull::skull: **BIG MISTAKE**: Forgot to add (z-score) normalization in the preprocessing pipeline in the [config](cfg.py)!!! :skull::skull::skull:
+
 <!-- toc -->
 
 - [The Conference](#the-conference)
 - [Description of the files/folders(modules)](#description-of-the-filesfoldersmodules)
 - [Key problem to solve](#key-problem-to-solve)
 - [Background knowledge](#background-knowledge)
+- [Post-Conference Thoughts](#post-conference-thoughts)
 
 <!-- tocstop -->
 
 ## The Conference
 
 [Conference Website](https://cinc2025.org/) |
-[Official Phase Leaderboard](https://docs.google.com/spreadsheets/d/e/2PACX-1vQtPv9dEP-aC1N7Vds-zy63Jy8XftSeftCbtpdBDXZ7ubKT7eHHKLjSrFyaJ7v881PlHDXrnPiYZwbU/pubhtml?gid=1127050801&single=true)
-
-
-[Unofficial Phase Leaderboard](https://docs.google.com/spreadsheets/d/e/2PACX-1vQIDwTRtZc7goD10lScYl20J0xfjaPb1tHVyeqr5zmgZPMDhXj034S6w7fW8SJwzlAgKezxd5w9vS2i/pubhtml?gid=173721180&single=true&widget=true&headers=false)[^1]
+[Unofficial Phase Leaderboard](https://docs.google.com/spreadsheets/d/e/2PACX-1vQIDwTRtZc7goD10lScYl20J0xfjaPb1tHVyeqr5zmgZPMDhXj034S6w7fW8SJwzlAgKezxd5w9vS2i/pubhtml?gid=173721180&single=true&widget=true&headers=false)[^1] |
+[Official Phase Leaderboard](https://docs.google.com/spreadsheets/d/e/2PACX-1vQtPv9dEP-aC1N7Vds-zy63Jy8XftSeftCbtpdBDXZ7ubKT7eHHKLjSrFyaJ7v881PlHDXrnPiYZwbU/pubhtml?gid=1127050801&single=true) |
+[Final Test Results](https://moody-challenge.physionet.org/2025/results/)
 
 [^1]: As clarified by the organizers, the validation set for the official phase was updated, hence the unofficial and official phase leaderboards are not comparable.
 
@@ -127,3 +129,12 @@ about ECG abnormalities in Chagas Disease, the most common ECG abnormalities are
   - ventricular extrasystoles (VE) (OR=1.62; 95%CIs=1.14-2.30)
 
   was higher in CD compared to non-CD participants
+
+## Post-Conference Thoughts
+
+### Thoughts on the Final Results
+
+- High-performing teams often accepted very low accuracy in exchange for better recall/risk ranking.
+- Foundation/self-supervised ECG encoders (ViT/Transformer backbones, distilled/foundation models pretrained on large ECG corpora) are widely used.
+
+### Miscellaneous
