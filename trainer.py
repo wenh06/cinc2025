@@ -200,8 +200,7 @@ class CINC2025Trainer(BaseTrainer):
                     level=logging.WARNING,
                 )
 
-        msg = textwrap.dedent(
-            f"""
+        msg = textwrap.dedent(f"""
             Starting training:
             ------------------
             Epochs:          {self.n_epochs}
@@ -213,8 +212,7 @@ class CINC2025Trainer(BaseTrainer):
             Optimizer:       {self.train_config.optimizer}
             Dataset classes: {self.train_config.classes}
             -----------------------------------------
-            """
-        )
+            """)
         self.log_manager.log_message(msg)
 
         start_epoch = self.epoch
@@ -275,12 +273,10 @@ class CINC2025Trainer(BaseTrainer):
                             self.log_manager.log_message(msg)
                             break
 
-                    msg = textwrap.dedent(
-                        f"""
+                    msg = textwrap.dedent(f"""
                         best metric = {self.best_metric},
                         obtained at epoch {self.best_epoch}
-                    """
-                    )
+                    """)
                     self.log_manager.log_message(msg)
 
                     # save checkpoint
@@ -458,15 +454,13 @@ class CINC2025Trainer(BaseTrainer):
             head_labels = np.argmax(head_labels, axis=1) if head_labels.ndim > 1 else head_labels
             log_head_num = min(log_head_num, len(head_scalar_preds))
             for n in range(log_head_num):
-                msg = textwrap.dedent(
-                    f"""
+                msg = textwrap.dedent(f"""
                 ----------------------------------------------
                 Chagas scalar predictions:    {[round(item, 3) for item in head_scalar_preds[n].tolist()]}
                 Chagas binary predictions:    {head_binary_preds[n]}
                 Chagas labels:                {bool(head_labels[n])}
                 ----------------------------------------------
-                """
-                )
+                """)
                 self.log_manager.log_message(msg)
 
         self.model.train()
