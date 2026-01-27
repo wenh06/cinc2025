@@ -1,5 +1,5 @@
 # https://hub.docker.com/r/pytorch/pytorch
-FROM pytorch/pytorch:2.5.1-cuda11.8-cudnn9-devel
+FROM pytorch/pytorch:2.9.1-cuda12.8-cudnn9-devel
 # NOTE:
 # pytorch/pytorch:1.13.1-cuda11.6-cudnn8-runtime has python version 3.10.8, system version Ubuntu 18.04.6 LTS
 # pytorch/pytorch:1.10.0-cuda11.3-cudnn8-runtime has python version 3.7.x
@@ -8,6 +8,7 @@ FROM pytorch/pytorch:2.5.1-cuda11.8-cudnn9-devel
 # pytorch/pytorch:2.2.0-cuda11.8-cudnn8-runtime has python version 3.10.13, system version Ubuntu 22.04.3 LTS
 # pytorch/pytorch:2.2.2-cuda12.1-cudnn8-runtime has python version 3.10.14, system version Ubuntu 22.04.4 LTS
 # pytorch/pytorch:2.5.1-cuda11.8-cudnn9-runtime has python version 3.11.10, system version Ubuntu 22.04.5 LTS
+# pytorch/pytorch:2.9.1-cuda12.8-cudnn9-runtime has python version 3.11.14, system version Ubuntu 22.04.5 LTS
 
 # runtime versions has no nvcc, gcc installed
 # pytorch/pytorch:2.5.1-cuda11.8-cudnn9-devel gcc version 11.4.0
