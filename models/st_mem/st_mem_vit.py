@@ -130,12 +130,12 @@ class ST_MEM_ViT(nn.Module):
         x = self.forward_encoding(series)
         return self.head(x)
 
-    def __repr__(self):
-        print_str = f"{self.__class__.__name__}(\n"
-        for k, v in self._repr_dict.items():
-            print_str += f"    {k}={v},\n"
-        print_str += ")"
-        return print_str
+    # def __repr__(self):
+    #     print_str = f"{self.__class__.__name__}(\n"
+    #     for k, v in self._repr_dict.items():
+    #         print_str += f"    {k}={v},\n"
+    #     print_str += ")"
+    #     return print_str
 
 
 def st_mem_vit_small(num_leads, num_classes=None, seq_len=2250, patch_size=75, **kwargs):

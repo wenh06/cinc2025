@@ -22,6 +22,8 @@ The input to the model is expected to be of shape ``(batch_size, sequence_length
 where the last dimension is flattened from standard 12-lead ECG signals of shape
 ``(12, signal_length)``.
 
+The output of the model is of shape ``(batch_size, time_steps, embedding_size)``.
+
 """
 
 from typing import List, Optional, Tuple, Union

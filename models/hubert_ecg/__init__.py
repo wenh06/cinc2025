@@ -63,6 +63,8 @@ def load_hubert_ecg_model(
         where the last dimension is flattened from standard 12-lead ECG signals of shape
         ``(12, signal_length)``.
 
+        The output of the model is of shape ``(batch_size, time_steps, embedding_size)``.
+
     """
     if size_or_name_or_path == "small":
         model_name = "Edoardo-BS/hubert-ecg-small"

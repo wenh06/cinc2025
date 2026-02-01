@@ -28,6 +28,9 @@ The input to the pretrain model is expected to be of shape ``(batch_size, num_le
 where the last dimension ``signal_length`` is fixed to 75 * N, with N being an integer,
 and 75 corresponding to the patch size used in ST-MEM.
 
+The output of the model is of shape ``(batch_size, embedding_size)`` for the encoder-only model,
+or ``(batch_size, num_leads, patch_num, patch_size)`` for the full model.
+
 """
 
 from functools import partial
@@ -310,12 +313,12 @@ class ST_MEM(nn.Module, SizeMixin, CitationMixin):
 
         return {"loss": recon_loss, "pred": pred, "mask": mask}
 
-    def __repr__(self):
-        print_str = f"{self.__class__.__name__}(\n"
-        for k, v in self._repr_dict.items():
-            print_str += f"    {k}={v},\n"
-        print_str += ")"
-        return print_str
+    # def __repr__(self):
+    #     print_str = f"{self.__class__.__name__}(\n"
+    #     for k, v in self._repr_dict.items():
+    #         print_str += f"    {k}={v},\n"
+    #     print_str += ")"
+    #     return print_str
 
 
 def st_mem_vit_small_dec256d4b(encoder_only: bool = True, **kwargs):

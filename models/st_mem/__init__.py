@@ -71,6 +71,9 @@ def load_st_mem_model(
         where the last dimension ``signal_length`` is fixed to 75 * N, with N being an integer,
         and 75 corresponding to the patch size used in ST-MEM.
 
+        The output of the model is of shape ``(batch_size, embedding_size)`` for the encoder-only model,
+        or ``(batch_size, num_leads, patch_num, patch_size)`` for the full model.
+
     """
     if size_or_path == "small":
         model = st_mem_vit_small_dec256d4b(encoder_only=encoder_only)
