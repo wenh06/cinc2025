@@ -18,6 +18,10 @@ as stated in the original paper, and also can be found in
 - https://github.com/Edoar-do/HuBERT-ECG/blob/master/code/pretrain.py
 - https://github.com/Edoar-do/HuBERT-ECG/blob/master/code/pretraining.sh
 
+The input to the model is expected to be of shape ``(batch_size, sequence_length)``,
+where the last dimension is flattened from standard 12-lead ECG signals of shape
+``(12, signal_length)``.
+
 """
 
 from typing import List, Optional, Tuple, Union
@@ -89,7 +93,7 @@ class HuBERTECG(HubertModel, SizeMixin, CitationMixin):
             # apply SpecAugment along time axis with given mask_time_indices
             hidden_states[mask_time_indices] = self.masked_spec_embed.to(hidden_states.dtype)
         elif self.config.mask_time_prob > 0 and self.training:
-            mask_time_indices = _compute_mask_indices(
+            mask_time_indices = _compute_mask_indices(  # type: ignore
                 (batch_size, sequence_length),
                 mask_prob=self.config.mask_time_prob,
                 mask_length=self.config.mask_time_length,
