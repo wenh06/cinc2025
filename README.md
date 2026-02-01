@@ -138,3 +138,5 @@ about ECG abnormalities in Chagas Disease, the most common ECG abnormalities are
 - Foundation/self-supervised ECG encoders (ViT/Transformer backbones, distilled/foundation models pretrained on large ECG corpora) are widely used.
 
 ### Miscellaneous
+
+[CinC2020](https://github.com/DeepPSP/cinc2020) | [CinC2021](https://github.com/DeepPSP/cinc2021) | [CinC2022](https://github.com/DeepPSP/cinc2022) | [CinC2023](https://github.com/wenh06/cinc2023) | [CinC2024](https://github.com/wenh06/cinc2024)
