@@ -9,6 +9,8 @@ from torch_ecg.utils.misc import str2bool
 from const import DATA_CACHE_DIR, LABEL_CACHE_DIR, MODEL_CACHE_DIR, REMOTE_MODELS, TEST_DATA_CACHE_DIR
 from data_reader import CINC2025, CODE15, SamiTrop
 from models import CRNN_CINC2025
+from models.hubert_ecg import cache_remote_hubert_ecg_model, load_hubert_ecg_model
+from models.st_mem import cache_remote_st_mem_model, load_st_mem_model
 from team_code import SubmissionCfg  # noqa: F401
 
 try:
@@ -120,6 +122,19 @@ def cache_pretrained_models():
         print(f"Model: {model}")
         print(f"Train config: {train_config}")
         del model, train_config
+
+    # cache remote ST-MEM model and HuBERT-ECG model
+    cache_remote_st_mem_model()  # base size encoder
+    st_mem_model = load_st_mem_model(
+        Path(MODEL_CACHE_DIR) / "ST-MEM",
+        encoder_only=True,
+    )
+    print(f"ST-MEM model loaded: {st_mem_model}")
+    del st_mem_model
+    cache_remote_hubert_ecg_model("base")  # base size
+    hubert_ecg_model = load_hubert_ecg_model(Path(MODEL_CACHE_DIR) / "Edoardo-BS-hubert-ecg-base")
+    print(f"HuBERT-ECG model loaded: {hubert_ecg_model}")
+    del hubert_ecg_model
 
 
 if __name__ == "__main__":

@@ -168,7 +168,7 @@ def cache_remote_st_mem_model():
         "deep-psp": {
             "encoder": "https://deep-psp.tech/Models/ST-MEM/st_mem_vit_base_encoder.pth",
             "full": "https://deep-psp.tech/Models/ST-MEM/st_mem_vit_base_full.pth",
-        },  # Not available yet
+        },
     }
 
     # we only cache the encoder
