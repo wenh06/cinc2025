@@ -181,7 +181,7 @@ ModelCfg = deepcopy(_BASE_MODEL_CONFIG)
 # adjust filter lengths, > 1 for enlarging, < 1 for shrinking
 cnn_filter_length_ratio = 1.0
 
-ModelCfg.crnn = deepcopy(ECG_CRNN_CONFIG)
+ModelCfg.crnn = ECG_CRNN_CONFIG | _BASE_MODEL_CONFIG
 ModelCfg.crnn = adjust_cnn_filter_lengths(ModelCfg.crnn, int(ModelCfg.fs * cnn_filter_length_ratio))
 
 # change ModelCfg.crnn.cnn.name, ModelCfg.crnn.rnn.name, ModelCfg.crnn.attn.name
@@ -197,8 +197,8 @@ ModelCfg.crnn = adjust_cnn_filter_lengths(ModelCfg.crnn, int(ModelCfg.fs * cnn_f
 #     )
 # )
 
-ModelCfg.criterion = TrainCfg.criterion
-ModelCfg.criterion_kw = TrainCfg.criterion_kw.copy()
+ModelCfg.crnn.criterion = TrainCfg.criterion
+ModelCfg.crnn.criterion_kw = TrainCfg.criterion_kw.copy()
 
 ModelCfg.crnn.ranking = CFG(
     enable=False,
