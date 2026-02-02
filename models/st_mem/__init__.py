@@ -108,13 +108,13 @@ def load_st_mem_model(
             # find the weights file
             weights_path = None
             use_safetensors = False
-            if path.glob("*.pt"):
+            if any(path.glob("*.pt")):
                 weights_path = list(path.glob("*.pt"))[0]
-            elif path.glob("*.pth"):
+            elif any(path.glob("*.pth")):
                 weights_path = list(path.glob("*.pth"))[0]
-            elif path.glob("*.bin"):
+            elif any(path.glob("*.bin")):
                 weights_path = list(path.glob("*.bin"))[0]
-            elif path.glob("*.safetensors"):
+            elif any(path.glob("*.safetensors")):
                 weights_path = list(path.glob("*.safetensors"))[0]
                 use_safetensors = True
             if weights_path is not None:
