@@ -175,6 +175,9 @@ _BASE_MODEL_CONFIG.torch_dtype = BaseCfg.torch_dtype
 _BASE_MODEL_CONFIG.fs = BaseCfg.fs
 _BASE_MODEL_CONFIG.chagas_classes = BaseCfg.chagas_classes.copy()
 
+_BASE_MODEL_CONFIG.criterion = TrainCfg.criterion
+_BASE_MODEL_CONFIG.criterion_kw = TrainCfg.criterion_kw.copy()
+
 
 ModelCfg = deepcopy(_BASE_MODEL_CONFIG)
 
@@ -196,9 +199,6 @@ ModelCfg.crnn = adjust_cnn_filter_lengths(ModelCfg.crnn, int(ModelCfg.fs * cnn_f
 #         out_channels=[512] + [len(BaseCfg.arr_diag_classes)],
 #     )
 # )
-
-ModelCfg.crnn.criterion = TrainCfg.criterion
-ModelCfg.crnn.criterion_kw = TrainCfg.criterion_kw.copy()
 
 ModelCfg.crnn.ranking = CFG(
     enable=False,
