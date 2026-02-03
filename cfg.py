@@ -122,17 +122,17 @@ TrainCfg.decay = 1e-2  # default values for corresponding PyTorch optimizers
 
 # TrainCfg.learning_rate = 1e-4  # 5e-4, 1e-3
 TrainCfg.learning_rate = {
-    "backbone": 1e-5,
-    "head": 1e-4,
+    "backbone": 5e-5,
+    "head": 3e-4,
 }
 TrainCfg.lr = TrainCfg.learning_rate
 
 
-TrainCfg.lr_scheduler = "cosine_warmup"  # "one_cycle", "plateau", "burn_in", "step", None
+TrainCfg.lr_scheduler = "one_cycle"  # "one_cycle", "plateau", "burn_in", "step", None
 TrainCfg.lr_step_size = 50
 TrainCfg.lr_gamma = 0.1
 TrainCfg.max_lr = {
-    "backbone": 5e-5,
+    "backbone": 2e-4,
     "head": 1e-3,
 }  # for "one_cycle", "cosine_warmup" schedulers, to adjust via expriments
 TrainCfg.warmup_ratio = 0.1  # for "cosine_warmup" and "burn_in" schedulers

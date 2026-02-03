@@ -30,7 +30,7 @@ from const import MODEL_CACHE_DIR, REMOTE_MODELS
 from data_reader import CINC2025
 from dataset import CINC2025Dataset
 from helper_code import find_records
-from models import CRNN_CINC2025
+from models import CRNN_CINC2025, FM_CINC2025
 from trainer import CINC2025Trainer
 from utils.misc import remove_spikes_naive, to_dtype
 
@@ -61,7 +61,7 @@ else:
 SubmissionCfg = CFG()
 SubmissionCfg.remote_model = None  # "crnn-resnet_nature_comm_bottle_neck-none-se"
 # SubmissionCfg.remote_model = "crnn-resnet_nature_comm_bottle_neck-none-se"  # NOTE: for testing
-SubmissionCfg.model_cls = CRNN_CINC2025
+SubmissionCfg.model_cls = FM_CINC2025  # CRNN_CINC2025
 SubmissionCfg.final_model_name = "final_model.pth"
 SubmissionCfg.use_dbs = ["CODE-15%", "SaMi-Trop", "PTB-XL"]
 
@@ -166,6 +166,8 @@ def train_model(
 
     start_time = datetime.now()
 
+    model = None
+    model_config = None
     if SubmissionCfg.remote_model is not None:
         # fine-tune the remote model
         model, train_config = SubmissionCfg.model_cls.from_checkpoint(
@@ -201,13 +203,23 @@ def train_model(
         train_config.early_stopping.patience = 20
     else:
         train_config.n_epochs = 30
-        train_config.batch_size = 128  # 16G (Tesla T4)
+        if SubmissionCfg.model_cls == CRNN_CINC2025:
+            train_config.batch_size = 128  # 16G (Tesla T4)
+        else:  # FM_CINC2025
+            train_config.batch_size = 32  # 16G (Tesla T4)
         train_config.log_step = 100
         train_config.early_stopping.patience = int(train_config.n_epochs * 0.3)
 
     if SubmissionCfg.remote_model is None:
         model_config = deepcopy(ModelCfg)
         model_cls = SubmissionCfg.model_cls
+
+        # one should setup the paths to the backbone if model_cls is FM_CINC2025
+        if model_cls == FM_CINC2025:
+            if model_config.fm.name.lower() == "st-mem":
+                model_config.fm.backbone_cache_dir = Path(MODEL_CACHE_DIR) / "ST-MEM"
+            else:  # hubert-ecg
+                model_config.fm.backbone_cache_dir = Path(MODEL_CACHE_DIR) / "Edoardo-BS-hubert-ecg-base"
 
         model = model_cls(config=model_config)
         # NOTE: DP models might have issues:
@@ -217,6 +229,9 @@ def train_model(
         #     model = DP(model)
         #     # model = DDP(model)
         model.to(DEVICE)
+
+    assert model is not None, "Model is not initialized."
+    assert model_config is not None, "Model config is not initialized."
 
     if verbose:
         if isinstance(model, DP):
@@ -234,6 +249,13 @@ def train_model(
     ds_val = CINC2025Dataset(train_config, training=False, lazy=True, **reader_kwargs)
     if verbose:
         print(f"train size: {len(ds_train)}, val size: {len(ds_val)}")
+
+    if isinstance(model, FM_CINC2025):
+        print("Using FM_CINC2025 model, adjusting fs and input_len")
+        ds_train.reset_resample_fs(model_config.fm.fs[model_config.fm.name], reload=False)
+        ds_train.reset_input_len(model_config.fm.input_len[model_config.fm.name], reload=False)
+        ds_val.reset_resample_fs(model_config.fm.fs[model_config.fm.name], reload=False)
+        ds_val.reset_input_len(model_config.fm.input_len[model_config.fm.name], reload=False)
 
     trainer = CINC2025Trainer(
         model=model,
