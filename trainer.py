@@ -7,24 +7,25 @@ import sys
 import textwrap  # noqa: F401
 from collections import OrderedDict
 from copy import deepcopy
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np  # noqa: F401
 import torch
-from torch import nn
+from torch import nn, optim
 from torch.nn.parallel import DataParallel as DP
 from torch.nn.parallel import DistributedDataParallel as DDP  # noqa: F401
 from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler  # noqa: F401
 from torch_ecg.cfg import CFG
 from torch_ecg.components.trainer import BaseTrainer
-from torch_ecg.utils.misc import get_date_str, str2bool
+from torch_ecg.utils.misc import get_date_str, get_kwargs, str2bool
 from torch_ecg.utils.utils_nn import default_collate_fn as collate_fn
 from tqdm.auto import tqdm
+from transformers import get_cosine_schedule_with_warmup
 
 from cfg import ModelCfg, TrainCfg
 from const import MODEL_CACHE_DIR
 from dataset import CINC2025Dataset
-from models import CRNN_CINC2025
+from models import CRNN_CINC2025, FM_CINC2025
 from models.crnn import make_safe_globals
 from outputs import CINC2025Outputs
 from utils.scoring_metrics import compute_challenge_metrics  # noqa: F401
@@ -95,6 +96,8 @@ class CINC2025Trainer(BaseTrainer):
         )
         if hasattr(self._model.config, "monitor") and self._model.config.monitor is not None:
             self._train_config["monitor"] = self._model.config.monitor
+        if self.train_config.get("freeze_backbone_epochs", 0) == -1:
+            self.train_config["freeze_backbone_epochs"] = self.n_epochs
 
     def _setup_dataloaders(
         self,
@@ -113,7 +116,7 @@ class CINC2025Trainer(BaseTrainer):
 
         """
         if train_dataset is None:
-            train_dataset = self.dataset_cls(
+            train_dataset = self.dataset_cls(  # type: ignore
                 config=self.train_config,
                 training=True,
                 lazy=True,
@@ -220,6 +223,14 @@ class CINC2025Trainer(BaseTrainer):
             # train one epoch
             self.model.train()
             self.epoch_loss = 0
+            if self.epoch < self.train_config.get("freeze_backbone_epochs", 0):
+                if hasattr(self._model, "freeze_backbone"):
+                    self._model.freeze_backbone(True)
+                    self.log_manager.log_message(f"Backbone frozen for epoch {self.epoch}.")
+            else:
+                if hasattr(self._model, "freeze_backbone"):
+                    self._model.freeze_backbone(False)
+                    self.log_manager.log_message(f"Backbone unfrozen for epoch {self.epoch}.")
             with tqdm(
                 total=self.n_train,
                 desc=f"Epoch {self.epoch}/{self.n_epochs}",
@@ -333,6 +344,92 @@ class CINC2025Trainer(BaseTrainer):
             self.best_state_dict = self._model.state_dict()
 
         return self.best_state_dict
+
+    def _setup_optimizer(self) -> None:
+        """Setup the optimizer."""
+        if isinstance(self._model, CRNN_CINC2025):
+            super()._setup_optimizer()
+            return
+
+        # NEW for FM_CINC2025
+        # separate backbone and head parameters
+        backbone_params = []
+        head_params = []
+        for name, param in self._model.named_parameters():
+            # if not param.requires_grad:
+            #     continue
+            if "backbone" in name:
+                backbone_params.append(param)
+            else:
+                head_params.append(param)
+        param_groups = [
+            {"params": backbone_params, "lr": self.train_config.learning_rate["backbone"]},
+            {"params": head_params, "lr": self.train_config.learning_rate["head"]},
+        ]
+
+        # setup optimizer class and common kwargs
+        opt_name = self.train_config.optimizer.lower()
+        if "adam" in opt_name:
+            OptimizerClass = optim.AdamW if "adamw" in opt_name else optim.Adam
+            common_kwargs = get_kwargs(OptimizerClass)
+        elif "sgd" in opt_name:
+            OptimizerClass = optim.SGD
+            common_kwargs = get_kwargs(optim.SGD)
+        else:
+            raise NotImplementedError(f"Optimizer {self.train_config.optimizer} not implemented.")
+
+        config_updates = {k: self.train_config.get(k, v) for k, v in common_kwargs.items() if k != "lr"}
+        common_kwargs.update(config_updates)
+
+        if "amsgrad" in opt_name:
+            common_kwargs["amsgrad"] = True
+
+        # Initialize optimizer
+        self.optimizer = OptimizerClass(param_groups, **common_kwargs)
+
+        self.log_manager.log_message("Optimizer Setup with Differential LRs:")
+        self.log_manager.log_message(f"Backbone LR target: {self.train_config.learning_rate['backbone']}")
+        self.log_manager.log_message(f"Head LR target:     {self.train_config.learning_rate['head']}")
+
+    def _setup_scheduler(self) -> None:
+        """Setup the learning rate scheduler."""
+        if isinstance(self._model, CRNN_CINC2025) and self.train_config.lr_scheduler.lower() != "cosine_warmup":
+            super()._setup_scheduler()
+            return
+
+        # NEW for FM_CINC2025 and CRNN_CINC2025 with cosine_warmup
+        steps_per_epoch = len(self.train_loader)
+        num_training_steps = steps_per_epoch * self.n_epochs
+        if self.train_config.lr_scheduler.lower() == "cosine_warmup":
+            num_warmup_steps = int(num_training_steps * self.train_config.warmup_ratio)
+            self.scheduler = get_cosine_schedule_with_warmup(
+                self.optimizer,
+                num_warmup_steps=num_warmup_steps,
+                num_training_steps=num_training_steps,
+            )
+            self.log_manager.log_message(
+                f"Cosine Warmup Scheduler Setup: {num_warmup_steps} warmup steps, "
+                f"{num_training_steps - num_warmup_steps} cosine decay steps."
+            )
+        elif self.train_config.lr_scheduler.lower() in ["one_cycle", "onecycle"]:
+            if isinstance(self._model, FM_CINC2025):
+                max_lrs = [
+                    self.train_config.max_lr["backbone"],
+                    self.train_config.max_lr["head"],
+                ]
+            else:  # CRNN_CINC2025
+                max_lrs = self.train_config.max_lr
+            self.scheduler = optim.lr_scheduler.OneCycleLR(
+                self.optimizer,
+                max_lr=max_lrs,
+                epochs=self.n_epochs,
+                steps_per_epoch=steps_per_epoch,
+            )
+            self.log_manager.log_message(
+                f"One Cycle Scheduler Setup: max_lr={max_lrs}, " f"{self.n_epochs} epochs, {steps_per_epoch} steps per epoch."
+            )
+        else:
+            raise NotImplementedError(f"Scheduler {self.train_config.lr_scheduler} not implemented.")
 
     def train_one_epoch(self, pbar: tqdm) -> None:
         """Train one epoch, and update the progress bar
@@ -522,14 +619,14 @@ class CINC2025Trainer(BaseTrainer):
 
 @torch.no_grad()
 def run_chagas_model(
-    chagas_model: CRNN_CINC2025, ds: CINC2025Dataset
+    chagas_model: Union[CRNN_CINC2025, FM_CINC2025], ds: CINC2025Dataset
 ) -> Tuple[List[CINC2025Outputs], List[Dict[str, torch.Tensor]]]:
     """Run the chagas classification model on the
     given data loader on different thresholds.
 
     Parameters
     ----------
-    chagas_model : CRNN_CINC2025
+    chagas_model : CRNN_CINC2025 or FM_CINC2025
         The chagas classification model to be run.
     ds : CINC2025Dataset
         The dataset for running the model.

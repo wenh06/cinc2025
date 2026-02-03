@@ -277,7 +277,7 @@ class CINC2025Dataset(Dataset, ReprMixin):
     @property
     def data_fields(self) -> Set[str]:
         # return set(["signals", "chagas", "is_normal", "arr_diag"])
-        return set(["record_idx", "signals", "chagas"])
+        return set(["record_idx", "signals", "chagas", "sample_type"])
 
     @property
     def hard_chagas_labels(self):

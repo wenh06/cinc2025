@@ -112,7 +112,7 @@ TrainCfg.n_epochs = 30
 # TODO: automatic adjust batch size according to GPU capacity
 # https://stackoverflow.com/questions/45132809/how-to-select-batch-size-automatically-to-fit-gpu
 # GPU memory limit of the Challenge is 64GB
-TrainCfg.batch_size = 128  # 64, 128, 256
+TrainCfg.batch_size = 32  # 64, 128, 256, should be adjusted according to model choices
 
 # configs of optimizers and lr_schedulers
 TrainCfg.optimizer = "adamw_amsgrad"  # "sgd", "adam", "adamw"
@@ -120,13 +120,26 @@ TrainCfg.momentum = 0.949  # default values for corresponding PyTorch optimizers
 TrainCfg.betas = (0.9, 0.999)  # default values for corresponding PyTorch optimizers
 TrainCfg.decay = 1e-2  # default values for corresponding PyTorch optimizers
 
-TrainCfg.learning_rate = 1e-4  # 5e-4, 1e-3
+# TrainCfg.learning_rate = 1e-4  # 5e-4, 1e-3
+TrainCfg.learning_rate = {
+    "backbone": 1e-5,
+    "head": 1e-4,
+}
 TrainCfg.lr = TrainCfg.learning_rate
 
-TrainCfg.lr_scheduler = "one_cycle"  # "one_cycle", "plateau", "burn_in", "step", None
+
+TrainCfg.lr_scheduler = "cosine_warmup"  # "one_cycle", "plateau", "burn_in", "step", None
 TrainCfg.lr_step_size = 50
 TrainCfg.lr_gamma = 0.1
-TrainCfg.max_lr = 6e-4  # for "one_cycle" scheduler, to adjust via expriments
+TrainCfg.max_lr = {
+    "backbone": 5e-5,
+    "head": 1e-3,
+}  # for "one_cycle", "cosine_warmup" schedulers, to adjust via expriments
+TrainCfg.warmup_ratio = 0.1  # for "cosine_warmup" and "burn_in" schedulers
+
+# number of epochs to freeze backbone at the beginning of training
+# 0 for no freezing, -1 for freezing all epochs
+TrainCfg.freeze_backbone_epochs = 3
 
 TrainCfg.upsample_positive_chagas = {
     "CODE-15%": 3,
@@ -211,7 +224,7 @@ ModelCfg.fm.input_len = {
     "hubert-ecg": 4096 // 4,  # 4096 samples at 400Hz -> 1024 samples at 100Hz
 }
 
-ModelCfg.fm.freeze_backbone = True
+ModelCfg.fm.freeze_backbone = False
 ModelCfg.fm.dropout = 0.2
 ModelCfg.fm.embed_dim = {
     "st-mem": 768,

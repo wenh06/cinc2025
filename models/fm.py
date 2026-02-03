@@ -13,6 +13,7 @@ from torch_ecg.cfg import CFG, DTYPE
 from torch_ecg.models.loss import setup_criterion
 from torch_ecg.utils.misc import add_docstring
 from torch_ecg.utils.utils_data import one_hot_encode
+from torch_ecg.utils.utils_nn import CkptMixin, SizeMixin
 
 from cfg import ModelCfg
 from outputs import CINC2025Outputs
@@ -48,7 +49,7 @@ if hasattr(torch.serialization, "add_safe_globals"):
     torch.serialization.add_safe_globals(_safe_globals)
 
 
-class FM_CINC2025(nn.Module):
+class FM_CINC2025(nn.Module, SizeMixin, CkptMixin):
     """Foundation Model based classifier for CINC2025.
 
     Supports ST-MEM and HuBERT backbones.
@@ -117,9 +118,7 @@ class FM_CINC2025(nn.Module):
         )
 
         # Freeze backbone if requested
-        if self.config.get("freeze_backbone", True):
-            for param in self.backbone.parameters():
-                param.requires_grad = False
+        self.freeze_backbone(self.config.get("freeze_backbone", False))
 
         # Loss & Ranking Setup
         self.criterion = setup_criterion(criterion, **criterion_kw)
@@ -156,6 +155,11 @@ class FM_CINC2025(nn.Module):
             self.ranking_weight = 0.0
 
         self.softmax = nn.Softmax(dim=-1)
+
+    def freeze_backbone(self, freeze: bool = True) -> None:
+        """Freeze the backbone parameters."""
+        for param in self.backbone.parameters():
+            param.requires_grad = not freeze
 
     @property
     def dtype(self) -> torch.dtype:
