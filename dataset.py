@@ -286,6 +286,52 @@ class CINC2025Dataset(Dataset, ReprMixin):
     def extra_repr_keys(self) -> List[str]:
         return ["reader", "training"]
 
+    def reset_resample_fs(self, new_fs: int, reload: bool = False) -> None:
+        """Reset the resampling frequency of the preprocessor.
+
+        Parameters
+        ----------
+        new_fs : int
+            New resampling frequency.
+        reload : bool, default False
+            Whether to reload all data.
+            If data is cached and `reload` is False,
+            the cached data will be cleared.
+
+        """
+        self.config.fs = new_fs
+        candidates = [idx for idx, pp in enumerate(self.ppm.preprocessors) if pp.__name__.lower() == "resample"]
+        if len(candidates) == 0:
+            # no resample preprocessor
+            self.ppm._add_resample(fs=new_fs)
+        else:
+            assert len(candidates) == 1, "Only one resample preprocessor is allowed."
+            self.ppm.preprocessors[candidates[0]].fs = new_fs
+
+        if reload:
+            self._load_all_data()
+        else:
+            self.__cache = None
+
+    def reset_input_len(self, new_len: int, reload: bool = False) -> None:
+        """Reset the input length of the dataset.
+
+        Parameters
+        ----------
+        new_len : int
+            New input length.
+        reload : bool, default False
+            Whether to reload all data.
+            If data is cached and `reload` is False,
+            the cached data will be cleared.
+
+        """
+        self.config.input_len = new_len
+        if reload:
+            self._load_all_data()
+        else:
+            self.__cache = None
+
 
 class FastDataReader(ReprMixin, Dataset):
     def __init__(
@@ -350,7 +396,7 @@ class FastDataReader(ReprMixin, Dataset):
         # chagas_label: (batch_size,)
         # bin_label: (batch_size,)
         # arr_diag_label: (batch_size, n_classes)
-        return {
+        return {  # type: ignore
             "record_idx": index,
             "signals": signal.astype(self.dtype),  # (n_leads, n_samples)
             "chagas": chagas_label,  # scalar or (n_classes,)

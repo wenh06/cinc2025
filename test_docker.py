@@ -14,9 +14,10 @@ from torch_ecg.utils.misc import str2bool
 from torch_ecg.utils.utils_nn import default_collate_fn as collate_fn
 
 from cfg import _BASE_DIR, ModelCfg, TrainCfg
+from const import MODEL_CACHE_DIR
 from dataset import CINC2025Dataset
 from evaluate_model import run as model_evaluator_func
-from models import CRNN_CINC2025
+from models import CRNN_CINC2025, FM_CINC2025
 from outputs import CINC2025Outputs
 from run_model import run as model_runner_func
 from team_code import train_model
@@ -122,12 +123,6 @@ def test_models() -> None:
     echo_write_permission(tmp_model_dir)
     echo_write_permission(tmp_output_dir)
 
-    model = CRNN_CINC2025(ModelCfg)
-    # if torch.cuda.device_count() > 1:
-    #     model = DP(model)
-    #     # model = DDP(model)
-    model.to(DEVICE)
-
     ds_config = deepcopy(TrainCfg)
     ds_config.db_dir = tmp_data_dir
     ds_config.working_dir = tmp_model_dir / "working_dir"
@@ -144,6 +139,12 @@ def test_models() -> None:
         collate_fn=collate_fn,
     )
 
+    print("Testing CRNN_CINC2025 model...")
+    model = CRNN_CINC2025(ModelCfg)
+    # if torch.cuda.device_count() > 1:
+    #     model = DP(model)
+    #     # model = DDP(model)
+    model.to(DEVICE)
     for idx, input_tensors in enumerate(dl):
         if idx == 0:
             inference_output = model.inference(input_tensors["signals"])
@@ -157,6 +158,45 @@ def test_models() -> None:
             break
 
     # TODO: test classmethod "from_checkpoint"
+
+    # Test FM_CINC2025 model
+    print("Testing FM_CINC2025 model with ST-MEM backbone...")
+    ModelCfg.fm.name = "st-mem"
+    ModelCfg.fm.backbone_cache_dir = Path(MODEL_CACHE_DIR) / "ST-MEM"
+    model = FM_CINC2025(ModelCfg)
+    model.to(DEVICE)
+    ds_val.reset_resample_fs(ModelCfg.fm.fs[ModelCfg.fm.name], reload=False)
+    ds_val.reset_input_len(ModelCfg.fm.input_len[ModelCfg.fm.name], reload=False)
+    for idx, input_tensors in enumerate(dl):
+        if idx == 0:
+            inference_output = model.inference(input_tensors["signals"])
+            print(f"   {idx = }   ".center(100, "#"))
+            print(f"{inference_output = }")
+        elif idx == 1:
+            forward_output = model.forward(input_tensors)
+            print(f"   {idx = }   ".center(100, "#"))
+            print(f"{forward_output = }")
+        else:
+            break
+
+    print("Testing FM_CINC2025 model with HuBERT-ECG backbone...")
+    ModelCfg.fm.name = "hubert-ecg"
+    ModelCfg.fm.backbone_cache_dir = Path(MODEL_CACHE_DIR) / "Edoardo-BS-hubert-ecg-base"
+    model = FM_CINC2025(ModelCfg)
+    model.to(DEVICE)
+    ds_val.reset_resample_fs(ModelCfg.fm.fs[ModelCfg.fm.name], reload=False)
+    ds_val.reset_input_len(ModelCfg.fm.input_len[ModelCfg.fm.name], reload=False)
+    for idx, input_tensors in enumerate(dl):
+        if idx == 0:
+            inference_output = model.inference(input_tensors["signals"])
+            print(f"   {idx = }   ".center(100, "#"))
+            print(f"{inference_output = }")
+        elif idx == 1:
+            forward_output = model.forward(input_tensors)
+            print(f"   {idx = }   ".center(100, "#"))
+            print(f"{forward_output = }")
+        else:
+            break
 
     print("models test passed")
 

@@ -200,6 +200,30 @@ ModelCfg.crnn = adjust_cnn_filter_lengths(ModelCfg.crnn, int(ModelCfg.fs * cnn_f
 #     )
 # )
 
+ModelCfg.fm = deepcopy(_BASE_MODEL_CONFIG)
+ModelCfg.fm.name = "st-mem"  # "st-mem", "hubert-ecg", etc.
+ModelCfg.fm.fs = {
+    "st-mem": 250,
+    "hubert-ecg": 100,
+}
+ModelCfg.fm.input_len = {
+    "st-mem": 75 * min(31, np.floor(4096 / 400 * 250 / 75).astype(int).item()),  # adjust to be multiple of 75
+    "hubert-ecg": 4096 // 4,  # 4096 samples at 400Hz -> 1024 samples at 100Hz
+}
+
+ModelCfg.fm.freeze_backbone = True
+ModelCfg.fm.dropout = 0.2
+ModelCfg.fm.embed_dim = {
+    "st-mem": 768,
+    "hubert-ecg": 768,
+}
+ModelCfg.fm.backbone_cache_dir = None  # should be set before using the model
+
+ModelCfg.fm.head = CFG(
+    hidden_dim=256,
+    num_layers=2,  # Linear -> ReLU -> Dropout -> Linear
+)
+
 ModelCfg.crnn.ranking = CFG(
     enable=False,
     type="adaptive",  # or "hinge", or "adaptive"

@@ -1,7 +1,3 @@
-"""
-CRNN model for CINC2025.
-"""
-
 import os
 import warnings
 from copy import deepcopy
@@ -10,10 +6,10 @@ from typing import Any, Dict, List, Literal, Optional, Union
 
 import numpy as np
 import torch
+import torch.nn as nn
 from easydict import EasyDict
+from einops.layers.torch import Rearrange
 from torch_ecg.cfg import CFG, DTYPE
-from torch_ecg.components import WaveformInput  # noqa: F401
-from torch_ecg.models import ECG_CRNN
 from torch_ecg.models.loss import setup_criterion
 from torch_ecg.utils.misc import add_docstring
 from torch_ecg.utils.utils_data import one_hot_encode
@@ -22,10 +18,12 @@ from cfg import ModelCfg
 from outputs import CINC2025Outputs
 from utils.misc import is_stdtypes
 
+from .hubert_ecg import load_hubert_ecg_model
 from .loss import AdaptiveLogisticPairwiseLoss, PairwiseRankingLossHinge, PairwiseRankingLossLogistic
+from .st_mem import load_st_mem_model
 
 __all__ = [
-    "CRNN_CINC2025",
+    "FM_CINC2025",
 ]
 
 
@@ -45,29 +43,27 @@ with warnings.catch_warnings():
     ] + _get_np_dtypes()
     # fmt: on
 
+
 if hasattr(torch.serialization, "add_safe_globals"):
     torch.serialization.add_safe_globals(_safe_globals)
 
 
-class CRNN_CINC2025(ECG_CRNN):
-    """CRNN model for CINC2025.
+class FM_CINC2025(nn.Module):
+    """Foundation Model based classifier for CINC2025.
 
-    Parameters
-    ----------
-    config : dict
-        Hyper-parameters, including backbone_name, etc.
-        ref. the corresponding config file.
-
+    Supports ST-MEM and HuBERT backbones.
     """
 
     __DEBUG__ = True
-    __name__ = "CRNN_CINC2025"
+    __name__ = "FM_CINC2025"
 
     def __init__(self, config: Optional[CFG] = None, **kwargs: Any) -> None:
+        super().__init__()
         if config is None:
-            _config = deepcopy(ModelCfg.crnn)
+            _config = deepcopy(ModelCfg.fm)
         else:
             _config = deepcopy(config)
+
         chagas_classes = (
             kwargs.pop("chagas_classes", None)
             or kwargs.pop("classes", None)
@@ -81,36 +77,65 @@ class CRNN_CINC2025(ECG_CRNN):
         assert criterion is not None, "`criterion` must be provided"
         criterion_kw = kwargs.pop("criterion_kw", {}) or _config.get("criterion_kw", {})
 
-        if "crnn" in _config:
-            # in this case, _config.crnn should be the config
-            _config = _config.crnn
+        if "fm" in _config:
+            _config = _config.fm
 
-        _config.chagas_classes = chagas_classes
-        _config.n_leads = n_leads
-        _config.criterion = criterion
-        _config.criterion_kw = criterion_kw
+        self.config = _config
+        self.n_leads = n_leads
+        self.n_classes = len(chagas_classes)
+        self.classes = chagas_classes
 
+        # Backbone Setup
+        model_name = self.config["name"].lower().replace("_", "-")
+        self.fs = self.config["fs"][model_name]
+        backbone_cache_dir = self.config["backbone_cache_dir"] or kwargs.pop("backbone_cache_dir", None)
+        assert backbone_cache_dir is not None, "`config.backbone_cache_dir` must be set before using the model"
+
+        if "st-mem" in model_name:
+            self.inputer = nn.Identity()  # ST-MEM has conventional input of shape (bs, n_leads, L)
+            # Load encoder only of ST-MEM
+            self.backbone = load_st_mem_model(backbone_cache_dir, encoder_only=True, device="cpu")
+            self.backbone_type = "st-mem"
+        elif "hubert" in model_name:
+            self.inputer = Rearrange("b c l -> b (c l)")  # HuBERT usually expects (bs, n_leads * L)
+            self.backbone = load_hubert_ecg_model(backbone_cache_dir, device="cpu")
+            self.backbone_type = "hubert"
+        else:
+            raise ValueError(f"Unknown foundation model name: {model_name}")
+
+        # Classification Head
+        embed_dim = self.config["embed_dim"][model_name]
+        hidden_dim = self.config["head"]["hidden_dim"]
+        dropout = self.config.get("dropout", 0.2)
+
+        self.head = nn.Sequential(
+            nn.Dropout(dropout),
+            nn.Linear(embed_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_dim, self.n_classes),
+        )
+
+        # Freeze backbone if requested
+        if self.config.get("freeze_backbone", True):
+            for param in self.backbone.parameters():
+                param.requires_grad = False
+
+        # Loss & Ranking Setup
+        self.criterion = setup_criterion(criterion, **criterion_kw)
+
+        # Merge ranking config if missing
         default_ranking_cfg = CFG(
             enable=False,
-            type="hinge",  # or "logistic", or "adaptive"
+            type="hinge",
             weight=0.3,
             margin=0.5,
         )
-        if not hasattr(_config, "ranking"):
-            _config.ranking = default_ranking_cfg
+        if not hasattr(self.config, "ranking"):
+            self.config.ranking = default_ranking_cfg
         else:
-            # merge
             for k, v in default_ranking_cfg.items():
-                _config.ranking.setdefault(k, v)
-
-        super().__init__(
-            classes=chagas_classes,
-            n_leads=n_leads,
-            config=_config,
-            **kwargs,
-        )
-
-        self.criterion = setup_criterion(criterion, **criterion_kw)
+                self.config.ranking.setdefault(k, v)
 
         self.use_ranking = bool(self.config.ranking.enable)
         if self.use_ranking:
@@ -122,12 +147,6 @@ class CRNN_CINC2025(ECG_CRNN):
                 self.ranking_criterion = AdaptiveLogisticPairwiseLoss(
                     margin=self.config.ranking.margin,
                     return_stats=False,
-                    # hard_negative_pct=0.1,
-                    # subsample_pos=32,
-                    # subsample_neg=160,
-                    # adaptive_margin=True,
-                    # target_active_ratio=0.2,
-                    # grad_threshold=0.1,
                 )
             else:
                 raise ValueError(f"Unknown ranking type {self.config.ranking.type}")
@@ -135,6 +154,16 @@ class CRNN_CINC2025(ECG_CRNN):
         else:
             self.ranking_criterion = None
             self.ranking_weight = 0.0
+
+        self.softmax = nn.Softmax(dim=-1)
+
+    @property
+    def dtype(self) -> torch.dtype:
+        return next(self.parameters()).dtype
+
+    @property
+    def device(self) -> torch.device:
+        return next(self.parameters()).device
 
     def forward(self, input_tensors: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         """Forward pass of the model.
@@ -156,10 +185,24 @@ class CRNN_CINC2025(ECG_CRNN):
             and "chagas_loss".
 
         """
-        chagas_logits = super().forward(input_tensors["signals"].to(self.dtype).to(self.device))
+        batch_size, n_leads, sig_len = input_tensors["signals"].shape
+        x = input_tensors["signals"].to(self.dtype).to(self.device)  # (B, 12, L)
+        x = self.inputer(x)
+
+        # Backbone
+        if self.backbone_type == "st-mem":
+            # ST-MEM input: (B, 12, L) -> output: (B, embed_dim)
+            features = self.backbone(x)
+        else:  # self.backbone_type == "hubert":
+            features_seq = self.backbone(x)  # (B*C, T, D)
+            features = features_seq.last_hidden_state.mean(dim=1)  # Global Pool over time -> (B*C, D)
+
+        # Head
+        chagas_logits = self.head(features)
         chagas_prob = self.softmax(chagas_logits)
         chagas_pred = torch.argmax(chagas_prob, dim=-1)
 
+        # Loss Calculation
         chagas_loss = None
         ranking_loss = None
         if "chagas" in input_tensors:
@@ -167,7 +210,6 @@ class CRNN_CINC2025(ECG_CRNN):
             labels_in = labels_in.to(self.device)
 
             if labels_in.ndim > 1:
-                # 如果已经是 one-hot
                 hard_labels = torch.argmax(labels_in, dim=-1)
             else:
                 hard_labels = labels_in
@@ -245,6 +287,7 @@ class CRNN_CINC2025(ECG_CRNN):
         B, C, T = sig_t.shape
 
         if not crop_infer:
+            # Full signal inference (Foundation models handle variable length usually via pooling/attention)
             forward_output = self.forward({"signals": sig_t})
             output = CINC2025Outputs.from_dict(forward_output)
             self.train(training)
@@ -252,8 +295,8 @@ class CRNN_CINC2025(ECG_CRNN):
 
         # Multi-crop path
         fs = float(self.config.get("fs", 400))
-        default_crop_len_sec = 4096.0 / fs  # ≈10.24s
-        default_stride_sec = 1024.0 / fs  # ≈2.56s
+        default_crop_len_sec = 4096.0 / fs
+        default_stride_sec = 1024.0 / fs
         crop_len_sec = crop_len if crop_len is not None else default_crop_len_sec
         stride_sec = stride if stride is not None else default_stride_sec
 
@@ -264,8 +307,7 @@ class CRNN_CINC2025(ECG_CRNN):
 
         batch_logits: List[torch.Tensor] = []
         batch_probs: List[torch.Tensor] = []
-        batch_preds: List[torch.Tensor] = []
-        multi_crop_probs: List[np.ndarray] = []
+        # batch_preds: List[torch.Tensor] = [] # unused locally
 
         for b in range(B):
             x = sig_t[b]  # (C, Tb)
@@ -274,17 +316,15 @@ class CRNN_CINC2025(ECG_CRNN):
             # Short signal: no cropping
             if Tb <= crop_len_samples:
                 fo = self.forward({"signals": x.unsqueeze(0)})
-                logits_full = fo["chagas_logits"]  # (1,2)
-                probs_full = fo["chagas_prob"]  # (1,2)
+                logits_full = fo["chagas_logits"]
+                probs_full = fo["chagas_prob"]
                 batch_logits.append(logits_full.squeeze(0))
                 batch_probs.append(probs_full.squeeze(0))
-                batch_preds.append(torch.argmax(probs_full, dim=-1))
                 continue
 
             # Compute starting indices
             starts = list(range(0, Tb - crop_len_samples + 1, stride_samples))
             if starts[-1] != Tb - crop_len_samples:
-                # Add tail window
                 starts.append(Tb - crop_len_samples)
 
             # Stack windows: (Ncrops, C, crop_len_samples)
@@ -292,41 +332,38 @@ class CRNN_CINC2025(ECG_CRNN):
                 [x[..., s : s + crop_len_samples] for s in starts],
                 dim=0,
             )
+            # Pass through model (will be resampled inside forward)
             fo = self.forward({"signals": windows})
-            logits_all = fo["chagas_logits"]  # (Ncrops,2)
-            probs_all = fo["chagas_prob"]  # (Ncrops,2)
+            logits_all = fo["chagas_logits"]
+            probs_all = fo["chagas_prob"]
 
             pos_probs = probs_all[:, 1]
 
             if agg == "max":
                 idx = torch.argmax(pos_probs)
-                chosen_logits = logits_all[idx]
-                agg_logits = chosen_logits
+                agg_logits = logits_all[idx]
                 agg_probs = torch.softmax(agg_logits, dim=-1)
             elif agg == "top2_mean":
                 k = min(2, probs_all.shape[0])
                 vals, indices = torch.topk(pos_probs, k)
                 mean_pos = vals.mean()
-                # Reconstruct probability vector from aggregated pos prob
                 agg_probs = torch.tensor(
                     [1.0 - mean_pos.item(), mean_pos.item()],
                     device=probs_all.device,
                     dtype=probs_all.dtype,
                 )
-                # Use top1 logits as representative
-                agg_logits = logits_all[indices[0]]
+                agg_logits = logits_all[indices[0]]  # Just for shape/type
             elif agg == "mean":
                 agg_probs = probs_all.mean(dim=0)
-                agg_logits = logits_all.mean(dim=0)  # Approximate
+                agg_logits = logits_all.mean(dim=0)
             else:
-                raise ValueError(f"Unsupported agg '{agg}'. Choose from ['max','top2_mean','mean'].")
+                raise ValueError(f"Unsupported agg '{agg}'")
 
             batch_logits.append(agg_logits)
             batch_probs.append(agg_probs)
-            batch_preds.append(torch.argmax(agg_probs).unsqueeze(0))
 
-        logits_tensor = torch.stack(batch_logits, dim=0)  # (B,2)
-        probs_tensor = torch.stack(batch_probs, dim=0)  # (B,2)
+        logits_tensor = torch.stack(batch_logits, dim=0)
+        probs_tensor = torch.stack(batch_probs, dim=0)
         preds_tensor = torch.argmax(probs_tensor, dim=-1)
 
         output_dict = {
@@ -348,21 +385,7 @@ class CRNN_CINC2025(ECG_CRNN):
         return self.inference(sig)
 
     def save(self, path: Union[str, bytes, os.PathLike], train_config: CFG) -> None:
-        """Save the model to disk.
-
-        Parameters
-        ----------
-        path : `path-like`
-            Path to save the model.
-        train_config : CFG
-            Config for training the model,
-            used when one restores the model.
-
-        Returns
-        -------
-        None
-
-        """
+        """Save the model to disk."""
         path = Path(path)
         if not path.parent.exists():
             path.parent.mkdir(parents=True)
@@ -378,22 +401,9 @@ class CRNN_CINC2025(ECG_CRNN):
         )
 
 
+# Helper function (Same as yours)
 def make_safe_globals(obj: CFG, remove_paths: bool = True) -> CFG:
-    """Make a dictionary or a dictionary-like object safe for serialization.
-
-    Parameters
-    ----------
-    obj : dict
-        The dictionary or dictionary-like object.
-    remove_paths : bool, default True
-        Whether to remove paths in the dictionary.
-
-    Returns
-    -------
-    CFG
-        The safe dictionary.
-
-    """
+    """Make a dictionary or a dictionary-like object safe for serialization."""
     if isinstance(obj, (CFG, dict)):
         sg = {k: make_safe_globals(v) for k, v in obj.items()}
         sg = CFG({k: v for k, v in sg.items() if v is not None})
