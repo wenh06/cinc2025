@@ -93,7 +93,7 @@ def test_dataset() -> None:
     assert set(data.keys()) <= ds_val.data_fields, f"{set(data.keys()) = }, {ds_val.data_fields = }"
     assert isinstance(data["signals"], np.ndarray), f"{type(data['signals']) = }"
     assert data["signals"].shape == (ds_val.config.n_leads, ds_val.config.input_len), f"{data['signals'].shape = }"
-    assert isinstance(data["chagas"], int), f"{type(data['chagas']) = }"
+    assert isinstance(data["chagas"], np.ndarray), f"{type(data['chagas']) = }"
 
     if "arr_diag" in data:
         assert isinstance(data["arr_diag"], np.ndarray)
