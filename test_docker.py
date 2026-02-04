@@ -229,7 +229,14 @@ def test_challenge_metrics() -> None:
 
     print(f"{metrics = }")
 
-    assert set(metrics.keys()) == {"challenge_score", "chagas_auroc", "chagas_auprc", "chagas_accuracy", "chagas_f_measure"}
+    assert set(metrics.keys()) == {
+        "challenge_score",
+        "chagas_auroc",
+        "chagas_auprc",
+        "chagas_accuracy",
+        "chagas_f_measure",
+        "chagas_tpr",
+    }
 
     for k, v in metrics.items():
         assert isinstance(v, float), f"{k = }, {v = }"
