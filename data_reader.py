@@ -271,7 +271,7 @@ class CODE15(_DataBase):
         self._df_chagas["record"] = self._df_chagas["exam_id"].astype(str)
         self._df_chagas.set_index("record", inplace=True)
 
-    def get_absolute_path(self, rec: Union[str, int], ext: Literal["hdf5", "dat", "mat"] = "dat") -> Path:
+    def get_absolute_path(self, rec: Union[str, int], extension: Literal["hdf5", "dat", "mat"] = "dat") -> Path:
         """Get the absolute path of the record.
 
         Parameters
@@ -279,7 +279,7 @@ class CODE15(_DataBase):
         rec : str or int
             Record name or index of the record in :attr:`all_records`.
             NOTE: DO NOT confuse index (int) and record name (exam_id, str).
-        ext : {"hdf5", "dat", "mat"}, default "dat"
+        extension : {"hdf5", "dat", "mat"}, default "dat"
             Extension of the file.
 
         Returns
@@ -291,10 +291,10 @@ class CODE15(_DataBase):
         if isinstance(rec, int):
             rec = self[rec]
         row = self._df_records.loc[rec]
-        if ext == "hdf5":
+        if extension == "hdf5":
             path = self.db_dir / row["trace_file"]
         else:
-            path = row["wfdb_signal_file"].with_suffix(f".{ext}")
+            path = row["wfdb_signal_file"].with_suffix(f".{extension}")
         if not path.exists():
             self.logger.warning(f"File {path} does not exist.")
         return path
@@ -1144,7 +1144,7 @@ class SamiTrop(_DataBase):
         self._df_chagas["record"] = self._df_chagas["exam_id"].astype(str)
         self._df_chagas.set_index("record", inplace=True)
 
-    def get_absolute_path(self, rec: Union[str, int], ext: Literal["hdf5", "dat", "mat"] = "dat") -> Path:
+    def get_absolute_path(self, rec: Union[str, int], extension: Literal["hdf5", "dat", "mat"] = "dat") -> Path:
         """Get the absolute path of the record.
 
         Parameters
@@ -1152,7 +1152,7 @@ class SamiTrop(_DataBase):
         rec : str or int
             Record name or index of the record in :attr:`all_records`.
             NOTE: DO NOT confuse index (int) and record name (exam_id, str).
-        ext : {"hdf5", "dat", "mat"}, default "dat"
+        extension : {"hdf5", "dat", "mat"}, default "dat"
             Extension of the file.
 
         Returns
@@ -1164,10 +1164,10 @@ class SamiTrop(_DataBase):
         if isinstance(rec, int):
             rec = self[rec]
         row = self._df_records.loc[rec]
-        if ext == "hdf5":
+        if extension == "hdf5":
             path = self.db_dir / row["trace_file"]
         else:
-            path = row["wfdb_signal_file"].with_suffix(f".{ext}")
+            path = row["wfdb_signal_file"].with_suffix(f".{extension}")
         if not path.exists():
             self.logger.warning(f"File {path} does not exist.")
         return path

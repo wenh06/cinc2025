@@ -108,7 +108,7 @@ def test_dataset() -> None:
     assert isinstance(data["signals"], torch.Tensor)
     assert data["signals"].shape == (batch_size, ds_val.config.n_leads, ds_val.config.input_len)
     assert isinstance(data["chagas"], torch.Tensor)
-    assert data["chagas"].shape == (batch_size,)
+    assert data["chagas"].shape == (batch_size, 2)
     if "arr_diag" in data:
         assert isinstance(data["arr_diag"], torch.Tensor)
         assert data["arr_diag"].shape == (batch_size, len(ds_val.config.arr_diag_classes))
