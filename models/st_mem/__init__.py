@@ -155,10 +155,24 @@ def _sanitize_config(config: dict, encoder_only: bool) -> dict:
     return sanitized_config
 
 
-def cache_remote_st_mem_model():
-    """Cache the remote ST-MEM model weights locally."""
-    model_cache_dir = Path(MODEL_CACHE_DIR) / "ST-MEM"
-    model_cache_dir.mkdir(parents=True, exist_ok=True)
+def cache_remote_st_mem_model(model_cache_dir: Optional[Union[str, Path]] = None) -> Path:
+    """Cache the remote ST-MEM model weights locally.
+
+    Parameters
+    ----------
+    model_cache_dir : str or Path, optional
+        The directory to cache the model weights. If None, the weights will be
+        cached in the default model cache directory under "ST-MEM" subdirectory.
+
+    Returns
+    -------
+    Path
+        The local path where the model weights are cached.
+
+    """
+    if model_cache_dir is None:
+        model_cache_dir = Path(MODEL_CACHE_DIR) / "ST-MEM"
+        model_cache_dir.mkdir(parents=True, exist_ok=True)
 
     model_urls = {  # all of base size
         "gdrive": {
@@ -173,7 +187,7 @@ def cache_remote_st_mem_model():
 
     # we only cache the encoder
     model_type = "encoder"
-    if not any(model_cache_dir.glob("*")):
+    if not any(model_cache_dir.glob("st_mem_vit_base_encoder.pth")):
         if url_is_reachable("https://drive.google.com"):
             print(f"Downloading ST-MEM {model_type} model from Google Drive...")
             source = "gdrive"
@@ -183,8 +197,12 @@ def cache_remote_st_mem_model():
         else:
             raise ConnectionError("No remote ST-MEM model is reachable.")
 
-        http_get(
+        save_path = http_get(
             model_urls[source][model_type],
             dst_dir=model_cache_dir,
             filename=f"st_mem_vit_base_{model_type}.pth",
         )
+    else:
+        save_path = list(model_cache_dir.glob("st_mem_vit_base_encoder.pth"))[0]
+
+    return save_path

@@ -89,8 +89,16 @@ class FM_CINC2025(nn.Module, SizeMixin, CkptMixin):
         # Backbone Setup
         model_name = self.config["name"].lower().replace("_", "-")
         self.fs = self.config["fs"][model_name]
-        backbone_cache_dir = self.config["backbone_cache_dir"] or kwargs.pop("backbone_cache_dir", None)
-        assert backbone_cache_dir is not None, "`config.backbone_cache_dir` must be set before using the model"
+        backbone_cache_dir = self.config.get("backbone_cache_dir", None) or kwargs.pop("backbone_cache_dir", None)
+        if backbone_cache_dir is None:
+            warnings.warn(
+                "If `config.backbone_cache_dir` is not set before using the model, "
+                "the backbone model will be randomly initialized.",
+                UserWarning,
+            )
+            # This mechanism is to allow loading from saved checkpoints without needing the cache dir.
+            # especially when the backbone is fine-tuned and saved in the checkpoint.
+            backbone_cache_dir = "base"
 
         if "st-mem" in model_name:
             self.inputer = nn.Identity()  # ST-MEM has conventional input of shape (bs, n_leads, L)

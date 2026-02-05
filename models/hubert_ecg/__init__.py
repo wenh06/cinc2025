@@ -82,7 +82,7 @@ def load_hubert_ecg_model(
     return model
 
 
-def cache_remote_hubert_ecg_model(size_or_name: str) -> Path:
+def cache_remote_hubert_ecg_model(size_or_name: str, model_cache_dir: Optional[Union[str, Path]] = None) -> Path:
     """Cache a remote HuBERT-ECG model locally.
 
     Parameters
@@ -106,6 +106,8 @@ def cache_remote_hubert_ecg_model(size_or_name: str) -> Path:
         model_name = size_or_name
 
     model = HuBERTECG.from_pretrained(model_name)  # type: ignore
-    local_path = Path(MODEL_CACHE_DIR) / model_name.replace("/", "-")
+    if model_cache_dir is None:
+        model_cache_dir = MODEL_CACHE_DIR
+    local_path = Path(model_cache_dir) / model_name.replace("/", "-")
     model.save_pretrained(local_path)
     return local_path
