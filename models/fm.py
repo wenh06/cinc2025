@@ -298,6 +298,16 @@ class FM_CINC2025(nn.Module, SizeMixin, CkptMixin):
 
         B, C, T = sig_t.shape
 
+        if self.backbone_type == "st-mem" and not crop_infer:
+            crop_infer = True
+            # ST-MEM was pretrained on 75*31=2325 samples at 250Hz (≈9.3s),
+            # so multi-crop inference is needed for longer signals.
+            warnings.warn(
+                "ST-MEM backbone is designed for inputs of length 75*N samples, "
+                "where N is at most 31. For longer signals, multi-crop inference will be applied automatically.",
+                UserWarning,
+            )
+
         if not crop_infer:
             # Full signal inference (Foundation models handle variable length usually via pooling/attention)
             forward_output = self.forward({"signals": sig_t})
@@ -306,9 +316,9 @@ class FM_CINC2025(nn.Module, SizeMixin, CkptMixin):
             return output
 
         # Multi-crop path
-        fs = float(self.config.get("fs", 400))
-        default_crop_len_sec = 4096.0 / fs
-        default_stride_sec = 1024.0 / fs
+        fs = float(self.fs)
+        default_crop_len_sec = 4096.0 / fs if self.backbone_type != "st-mem" else 75 * 31 / fs
+        default_stride_sec = 1024.0 / fs if self.backbone_type != "st-mem" else 75 * 8 / fs
         crop_len_sec = crop_len if crop_len is not None else default_crop_len_sec
         stride_sec = stride if stride is not None else default_stride_sec
 
@@ -327,6 +337,11 @@ class FM_CINC2025(nn.Module, SizeMixin, CkptMixin):
 
             # Short signal: no cropping
             if Tb <= crop_len_samples:
+                if self.backbone_type == "st-mem":
+                    # ST-MEM was pretrained on 75*N samples, so we can pad to the nearest 75*N if shorter than crop_len_samples
+                    pad_len = (crop_len_samples - Tb) % 75
+                    if pad_len > 0:
+                        x = torch.nn.functional.pad(x, (0, pad_len), mode="constant", value=0)
                 fo = self.forward({"signals": x.unsqueeze(0)})
                 logits_full = fo["chagas_logits"]
                 probs_full = fo["chagas_prob"]
