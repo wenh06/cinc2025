@@ -173,6 +173,7 @@ def cache_remote_st_mem_model(model_cache_dir: Optional[Union[str, Path]] = None
     if model_cache_dir is None:
         model_cache_dir = Path(MODEL_CACHE_DIR) / "ST-MEM"
         model_cache_dir.mkdir(parents=True, exist_ok=True)
+    model_cache_dir = Path(model_cache_dir)
 
     model_urls = {  # all of base size
         "gdrive": {
