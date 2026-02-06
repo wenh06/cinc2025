@@ -2,6 +2,8 @@
 
 import gzip
 import json
+import os
+import time
 from copy import deepcopy
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Set, Union
@@ -9,6 +11,8 @@ from typing import Dict, List, Optional, Sequence, Set, Union
 import numpy as np
 import pandas as pd
 import torch
+import torch.multiprocessing as mp
+from torch.utils.data import DataLoader
 from torch.utils.data.dataset import Dataset
 from torch_ecg._preprocessors import PreprocManager
 from torch_ecg.cfg import CFG, DEFAULTS
@@ -24,6 +28,11 @@ from data_reader import CINC2025
 __all__ = [
     "CINC2025Dataset",
 ]
+
+try:
+    mp.set_start_method("spawn", force=True)
+except RuntimeError:
+    pass
 
 
 class CINC2025Dataset(Dataset, ReprMixin):
@@ -120,32 +129,83 @@ class CINC2025Dataset(Dataset, ReprMixin):
     def __len__(self) -> int:
         if self.cache is None:
             return len(self.fdr)
-        return len(self.cache["signal"])
+        return len(self.cache["signals"])
 
     def __getitem__(self, index: Union[int, slice]) -> Dict[str, np.ndarray]:
         if self.cache is None:
             return self.fdr[index]
         return {k: v[index] for k, v in self.cache.items()}
 
-    def _load_all_data(self) -> None:
-        """Load all data into memory.
+    def _load_all_data(self, batch_size: int = 256, num_workers: Optional[int] = None) -> None:
+        """Load all data into memory using DataLoader for multi-process acceleration.
+
+        Parameters
+        ----------
+        batch_size : int, default 256
+            Number of samples to load in each batch.
+        num_workers : int, optional
+            Number of worker processes for data loading.
+            Set to 0 to disable multiprocessing (useful for debugging).
 
         .. warning::
 
-            caching all data into memory is not recommended, which would certainly cause OOM error.
+            Caching all data into memory is not recommended, which would certainly cause OOM error.
             The RAM of the Challenge is only 64GB.
 
         """
+        if num_workers is None:
+            cpu_count = os.cpu_count() or 4
+            num_workers = min(max(2, int(cpu_count * 0.8)), 8)
+            print(f"Auto-detected num_workers: {num_workers} (CPU count: {cpu_count})")
+
+        dataset_size = len(self)
+
+        temp_loader = DataLoader(
+            self.fdr,
+            batch_size=batch_size,
+            shuffle=False,
+            num_workers=num_workers,
+            pin_memory=False,
+            drop_last=False,
+            collate_fn=default_collate_fn,
+            persistent_workers=False,
+            prefetch_factor=2 if num_workers > 0 else None,
+            multiprocessing_context="spawn" if num_workers > 0 else None,
+        )
+
         self.__cache = {
-            "signals": np.empty((len(self), self.config.n_leads, self.config.input_len), dtype=self.dtype),
-            "chagas": np.empty((len(self),), dtype=np.int64),
-            # "is_normal": np.empty((len(self),), dtype=np.int64),
-            # "arr_diag": np.empty((len(self), len(self.config.arr_diag_class_map)), dtype=self.dtype),
+            "record_idx": torch.empty((dataset_size,), dtype=torch.int64),
+            "signals": torch.empty((dataset_size, self.config.n_leads, self.config.input_len), dtype=self.config.torch_dtype),
+            "chagas": torch.empty((dataset_size, len(self.config.chagas_classes)), dtype=self.config.torch_dtype),
+            "sample_type": torch.empty((dataset_size,), dtype=torch.int64),
         }
-        for idx in tqdm(range(len(self)), desc="loading data", unit="record", mininterval=1, dynamic_ncols=True):
-            data = self.fdr[idx]
-            for k, v in data.items():
-                self.__cache[k][idx] = v
+
+        start_time = time.time()
+        current_idx = 0
+
+        for batch_data in tqdm(
+            temp_loader,
+            desc="Loading data into memory",
+            unit="batch",
+            mininterval=0.5,
+            dynamic_ncols=True,
+            total=len(temp_loader),
+        ):
+            batch_len = len(batch_data["record_idx"])
+            end_idx = current_idx + batch_len
+
+            self.__cache["record_idx"][current_idx:end_idx] = batch_data["record_idx"]
+            self.__cache["signals"][current_idx:end_idx] = batch_data["signals"]
+            self.__cache["chagas"][current_idx:end_idx] = batch_data["chagas"]
+            self.__cache["sample_type"][current_idx:end_idx] = batch_data["sample_type"]
+
+            current_idx = end_idx
+
+        elapsed = time.time() - start_time
+        samples_per_sec = dataset_size / elapsed if elapsed > 0 else 0
+        print(f"\nLoaded {dataset_size} samples in {elapsed:.2f}s ({samples_per_sec:.1f} samples/s)")
+
+        del temp_loader
 
     def _train_test_split(self, train_ratio: float = 0.8) -> List[str]:
         """Split the dataset into training and validation sets
@@ -276,7 +336,7 @@ class CINC2025Dataset(Dataset, ReprMixin):
         return torch.tensor(df["weight"].values, dtype=torch.float32)
 
     @property
-    def cache(self) -> Dict[str, np.ndarray]:
+    def cache(self) -> Dict[str, torch.Tensor]:
         return self.__cache
 
     @property

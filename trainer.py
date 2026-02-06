@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np  # noqa: F401
 import torch
+import torch.multiprocessing as mp
 from torch import nn, optim
 from torch.nn.parallel import DataParallel as DP
 from torch.nn.parallel import DistributedDataParallel as DDP  # noqa: F401
@@ -31,6 +32,12 @@ from outputs import CINC2025Outputs
 from utils.scoring_metrics import compute_challenge_metrics  # noqa: F401
 
 os.environ["HF_HOME"] = str(MODEL_CACHE_DIR)
+
+try:
+    mp.set_start_method("spawn", force=True)
+except RuntimeError:
+    pass
+
 
 __all__ = [
     "CINC2025Trainer",
@@ -541,6 +548,7 @@ class CINC2025Trainer(BaseTrainer):
 
                 pbar.update(input_tensors["signals"].shape[self.batch_dim])
 
+        self.log_manager.log_message(f"Evaluating on {len(all_labels)} samples...")
         eval_res = compute_challenge_metrics(all_labels, all_outputs)
 
         if self.val_train_loader is not None:
