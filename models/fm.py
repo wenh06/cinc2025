@@ -20,7 +20,7 @@ from outputs import CINC2025Outputs
 from utils.misc import is_stdtypes
 
 from .hubert_ecg import load_hubert_ecg_model
-from .loss import AdaptiveLogisticPairwiseLoss, PairwiseRankingLossHinge, PairwiseRankingLossLogistic
+from .loss import AdaptiveLogisticPairwiseLoss, ChagasLoss, PairwiseRankingLossHinge, PairwiseRankingLossLogistic
 from .st_mem import load_st_mem_model
 
 __all__ = [
@@ -129,7 +129,10 @@ class FM_CINC2025(nn.Module, SizeMixin, CkptMixin):
         self.freeze_backbone(self.config.get("freeze_backbone", False))
 
         # Loss & Ranking Setup
-        self.criterion = setup_criterion(criterion, **criterion_kw)
+        if criterion == "ChagasLoss":
+            self.criterion = ChagasLoss(**criterion_kw)
+        else:
+            self.criterion = setup_criterion(criterion, **criterion_kw)
 
         # Merge ranking config if missing
         default_ranking_cfg = CFG(

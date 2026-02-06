@@ -5,16 +5,18 @@ Auxiliary loss functions for training.
 from typing import Dict, Union
 
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 
 __all__ = [
     "PairwiseRankingLossHinge",
     "PairwiseRankingLossLogistic",
     "AdaptiveLogisticPairwiseLoss",
+    "ChagasLoss",
 ]
 
 
-class PairwiseRankingLossHinge(torch.nn.Module):
+class PairwiseRankingLossHinge(nn.Module):
     """Hinge pairwise ranking loss.
 
     loss = mean( max(0, margin - (s_pos - s_neg)) )
@@ -58,7 +60,7 @@ class PairwiseRankingLossHinge(torch.nn.Module):
         return loss.mean()
 
 
-class PairwiseRankingLossLogistic(torch.nn.Module):
+class PairwiseRankingLossLogistic(nn.Module):
     """Logistic pairwise ranking loss.
 
     loss = mean( softplus( - (s_pos - s_neg) ) )
@@ -102,7 +104,7 @@ class PairwiseRankingLossLogistic(torch.nn.Module):
         return loss
 
 
-class AdaptiveLogisticPairwiseLoss(torch.nn.Module):
+class AdaptiveLogisticPairwiseLoss(nn.Module):
     """Adaptive margin + hard negative + subsampling for logistic pairwise ranking loss.
 
     loss = softplus(margin - (s_pos - s_neg))
@@ -152,7 +154,7 @@ class AdaptiveLogisticPairwiseLoss(torch.nn.Module):
         print("Using AdaptiveLogisticPairwiseLoss")
         super().__init__()
         assert 0 < hard_negative_pct <= 1.0
-        self.margin = torch.nn.Parameter(torch.tensor(float(margin)), requires_grad=False)
+        self.margin = nn.Parameter(torch.tensor(float(margin)), requires_grad=False)
         self.hard_negative_pct = hard_negative_pct
         self.subsample_pos = subsample_pos
         self.subsample_neg = subsample_neg
@@ -246,3 +248,87 @@ class AdaptiveLogisticPairwiseLoss(torch.nn.Module):
                 "ranking_margin": self.margin.detach(),
             }
         return loss
+
+
+class ChagasLoss(nn.Module):
+    """
+    Custom Loss function for Chagas Disease Detection Challenge.
+
+    It wraps BCEWithLogitsLoss with class-specific positive weights to handle
+    severe class imbalance and maximize the Top-5% Recall metric.
+    This implementation supports One-Hot Encoded targets and logits.
+
+    Parameters
+    ----------
+    positive_weight_factor : float, optional
+        The weight multiplier for the positive class(es).
+        Default is 5.0 (aggressive weighting for high recall).
+    num_classes : int, optional
+        Number of output classes. Default is 2.
+
+    Attributes
+    ----------
+    pos_weight : torch.Tensor
+        Buffer containing the weight vector [1.0, factor, ...].
+    bce_loss : nn.BCEWithLogitsLoss
+        The underlying PyTorch loss function.
+
+    """
+
+    def __init__(self, positive_weight_factor: float = 5.0, num_classes: int = 2):
+        super().__init__()
+        # Construct the weight vector.
+        # Index 0 is assumed to be 'Negative' (Background), weight = 1.0.
+        # Index 1+ are 'Positive' classes, weight = positive_weight_factor.
+        # For binary classification (one-hot), weights will be [1.0, 5.0].
+        weights = torch.ones(num_classes)
+        weights[1:] = positive_weight_factor
+
+        # Register as a buffer so it moves to device automatically and is saved in state_dict.
+        self.register_buffer("pos_weight", weights)
+
+        # Initialize BCEWithLogitsLoss.
+        # reduction='none' allows for future extensions (e.g., hard example mining).
+        self.bce_loss = nn.BCEWithLogitsLoss(pos_weight=self.pos_weight, reduction="none")
+
+    def forward(self, logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+        """
+        Compute the weighted binary cross entropy loss.
+
+        Parameters
+        ----------
+        logits : torch.Tensor
+            Model output (raw scores before Sigmoid/Softmax).
+            Shape: ``(batch_size, num_classes)``.
+        targets : torch.Tensor
+            Soft or Hard One-Hot encoded labels.
+            Shape: ``(batch_size, num_classes)``.
+            Example: ``[[0.9, 0.1], [0.3, 0.7]]``.
+
+        Returns
+        -------
+        torch.Tensor
+            Scalar loss value (averaged over the batch).
+
+        Raises
+        ------
+        AssertionError
+            If the shapes of logits and targets do not match.
+            If the number of classes in logits does not match `num_classes`.
+
+        """
+        # Shape Assertions
+        # Check if input shapes match (B, C) vs (B, C)
+        assert logits.shape == targets.shape, (
+            f"Shape Mismatch! Logits: {logits.shape}, Targets: {targets.shape}. "
+            f"Ensure your model output dimension matches the label dimension."
+        )
+        # Check if class dimension matches the initialized weights
+        assert logits.shape[1] == self.pos_weight.shape[0], (
+            f"Dimension Mismatch! Logits have {logits.shape[1]} classes, "
+            f"but Loss was initialized for {self.pos_weight.shape[0]} classes."
+        )
+
+        loss = self.bce_loss(logits, targets)
+
+        return loss.mean()

@@ -22,7 +22,7 @@ from cfg import ModelCfg
 from outputs import CINC2025Outputs
 from utils.misc import is_stdtypes
 
-from .loss import AdaptiveLogisticPairwiseLoss, PairwiseRankingLossHinge, PairwiseRankingLossLogistic
+from .loss import AdaptiveLogisticPairwiseLoss, ChagasLoss, PairwiseRankingLossHinge, PairwiseRankingLossLogistic
 
 __all__ = [
     "CRNN_CINC2025",
@@ -110,7 +110,10 @@ class CRNN_CINC2025(ECG_CRNN):
             **kwargs,
         )
 
-        self.criterion = setup_criterion(criterion, **criterion_kw)
+        if criterion == "ChagasLoss":
+            self.criterion = ChagasLoss(**criterion_kw)
+        else:
+            self.criterion = setup_criterion(criterion, **criterion_kw)
 
         self.use_ranking = bool(self.config.ranking.enable)
         if self.use_ranking:
