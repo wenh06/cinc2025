@@ -11,7 +11,7 @@ from torch_ecg.cfg import CFG
 from torch_ecg.model_configs import ECG_CRNN_CONFIG, linear  # noqa: F401
 from torch_ecg.utils.utils_nn import adjust_cnn_filter_lengths
 
-from const import SampleType  # noqa: F401
+from const import SampleType
 
 __all__ = [
     "BaseCfg",
@@ -95,8 +95,9 @@ TrainCfg.normalize = CFG(  # None or False for no normalization
 TrainCfg.label_smooth = CFG(
     prob=0.8,
     smoothing={
-        str(SampleType.NEGATIVE_SAMPLE.value): 0.2,  # negative samples -> prob vec [0.9, 0.1]
-        str(SampleType.SELF_REPORTED_POSITIVE_SAMPLE.value): 0.6,  # self-reported positive samples -> prob vec [0.3, 0.7]
+        str(SampleType.NEGATIVE_SAMPLE.value): 0.0,  # negative samples -> prob vec [1.0, 0.0]
+        str(SampleType.SELF_REPORTED_POSITIVE_SAMPLE.value): 0.3,  # self-reported positive samples -> prob vec [0.15, 0.85]
+        str(SampleType.SELF_REPORTED_UNCERTAIN_SAMPLE.value): 0.2,  # self-reported uncertain samples -> prob vec [0.9, 0.1]
         str(SampleType.DOCTOR_CONFIRMED_POSITIVE_SAMPLE.value): 0.0,  # doctor-confirmed positive samples -> prob vec [0.0, 1.0]
     },
 )
@@ -162,12 +163,16 @@ TrainCfg.flooding_level = 0.0  # flooding performed if positive,
 TrainCfg.log_step = 100
 # TrainCfg.eval_every = 20
 
-TrainCfg.criterion = "AsymmetricLoss"  # "FocalLoss", "BCEWithLogitsLoss"
+# TrainCfg.criterion = "AsymmetricLoss"  # "FocalLoss", "BCEWithLogitsLoss"
+# TrainCfg.criterion_kw = {
+#     "gamma_neg": 4,
+#     "gamma_pos": 1,
+#     "prob_margin": 0.05,
+# }  # keyword arguments for the criterion
+TrainCfg.criterion = "ChagasLoss"  # custom loss
 TrainCfg.criterion_kw = {
-    "gamma_neg": 4,
-    "gamma_pos": 1,
-    "prob_margin": 0.05,
-}  # keyword arguments for the criterion
+    "positive_weight_factor": 5.0,
+}
 
 TrainCfg.train_ratio = 0.8
 TrainCfg.input_len = 4096  # approximately 10s

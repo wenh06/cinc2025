@@ -78,7 +78,8 @@ class CINC2025Dataset(Dataset, ReprMixin):
         # add a column of sample_type to split the samples into 3 categories:
         # 0: negative samples
         # 1: self-reported positive samples
-        # 2: doctor-confirmed positive samples
+        # 2: self-reported uncertain samples
+        # 3: doctor-confirmed positive samples
         self.reader._df_records["sample_type"] = np.full(
             (len(self.reader._df_records),), fill_value=SampleType.NEGATIVE_SAMPLE.value, dtype=int
         )
@@ -86,19 +87,23 @@ class CINC2025Dataset(Dataset, ReprMixin):
             self.reader._df_records["chagas"] & (self.reader._df_records["source"] == "CODE-15%"), "sample_type"
         ] = SampleType.SELF_REPORTED_POSITIVE_SAMPLE.value
         self.reader._df_records.loc[
+            (~self.reader._df_records["chagas"]) & (self.reader._df_records["source"] == "CODE-15%"), "sample_type"
+        ] = SampleType.SELF_REPORTED_UNCERTAIN_SAMPLE.value
+        self.reader._df_records.loc[
             self.reader._df_records["chagas"] & (self.reader._df_records["source"] == "SaMi-Trop"), "sample_type"
         ] = SampleType.DOCTOR_CONFIRMED_POSITIVE_SAMPLE.value
         # add columns of hard labels and soft labels
-        soft_label_dict = {
+        hard_label_dict = {
             SampleType.NEGATIVE_SAMPLE.value: np.array([1, 0]),
             SampleType.SELF_REPORTED_POSITIVE_SAMPLE.value: np.array([0, 1]),
+            SampleType.SELF_REPORTED_UNCERTAIN_SAMPLE.value: np.array([1, 0]),
             SampleType.DOCTOR_CONFIRMED_POSITIVE_SAMPLE.value: np.array([0, 1]),
         }
-        self.reader._df_records["hard_label"] = self.reader._df_records["sample_type"].map(soft_label_dict)
+        self.reader._df_records["hard_label"] = self.reader._df_records["sample_type"].map(hard_label_dict)
         soft_label_dict = {
             st: (1 - self.config.label_smooth.smoothing[str(st)]) * hard_label_vec
             + self.config.label_smooth.smoothing[str(st)] / len(self.config.chagas_classes)
-            for st, hard_label_vec in soft_label_dict.items()
+            for st, hard_label_vec in hard_label_dict.items()
         }
         # print(f"{soft_label_dict = }")
         self.reader._df_records["soft_label"] = self.reader._df_records["sample_type"].map(soft_label_dict)
