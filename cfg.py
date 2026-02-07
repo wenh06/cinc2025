@@ -45,6 +45,9 @@ BaseCfg.n_leads = 12
 BaseCfg.chagas_classes = [0, 1]
 # arrhythmia diagnosis classes
 BaseCfg.arr_diag_classes = ["1dAVb", "RBBB", "LBBB", "SB", "ST", "AF"] + ["NORM", "OTHER"]
+BaseCfg.demographic_features = ["age", "sex"]  # age: continuous, sex: binary (0 or 1)
+BaseCfg.age_scale = 100.0  # to scale age to [0, 1]
+BaseCfg.sex_mapping = {"Female": 0, "Male": 1}  # mapping
 BaseCfg.arr_diag_class_map = {c: i for i, c in enumerate(BaseCfg.arr_diag_classes)}
 
 
@@ -192,6 +195,10 @@ _BASE_MODEL_CONFIG.n_leads = BaseCfg.n_leads
 _BASE_MODEL_CONFIG.torch_dtype = BaseCfg.torch_dtype
 _BASE_MODEL_CONFIG.fs = BaseCfg.fs
 _BASE_MODEL_CONFIG.chagas_classes = BaseCfg.chagas_classes.copy()
+_BASE_MODEL_CONFIG.arr_diag_classes = BaseCfg.arr_diag_classes.copy()
+_BASE_MODEL_CONFIG.demographic_features = BaseCfg.demographic_features.copy()
+_BASE_MODEL_CONFIG.age_scale = BaseCfg.age_scale
+_BASE_MODEL_CONFIG.sex_mapping = BaseCfg.sex_mapping.copy()
 
 _BASE_MODEL_CONFIG.criterion = TrainCfg.criterion
 _BASE_MODEL_CONFIG.criterion_kw = TrainCfg.criterion_kw.copy()
@@ -218,6 +225,14 @@ ModelCfg.crnn = adjust_cnn_filter_lengths(ModelCfg.crnn, int(ModelCfg.fs * cnn_f
 #     )
 # )
 
+ModelCfg.crnn.ranking = CFG(
+    enable=False,
+    type="adaptive",  # or "hinge", or "adaptive"
+    weight=0.4,
+    margin=0.1,  # logistic 0; hinge 0.5 or other values
+)
+
+
 ModelCfg.fm = deepcopy(_BASE_MODEL_CONFIG)
 ModelCfg.fm.name = "st-mem"  # "st-mem", "hubert-ecg", etc.
 ModelCfg.fm.fs = {
@@ -242,9 +257,21 @@ ModelCfg.fm.head = CFG(
     num_layers=2,  # Linear -> ReLU -> Dropout -> Linear
 )
 
-ModelCfg.crnn.ranking = CFG(
+ModelCfg.fm.ranking = CFG(
     enable=False,
     type="adaptive",  # or "hinge", or "adaptive"
     weight=0.4,
     margin=0.1,  # logistic 0; hinge 0.5 or other values
 )
+
+
+_DemEncoder = CFG(
+    enable=True,
+    mode="film",  # "film" or "concat"
+    hidden_dim=64,
+    dem_input_dim=len(BaseCfg.demographic_features),
+    feature_dim=128,  # ignored if mode="film", in which case it's set the same as the feature dimension of the layer to be modulated
+)
+
+ModelCfg.crnn.dem_encoder = deepcopy(_DemEncoder)
+ModelCfg.fm.dem_encoder = deepcopy(_DemEncoder)

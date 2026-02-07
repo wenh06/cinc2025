@@ -117,6 +117,10 @@ class CINC2025Dataset(Dataset, ReprMixin):
         # print(f"{soft_label_dict = }")
         self.reader._df_records["soft_label"] = self.reader._df_records["sample_type"].map(soft_label_dict)
 
+        # demographic features
+        self.reader._df_records["age"] = self.reader._df_records["age"].map(float) / self.config.age_scale
+        self.reader._df_records["sex"] = self.reader._df_records["sex"].map(self.config.sex_mapping)
+
         ppm_config = CFG(random=False)
         ppm_config.update(deepcopy(self.config))
         self.ppm = PreprocManager.from_config(ppm_config)
@@ -178,6 +182,7 @@ class CINC2025Dataset(Dataset, ReprMixin):
             "signals": torch.empty((dataset_size, self.config.n_leads, self.config.input_len), dtype=self.config.torch_dtype),
             "chagas": torch.empty((dataset_size, len(self.config.chagas_classes)), dtype=self.config.torch_dtype),
             "sample_type": torch.empty((dataset_size,), dtype=torch.int64),
+            "demographics": torch.empty((dataset_size, len(self.config.demographic_features)), dtype=self.config.torch_dtype),
         }
 
         start_time = time.time()
@@ -198,6 +203,7 @@ class CINC2025Dataset(Dataset, ReprMixin):
             self.__cache["signals"][current_idx:end_idx] = batch_data["signals"]
             self.__cache["chagas"][current_idx:end_idx] = batch_data["chagas"]
             self.__cache["sample_type"][current_idx:end_idx] = batch_data["sample_type"]
+            self.__cache["demographics"][current_idx:end_idx] = batch_data["demographics"]
 
             current_idx = end_idx
 
@@ -451,6 +457,8 @@ class FastDataReader(ReprMixin, Dataset):
         else:
             chagas_label = self.reader.load_ann(rec)
 
+        demographics = self.reader._df_records.loc[rec, self.config.demographic_features].values.astype(self.dtype)
+
         # chagas_label = self.reader.load_chagas_ann(rec)  # categorical: 0 or 1
         # bin_label = self.reader.load_binary_ann(rec)  # categorical: 0 or 1
         # arr_diag_label = self.reader.load_ann(rec, class_map=self.config.arr_diag_class_map, augmented=True)
@@ -468,4 +476,5 @@ class FastDataReader(ReprMixin, Dataset):
             # "is_normal": bin_label,  # scalar
             # "arr_diag": arr_diag_label,  # (n_classes,)
             "sample_type": sample_type,  # scalar
+            "demographics": demographics,  # (n_demographic_features,)
         }

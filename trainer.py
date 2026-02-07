@@ -541,14 +541,17 @@ class CINC2025Trainer(BaseTrainer):
                 if torch.cuda.is_available():
                     torch.cuda.synchronize()
                 labels = {"chagas": input_tensors.pop("chagas")}
-                outputs = self.model.inference(input_tensors["signals"])
+                if self._model.config.get("dem_encoder", None) is not None:
+                    outputs = self._model.inference(input_tensors["signals"], input_tensors.get("demographics", None))
+                else:
+                    outputs = self._model.inference(input_tensors["signals"])
                 outputs.drop(["chagas_logits", "chagas_loss"])  # reduce memory usage
                 all_outputs.append(outputs)
                 all_labels.append(labels)
 
                 pbar.update(input_tensors["signals"].shape[self.batch_dim])
 
-        self.log_manager.log_message(f"Evaluating on {len(all_labels)} samples...")
+        self.log_manager.log_message(f"Evaluating on {len(data_loader.dataset)} samples...")
         eval_res = compute_challenge_metrics(all_labels, all_outputs)
 
         if self.val_train_loader is not None:
@@ -589,6 +592,8 @@ class CINC2025Trainer(BaseTrainer):
         prefix = self._model.__name__
         if hasattr(self._model.config, "cnn"):
             prefix = f"{prefix}_{self._model.config.cnn.name}_epoch"
+        elif hasattr(self._model.config, "name"):  # backbone name for FM_CINC2025
+            prefix = f"{prefix}_{self._model.config.name}_epoch"
         else:
             prefix = f"{prefix}_epoch"
         return prefix
@@ -597,6 +602,8 @@ class CINC2025Trainer(BaseTrainer):
         suffix = super().extra_log_suffix()
         if hasattr(self._model.config, "cnn"):
             suffix = f"{suffix}_{self._model.config.cnn.name}"
+        elif hasattr(self._model.config, "name"):  # backbone name for FM_CINC2025
+            suffix = f"{suffix}_{self._model.config.name}"
         return suffix
 
     def _setup_criterion(self) -> None:

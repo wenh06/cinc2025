@@ -19,6 +19,7 @@ from cfg import ModelCfg
 from outputs import CINC2025Outputs
 from utils.misc import is_stdtypes
 
+from .dem import DemographicEncoder
 from .hubert_ecg import load_hubert_ecg_model
 from .loss import AdaptiveLogisticPairwiseLoss, ChagasLoss, PairwiseRankingLossHinge, PairwiseRankingLossLogistic
 from .st_mem import load_st_mem_model
@@ -112,8 +113,23 @@ class FM_CINC2025(nn.Module, SizeMixin, CkptMixin):
         else:
             raise ValueError(f"Unknown foundation model name: {model_name}")
 
+        if self.config.dem_encoder.enable:
+            if self.config.dem_encoder.mode == "film":
+                feature_dim = self.config["embed_dim"][model_name]
+            else:  # concat
+                feature_dim = self.config.dem_encoder.feature_dim
+            self.dem_encoder = DemographicEncoder(
+                feature_dim=feature_dim,
+                dem_input_dim=2,
+                mode=self.config.dem_encoder.mode,
+                hidden_dim=self.config.dem_encoder.hidden_dim,
+            )
+
         # Classification Head
-        embed_dim = self.config["embed_dim"][model_name]
+        if self.config.dem_encoder.enable and self.config.dem_encoder.mode == "concat":
+            embed_dim = self.config["embed_dim"][model_name] + self.config.dem_encoder.feature_dim
+        else:
+            embed_dim = self.config["embed_dim"][model_name]
         hidden_dim = self.config["head"]["hidden_dim"]
         dropout = self.config.get("dropout", 0.2)
 
@@ -187,11 +203,12 @@ class FM_CINC2025(nn.Module, SizeMixin, CkptMixin):
         ----------
         input_tensors : dict of torch.Tensor
             Input signals and labels, including
-
             - "signals" : torch.Tensor
                 Input signals. Required.
             - "chagas" : torch.Tensor, optional
                 Labels for Chagas disease diagnosis.
+            - "demographics" : torch.Tensor, optional
+                Demographic features, required if demographic encoder is enabled.
 
         Returns
         -------
@@ -211,6 +228,17 @@ class FM_CINC2025(nn.Module, SizeMixin, CkptMixin):
         else:  # self.backbone_type == "hubert":
             features_seq = self.backbone(x)  # (B*C, T, D)
             features = features_seq.last_hidden_state.mean(dim=1)  # Global Pool over time -> (B*C, D)
+
+        if self.dem_encoder is not None:
+            if "demographics" not in input_tensors:
+                raise ValueError("Demographic features are required by the model but not found in input_tensors.")
+            x_dem = input_tensors["demographics"].to(self.dtype).to(self.device)
+            if self.dem_encoder.mode == "film":
+                scale, shift = self.dem_encoder(x_dem)
+                features = self.dem_encoder.modulate_features(features, scale, shift)
+            else:  # concat
+                dem_feats = self.dem_encoder(x_dem)
+                features = torch.cat([features, dem_feats], dim=1)
 
         # Head
         chagas_logits = self.head(features)
@@ -237,7 +265,7 @@ class FM_CINC2025(nn.Module, SizeMixin, CkptMixin):
 
             if self.use_ranking:
                 pos_channel_scores = chagas_logits[:, 1]
-                ranking_loss = self.ranking_criterion(pos_channel_scores, hard_labels)
+                ranking_loss = self.ranking_criterion(pos_channel_scores, hard_labels)  # type: ignore
                 chagas_loss = base_loss + self.ranking_weight * ranking_loss
             else:
                 chagas_loss = base_loss
@@ -254,6 +282,7 @@ class FM_CINC2025(nn.Module, SizeMixin, CkptMixin):
     def inference(
         self,
         sig: Union[np.ndarray, torch.Tensor, list],
+        demographics: Optional[Union[np.ndarray, torch.Tensor, list]] = None,
         crop_infer: bool = False,
         crop_len: Optional[float] = None,
         stride: Optional[float] = None,
@@ -268,6 +297,11 @@ class FM_CINC2025(nn.Module, SizeMixin, CkptMixin):
               - (C, T)
               - (B, C, T)
               - list / np.ndarray / torch.Tensor
+        demographics : array-like, optional
+            Demographic features corresponding to the input signals. Required if demographic encoder is enabled.
+            Accepts:
+              - (n_demographic_features,) for single signal
+              - (B, n_demographic_features) for batch of signals
         crop_infer : bool, default False
             If True, apply sliding window inference per signal.
         crop_len : float, optional
@@ -301,6 +335,33 @@ class FM_CINC2025(nn.Module, SizeMixin, CkptMixin):
 
         B, C, T = sig_t.shape
 
+        forward_input = {"signals": sig_t}
+
+        if self.config.dem_encoder.enable:
+            if demographics is None:
+                raise ValueError("Demographic features are required by the model but not provided.")
+            if isinstance(demographics, list):
+                demographics = np.asarray(demographics)
+            if isinstance(demographics, np.ndarray):
+                demographics_t = torch.as_tensor(demographics, dtype=self.dtype, device=self.device)
+            else:
+                demographics_t = demographics.to(self.device).to(self.dtype)
+
+            if demographics_t.ndim == 1:  # (n_demographic_features,) -> (1, n_demographic_features)
+                demographics_t = demographics_t.unsqueeze(0)
+            elif demographics_t.ndim != 2:
+                raise ValueError(
+                    f"Unsupported demographics shape {demographics_t.shape}, expected "
+                    "(n_demographic_features,) or (B, n_demographic_features)"
+                )
+            if demographics_t.shape[0] != B:
+                raise ValueError(
+                    f"Batch size of demographics ({demographics_t.shape[0]}) does not match " f"that of signals ({B})"
+                )
+            forward_input["demographics"] = demographics_t
+        else:
+            demographics_t = None
+
         if self.backbone_type == "st-mem" and not crop_infer:
             crop_infer = True
             # ST-MEM was pretrained on 75*31=2325 samples at 250Hz (≈9.3s),
@@ -313,7 +374,7 @@ class FM_CINC2025(nn.Module, SizeMixin, CkptMixin):
 
         if not crop_infer:
             # Full signal inference (Foundation models handle variable length usually via pooling/attention)
-            forward_output = self.forward({"signals": sig_t})
+            forward_output = self.forward(forward_input)
             output = CINC2025Outputs.from_dict(forward_output)
             self.train(training)
             return output
@@ -362,8 +423,12 @@ class FM_CINC2025(nn.Module, SizeMixin, CkptMixin):
                 [x[..., s : s + crop_len_samples] for s in starts],
                 dim=0,
             )
-            # Pass through model (will be resampled inside forward)
-            fo = self.forward({"signals": windows})
+            forward_input = {"signals": windows}
+            if self.config.dem_encoder.enable:
+                assert demographics_t is not None, "Demographic features are required by the model but not provided."
+                dem_feats = demographics_t[b].unsqueeze(0).repeat(windows.shape[0], 1)
+                forward_input["demographics"] = dem_feats
+            fo = self.forward(forward_input)
             logits_all = fo["chagas_logits"]
             probs_all = fo["chagas_prob"]
 
@@ -410,9 +475,17 @@ class FM_CINC2025(nn.Module, SizeMixin, CkptMixin):
         return output
 
     @add_docstring(inference.__doc__)
-    def inference_CINC2025(self, sig: Union[np.ndarray, torch.Tensor, list]) -> CINC2025Outputs:
+    def inference_CINC2025(
+        self,
+        sig: Union[np.ndarray, torch.Tensor, list],
+        demographics: Optional[Union[np.ndarray, torch.Tensor, list]] = None,
+        crop_infer: bool = False,
+        crop_len: Optional[float] = None,
+        stride: Optional[float] = None,
+        agg: Literal["max", "top2_mean", "mean"] = "max",
+    ) -> CINC2025Outputs:
         """alias for `self.inference`"""
-        return self.inference(sig)
+        return self.inference(sig, demographics, crop_infer, crop_len, stride, agg)
 
     def save(self, path: Union[str, bytes, os.PathLike], train_config: CFG) -> None:
         """Save the model to disk."""

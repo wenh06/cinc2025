@@ -1950,7 +1950,7 @@ class CINC2025(_DataBase):
 
     def __init__(
         self,
-        db_dir: Optional[Dict[str, Union[str, bytes, os.PathLike]]] = None,
+        db_dir: Optional[Union[str, bytes, os.PathLike]] = None,
         working_dir: Optional[Union[str, bytes, os.PathLike]] = None,
         verbose: int = 1,
         **kwargs: Any,
