@@ -110,6 +110,11 @@ TrainCfg.label_smooth = CFG(
 #     prob=0.6,
 #     alpha=0.3,
 # )
+TrainCfg.powerline_noise = CFG(
+    prob=0.5,
+    amplitude_ratio_range=[0.02, 0.08],
+    frequencies=[50, 60],
+)
 
 # configs of training epochs, batch, etc.
 TrainCfg.n_epochs = 30

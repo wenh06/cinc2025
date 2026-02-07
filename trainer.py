@@ -16,6 +16,7 @@ from torch import nn, optim
 from torch.nn.parallel import DataParallel as DP
 from torch.nn.parallel import DistributedDataParallel as DDP  # noqa: F401
 from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler  # noqa: F401
+from torch_ecg.augmenters import AugmenterManager
 from torch_ecg.cfg import CFG
 from torch_ecg.components.trainer import BaseTrainer
 from torch_ecg.utils.misc import get_date_str, get_kwargs, str2bool
@@ -23,6 +24,7 @@ from torch_ecg.utils.utils_nn import default_collate_fn as collate_fn
 from tqdm.auto import tqdm
 from transformers import get_cosine_schedule_with_warmup
 
+from augmenters import PowerlineNoise
 from cfg import ModelCfg, TrainCfg
 from const import MODEL_CACHE_DIR
 from dataset import CINC2025Dataset
@@ -451,6 +453,9 @@ class CINC2025Trainer(BaseTrainer):
             self.global_step += 1
             n_samples = input_tensors["signals"].shape[self.batch_dim]
 
+            input_tensors["signals"], input_tensors["chagas"] = self.augmenter_manager(
+                input_tensors["signals"], input_tensors["chagas"]
+            )
             out_tensors = self.run_one_step(input_tensors)
 
             # NOTE: loss is computed in the model, and kept in the out_tensors
@@ -574,6 +579,24 @@ class CINC2025Trainer(BaseTrainer):
         self.model.train()
 
         return eval_res
+
+    def _setup_augmenter_manager(self) -> None:
+        """Setup the augmenter manager."""
+        augmenter_config = self.train_config.copy()
+        # label smoothing is complicated in this task
+        # which is difficult to implement correctly in the framework of torch_ecg.augmenters
+        # it is instead handled in the dataset class, so we pop it from the augmenter_config to avoid confusion
+        augmenter_config.pop("label_smooth", None)
+        self.augmenter_manager = AugmenterManager.from_config(config=augmenter_config)
+        if "powerline_noise" in self.train_config and self.train_config.powerline_noise.prob > 0:
+            powerline_augmenter_config = CFG(self.train_config.powerline_noise.copy())
+            if hasattr(self._model, "fs"):
+                powerline_augmenter_config.fs = self._model.fs
+            else:
+                powerline_augmenter_config.fs = self._model.config.fs
+                assert isinstance(powerline_augmenter_config.fs, (int, float)), "fs must be a number"
+            powerline_augmenter = PowerlineNoise(**powerline_augmenter_config)
+            self.augmenter_manager._augmenters.append(powerline_augmenter)
 
     @property
     def batch_dim(self) -> int:
