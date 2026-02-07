@@ -29,7 +29,7 @@ from cfg import ModelCfg, TrainCfg
 from const import MODEL_CACHE_DIR, REMOTE_MODELS
 from data_reader import CINC2025
 from dataset import CINC2025Dataset
-from helper_code import find_records
+from helper_code import find_records, get_age, get_sex
 from models import CRNN_CINC2025, FM_CINC2025
 from trainer import CINC2025Trainer
 from utils.misc import remove_spikes_naive, to_dtype
@@ -377,7 +377,11 @@ def run_model(
     signal = to_dtype(signal, DTYPE)
     signal = remove_spikes_naive(signal)
     signal, _ = model["preprocessor"](signal, sig_fs)
-    output = model["model"].inference(signal, crop_infer=True, agg="max")
+    if model["model"].config.get("dem_encoder", None) is not None:
+        demographics = get_demographic_features(wfdb_record, model["model"].config)
+        output = model["model"].inference(signal, demographics, crop_infer=True, agg="max")
+    else:
+        output = model["model"].inference(signal, crop_infer=True, agg="max")
     binary_output = output.chagas[0]
     probability_output = output.chagas_prob[0][1]
 
@@ -386,3 +390,31 @@ def run_model(
     print(f"Inference pipeline completed in {elapsed_time}.")
 
     return binary_output, probability_output
+
+
+def get_demographic_features(wfdb_record, model_config: CFG) -> np.ndarray:
+    """Extract demographic features from the WFDB record.
+
+    Parameters
+    ----------
+    wfdb_record : wfdb.Record
+        The WFDB record to extract demographic features from.
+    model_config : CFG
+        The model configuration, which may contain information
+        about the required demographic features and their processing.
+
+    Returns
+    -------
+    demographics : np.ndarray
+        The extracted demographic features, processed according to the model configuration.
+    """
+    default_age = 40
+    default_sex = "Male"
+    demographics = {
+        "age": (get_age(wfdb_record) or default_age) / model_config.age_scale,
+        "sex": (get_sex(wfdb_record) or default_sex).capitalize(),
+    }
+    if demographics["sex"] not in model_config.sex_mapping:
+        demographics["sex"] = default_sex  # default to "Male" if sex is unrecognized
+    demographics["sex"] = model_config.sex_mapping[demographics["sex"]]
+    return to_dtype(np.array([demographics[feat] for feat in model_config.demographic_features]), DTYPE)
