@@ -34,6 +34,7 @@ from outputs import CINC2025Outputs
 from utils.scoring_metrics import compute_challenge_metrics  # noqa: F401
 
 os.environ["HF_HOME"] = str(MODEL_CACHE_DIR)
+os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"  # turn off warning for onednn from TensorFlow
 
 try:
     mp.set_start_method("spawn", force=True)

@@ -111,7 +111,7 @@ class CRNN_CINC2025(ECG_CRNN):
             **kwargs,
         )
 
-        if self.config.dem_encoder.enable:
+        if hasattr(self.config, "dem_encoder") and self.config.dem_encoder.enable:
             if self.config.dem_encoder.mode == "film":
                 feature_dim = self.clf.in_channels
             else:  # concat

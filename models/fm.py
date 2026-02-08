@@ -113,7 +113,7 @@ class FM_CINC2025(nn.Module, SizeMixin, CkptMixin):
         else:
             raise ValueError(f"Unknown foundation model name: {model_name}")
 
-        if self.config.dem_encoder.enable:
+        if hasattr(self.config, "dem_encoder") and self.config.dem_encoder.enable:
             if self.config.dem_encoder.mode == "film":
                 feature_dim = self.config["embed_dim"][model_name]
             else:  # concat
@@ -126,7 +126,7 @@ class FM_CINC2025(nn.Module, SizeMixin, CkptMixin):
             )
 
         # Classification Head
-        if self.config.dem_encoder.enable and self.config.dem_encoder.mode == "concat":
+        if hasattr(self.config, "dem_encoder") and self.config.dem_encoder.enable and self.config.dem_encoder.mode == "concat":
             embed_dim = self.config["embed_dim"][model_name] + self.config.dem_encoder.feature_dim
         else:
             embed_dim = self.config["embed_dim"][model_name]
