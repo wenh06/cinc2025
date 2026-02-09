@@ -349,7 +349,12 @@ class CRNN_CINC2025(ECG_CRNN):
 
             # Short signal: no cropping
             if Tb <= crop_len_samples:
-                fo = self.forward({"signals": x.unsqueeze(0)})
+                forward_input = {"signals": x.unsqueeze(0)}
+                if hasattr(self.config, "dem_encoder") and self.config.dem_encoder.enable:
+                    assert demographics_t is not None, "Demographic features are required by the model but not provided."
+                    dem_feats = demographics_t[b].unsqueeze(0)
+                    forward_input["demographics"] = dem_feats
+                fo = self.forward(forward_input)
                 logits_full = fo["chagas_logits"]  # (1,2)
                 probs_full = fo["chagas_prob"]  # (1,2)
                 batch_logits.append(logits_full.squeeze(0))

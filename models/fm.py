@@ -408,7 +408,12 @@ class FM_CINC2025(nn.Module, SizeMixin, CkptMixin):
                     pad_len = (crop_len_samples - Tb) % 75
                     if pad_len > 0:
                         x = torch.nn.functional.pad(x, (0, pad_len), mode="constant", value=0)
-                fo = self.forward({"signals": x.unsqueeze(0)})
+                forward_input = {"signals": x.unsqueeze(0)}
+                if hasattr(self.config, "dem_encoder") and self.config.dem_encoder.enable:
+                    assert demographics_t is not None, "Demographic features are required by the model but not provided."
+                    dem_feats = demographics_t[b].unsqueeze(0)
+                    forward_input["demographics"] = dem_feats
+                fo = self.forward(forward_input)
                 logits_full = fo["chagas_logits"]
                 probs_full = fo["chagas_prob"]
                 batch_logits.append(logits_full.squeeze(0))
