@@ -147,7 +147,10 @@ def test_models() -> None:
     model.to(DEVICE)
     for idx, input_tensors in enumerate(dl):
         if idx == 0:
-            inference_output = model.inference(input_tensors["signals"])
+            if model.config.get("dem_encoder", None) is not None:
+                inference_output = model.inference(input_tensors["signals"], input_tensors.get("demographics", None))
+            else:
+                inference_output = model.inference(input_tensors["signals"])
             print(f"   {idx = }   ".center(100, "#"))
             print(f"{inference_output = }")
         elif idx == 1:
@@ -169,7 +172,10 @@ def test_models() -> None:
     ds_val.reset_input_len(ModelCfg.fm.input_len[ModelCfg.fm.name], reload=False)
     for idx, input_tensors in enumerate(dl):
         if idx == 0:
-            inference_output = model.inference(input_tensors["signals"])
+            if model.config.get("dem_encoder", None) is not None:
+                inference_output = model.inference(input_tensors["signals"], input_tensors.get("demographics", None))
+            else:
+                inference_output = model.inference(input_tensors["signals"])
             print(f"   {idx = }   ".center(100, "#"))
             print(f"{inference_output = }")
         elif idx == 1:
@@ -188,7 +194,10 @@ def test_models() -> None:
     ds_val.reset_input_len(ModelCfg.fm.input_len[ModelCfg.fm.name], reload=False)
     for idx, input_tensors in enumerate(dl):
         if idx == 0:
-            inference_output = model.inference(input_tensors["signals"])
+            if model.config.get("dem_encoder", None) is not None:
+                inference_output = model.inference(input_tensors["signals"], input_tensors.get("demographics", None))
+            else:
+                inference_output = model.inference(input_tensors["signals"])
             print(f"   {idx = }   ".center(100, "#"))
             print(f"{inference_output = }")
         elif idx == 1:

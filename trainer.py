@@ -703,7 +703,10 @@ def run_chagas_model(
             if torch.cuda.is_available():
                 torch.cuda.synchronize()
             labels = {"chagas": input_tensors.pop("chagas")}
-            outputs = chagas_model.inference(input_tensors["signals"].to(chagas_model.device))
+            if chagas_model.config.get("dem_encoder", None) is not None:
+                outputs = chagas_model.inference(input_tensors["signals"], input_tensors.get("demographics", None))
+            else:
+                outputs = chagas_model.inference(input_tensors["signals"])
             outputs.drop(["chagas_logits", "chagas_loss"])  # reduce memory usage
             all_outputs.append(outputs)
             all_labels.append(labels)
