@@ -124,6 +124,8 @@ class FM_CINC2025(nn.Module, SizeMixin, CkptMixin):
                 mode=self.config.dem_encoder.mode,
                 hidden_dim=self.config.dem_encoder.hidden_dim,
             )
+        else:
+            self.dem_encoder = None
 
         # Classification Head
         if hasattr(self.config, "dem_encoder") and self.config.dem_encoder.enable and self.config.dem_encoder.mode == "concat":
@@ -337,7 +339,7 @@ class FM_CINC2025(nn.Module, SizeMixin, CkptMixin):
 
         forward_input = {"signals": sig_t}
 
-        if self.config.dem_encoder.enable:
+        if hasattr(self.config, "dem_encoder") and self.config.dem_encoder.enable:
             if demographics is None:
                 raise ValueError("Demographic features are required by the model but not provided.")
             if isinstance(demographics, list):
@@ -424,7 +426,7 @@ class FM_CINC2025(nn.Module, SizeMixin, CkptMixin):
                 dim=0,
             )
             forward_input = {"signals": windows}
-            if self.config.dem_encoder.enable:
+            if hasattr(self.config, "dem_encoder") and self.config.dem_encoder.enable:
                 assert demographics_t is not None, "Demographic features are required by the model but not provided."
                 dem_feats = demographics_t[b].unsqueeze(0).repeat(windows.shape[0], 1)
                 forward_input["demographics"] = dem_feats

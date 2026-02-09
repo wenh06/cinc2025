@@ -295,7 +295,7 @@ class CRNN_CINC2025(ECG_CRNN):
 
         forward_input = {"signals": sig_t}
 
-        if self.config.dem_encoder.enable:
+        if hasattr(self.config, "dem_encoder") and self.config.dem_encoder.enable:
             if demographics is None:
                 raise ValueError("Demographic features are required by the model but not provided.")
             if isinstance(demographics, list):
@@ -369,7 +369,7 @@ class CRNN_CINC2025(ECG_CRNN):
                 dim=0,
             )
             forward_input = {"signals": windows}
-            if self.config.dem_encoder.enable:
+            if hasattr(self.config, "dem_encoder") and self.config.dem_encoder.enable:
                 assert demographics_t is not None, "Demographic features are required by the model but not provided."
                 dem_feats = demographics_t[b].unsqueeze(0).repeat(windows.shape[0], 1)
                 forward_input["demographics"] = dem_feats
