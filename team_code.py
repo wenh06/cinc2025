@@ -29,7 +29,7 @@ from cfg import ModelCfg, TrainCfg
 from const import MODEL_CACHE_DIR, REMOTE_MODELS
 from data_reader import CINC2025
 from dataset import CINC2025Dataset
-from helper_code import find_records, get_age, get_sex
+from helper_code import find_records, load_age, load_sex
 from models import CRNN_CINC2025, FM_CINC2025
 from trainer import CINC2025Trainer
 from utils.misc import remove_spikes_naive, to_dtype
@@ -378,12 +378,12 @@ def run_model(
     signal = remove_spikes_naive(signal)
     signal, _ = model["preprocessor"](signal, sig_fs)
     if model["model"].config.get("dem_encoder", None) is not None:
-        demographics = get_demographic_features(wfdb_record, model["model"].config)
+        demographics = get_demographic_features(record, model["model"].config)
         output = model["model"].inference(signal, demographics, crop_infer=True, agg="max")
     else:
         output = model["model"].inference(signal, crop_infer=True, agg="max")
     binary_output = output.chagas[0]
-    probability_output = output.chagas_prob[0][1]
+    probability_output = output.chagas_prob[0][1].item()
 
     elapsed_time = humanize.naturaldelta(datetime.now() - start_time)
 
@@ -392,13 +392,13 @@ def run_model(
     return binary_output, probability_output
 
 
-def get_demographic_features(wfdb_record, model_config: CFG) -> np.ndarray:
+def get_demographic_features(record, model_config: CFG) -> np.ndarray:
     """Extract demographic features from the WFDB record.
 
     Parameters
     ----------
-    wfdb_record : wfdb.Record
-        The WFDB record to extract demographic features from.
+    record : Union[str, bytes, os.PathLike]
+        The path to the record to process, without the file extension.
     model_config : CFG
         The model configuration, which may contain information
         about the required demographic features and their processing.
@@ -411,8 +411,8 @@ def get_demographic_features(wfdb_record, model_config: CFG) -> np.ndarray:
     default_age = 40
     default_sex = "Male"
     demographics = {
-        "age": (get_age(wfdb_record) or default_age) / model_config.age_scale,
-        "sex": (get_sex(wfdb_record) or default_sex).capitalize(),
+        "age": (load_age(record) or default_age) / model_config.age_scale,
+        "sex": (load_sex(record) or default_sex).capitalize(),
     }
     if demographics["sex"] not in model_config.sex_mapping:
         demographics["sex"] = default_sex  # default to "Male" if sex is unrecognized
