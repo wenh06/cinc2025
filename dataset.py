@@ -75,6 +75,9 @@ class CINC2025Dataset(Dataset, ReprMixin):
         if self.config.get("use_dbs", None) is not None:
             reader_kwargs["use_dbs"] = self.config.use_dbs
         self.config.db_dir = Path(self.config.db_dir).expanduser().resolve()
+        # subsampling is performed in the dataset (train-val split is fixed)
+        self.config.subsample = reader_kwargs.pop("subsample", self.config.get("subsample", 1))
+        assert 0 < self.config.subsample <= 1, "subsample must be in (0, 1]"
 
         if self.config.torch_dtype == torch.float64:
             self.dtype = np.float64
@@ -84,7 +87,7 @@ class CINC2025Dataset(Dataset, ReprMixin):
         self.__cache = None
         self.reader = CINC2025(db_dir=self.config.db_dir, **reader_kwargs)
         self.records = self._train_test_split()
-        # add a column of sample_type to split the samples into 3 categories:
+        # add a column of sample_type to split the samples into 4 categories:
         # 0: negative samples
         # 1: self-reported positive samples
         # 2: self-reported uncertain samples
@@ -251,6 +254,17 @@ class CINC2025Dataset(Dataset, ReprMixin):
             ptb_xl_data_split[k] = [f"{x}{suffix}" for x in v]
 
         part = "train" if self.training else "test"
+        # do subsampling if needed
+        if self.config.subsample < 1.0:
+            code_15_data_split[part] = code_15_data_split[part][
+                DEFAULTS.RNG.random(len(code_15_data_split[part])) < self.config.subsample
+            ]
+            ptb_xl_data_split[part] = ptb_xl_data_split[part][
+                DEFAULTS.RNG.random(len(ptb_xl_data_split[part])) < self.config.subsample
+            ]
+            sami_trop_data_split[part] = sami_trop_data_split[part][
+                DEFAULTS.RNG.random(len(sami_trop_data_split[part])) < self.config.subsample
+            ]
         records = code_15_data_split[part] + ptb_xl_data_split[part] + sami_trop_data_split[part]
 
         # keep only the records that are in the database (self.reader.all_records)
@@ -458,11 +472,6 @@ class FastDataReader(ReprMixin, Dataset):
             chagas_label = self.reader.load_ann(rec)
 
         demographics = self.reader._df_records.loc[rec, self.config.demographic_features].values.astype(self.dtype)
-
-        # chagas_label = self.reader.load_chagas_ann(rec)  # categorical: 0 or 1
-        # bin_label = self.reader.load_binary_ann(rec)  # categorical: 0 or 1
-        # arr_diag_label = self.reader.load_ann(rec, class_map=self.config.arr_diag_class_map, augmented=True)
-        # arr_diag_label = one_hot_encode([arr_diag_label], len(self.config.arr_diag_class_map))[0]  # (n_classes,)
 
         # if `index` is a slice, the output shapes are:
         # signal: (batch_size, n_leads, n_samples)

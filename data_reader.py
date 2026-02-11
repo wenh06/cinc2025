@@ -1997,20 +1997,6 @@ class CINC2025(_DataBase):
         # load the metadata (age, sex) and chagas labels from the header files
         self._df_records[columns] = None
 
-        # comment_pattern = re.compile("(?P<key>[^:\\s]+): (?P<value>.+)", re.MULTILINE)
-        # for row in tqdm(
-        #     self._df_records.itertuples(),
-        #     total=len(self._df_records),
-        #     desc="Loading metadata",
-        #     dynamic_ncols=True,
-        #     mininterval=1,
-        # ):
-        #     comments = "\n".join(wfdb.rdheader(row.path).comments)
-        #     for key, val in comment_pattern.findall(comments):
-        #         key = key.lower().replace("label", "").strip()
-        #         if key in columns:
-        #             self._df_records.loc[row.Index, key] = val
-
         with mp.Pool(processes=max(1, mp.cpu_count() - 3)) as pool:
             metadata = pool.starmap(
                 load_metadata_from_header,
