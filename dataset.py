@@ -6,7 +6,7 @@ import os
 import time
 from copy import deepcopy
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Set, Union
+from typing import Dict, List, Literal, Optional, Sequence, Set, Union
 
 import numpy as np
 import pandas as pd
@@ -78,6 +78,7 @@ class CINC2025Dataset(Dataset, ReprMixin):
         # subsampling is performed in the dataset (train-val split is fixed)
         self.config.subsample = reader_kwargs.pop("subsample", self.config.get("subsample", 1))
         assert 0 < self.config.subsample <= 1, "subsample must be in (0, 1]"
+        self.config.extra_experiment = reader_kwargs.pop("extra_experiment", self.config.get("extra_experiment", False))
 
         if self.config.torch_dtype == torch.float64:
             self.dtype = np.float64
@@ -138,7 +139,7 @@ class CINC2025Dataset(Dataset, ReprMixin):
             return len(self.fdr)
         return len(self.cache["signals"])
 
-    def __getitem__(self, index: Union[int, slice]) -> Dict[str, np.ndarray]:
+    def __getitem__(self, index: Union[int, slice]) -> Dict[str, Union[torch.Tensor, np.ndarray]]:
         if self.cache is None:
             return self.fdr[index]
         return {k: v[index] for k, v in self.cache.items()}
@@ -216,7 +217,7 @@ class CINC2025Dataset(Dataset, ReprMixin):
 
         del temp_loader
 
-    def _train_test_split(self, train_ratio: float = 0.8) -> List[str]:
+    def _train_test_split(self, train_ratio: float = 0.8, part: Optional[Literal["train", "val", "test"]] = None) -> List[str]:
         """Split the dataset into training and validation sets
         in a stratified manner.
 
@@ -224,6 +225,9 @@ class CINC2025Dataset(Dataset, ReprMixin):
         ----------
         train_ratio : float, default 0.8
             The ratio of the training set.
+        part : {"train", "val", "test"}, optional
+            The part of the dataset to return.
+            If None, it will be determined based on the training flag.
 
         Returns
         -------
@@ -235,16 +239,27 @@ class CINC2025Dataset(Dataset, ReprMixin):
         _test_ratio = 100 - _train_ratio
         assert _train_ratio * _test_ratio > 0, "train_ratio and test_ratio must be positive"
 
-        if _train_ratio != 80:
-            print("Call the _train_test_split method of the 3 database reader classes.")
-            return []
+        if self.config.extra_experiment:
+            print("Using the extra experiment data split. It is fixed and train_ratio is ignored.")
+            with gzip.open(Path(PROJECT_DIR) / "utils" / "code-15-data-split-64-16-20.json.gz", "rt") as f:
+                code_15_data_split = json.load(f)
+            with gzip.open(Path(PROJECT_DIR) / "utils" / "ptb-xl-data-split-64-16-20.json.gz", "rt") as f:
+                ptb_xl_data_split = json.load(f)
+            with gzip.open(Path(PROJECT_DIR) / "utils" / "sami-trop-data-split-64-16-20.json.gz", "rt") as f:
+                sami_trop_data_split = json.load(f)
+            if part is None:
+                part = "train" if self.training else "val"
+        else:
+            if _train_ratio != 80:
+                print("Call the _train_test_split method of the 3 database reader classes.")
+                return []
 
-        with gzip.open(Path(PROJECT_DIR) / "utils" / "code-15-data-split-82.json.gz", "rt") as f:
-            code_15_data_split = json.load(f)
-        with gzip.open(Path(PROJECT_DIR) / "utils" / "ptb-xl-data-split-82.json.gz", "rt") as f:
-            ptb_xl_data_split = json.load(f)
-        with gzip.open(Path(PROJECT_DIR) / "utils" / "sami-trop-data-split-82.json.gz", "rt") as f:
-            sami_trop_data_split = json.load(f)
+            with gzip.open(Path(PROJECT_DIR) / "utils" / "code-15-data-split-82.json.gz", "rt") as f:
+                code_15_data_split = json.load(f)
+            with gzip.open(Path(PROJECT_DIR) / "utils" / "ptb-xl-data-split-82.json.gz", "rt") as f:
+                ptb_xl_data_split = json.load(f)
+            with gzip.open(Path(PROJECT_DIR) / "utils" / "sami-trop-data-split-82.json.gz", "rt") as f:
+                sami_trop_data_split = json.load(f)
 
         if 100 in self.reader._df_records.fs.unique():
             suffix = "_lr"
@@ -252,19 +267,20 @@ class CINC2025Dataset(Dataset, ReprMixin):
             suffix = "_hr"
         for k, v in ptb_xl_data_split.items():
             ptb_xl_data_split[k] = [f"{x}{suffix}" for x in v]
+            if part is None:
+                part = "train" if self.training else "test"
 
-        part = "train" if self.training else "test"
         # do subsampling if needed
         if self.config.subsample < 1.0:
-            code_15_data_split[part] = code_15_data_split[part][
-                DEFAULTS.RNG.random(len(code_15_data_split[part])) < self.config.subsample
-            ]
-            ptb_xl_data_split[part] = ptb_xl_data_split[part][
-                DEFAULTS.RNG.random(len(ptb_xl_data_split[part])) < self.config.subsample
-            ]
-            sami_trop_data_split[part] = sami_trop_data_split[part][
-                DEFAULTS.RNG.random(len(sami_trop_data_split[part])) < self.config.subsample
-            ]
+            code_15_data_split[part] = DEFAULTS.RNG.choice(
+                code_15_data_split[part], size=int(len(code_15_data_split[part]) * self.config.subsample), replace=False
+            ).tolist()
+            ptb_xl_data_split[part] = DEFAULTS.RNG.choice(
+                ptb_xl_data_split[part], size=int(len(ptb_xl_data_split[part]) * self.config.subsample), replace=False
+            ).tolist()
+            sami_trop_data_split[part] = DEFAULTS.RNG.choice(
+                sami_trop_data_split[part], size=int(len(sami_trop_data_split[part]) * self.config.subsample), replace=False
+            ).tolist()
         records = code_15_data_split[part] + ptb_xl_data_split[part] + sami_trop_data_split[part]
 
         # keep only the records that are in the database (self.reader.all_records)
@@ -356,7 +372,7 @@ class CINC2025Dataset(Dataset, ReprMixin):
         return torch.tensor(df["weight"].values, dtype=torch.float32)
 
     @property
-    def cache(self) -> Dict[str, torch.Tensor]:
+    def cache(self) -> Union[None, Dict[str, torch.Tensor]]:
         return self.__cache
 
     @property

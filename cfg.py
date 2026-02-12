@@ -189,6 +189,12 @@ TrainCfg.min_len = 1200  # minimum length of the raw signal
 TrainCfg.monitor = "challenge_score"
 TrainCfg.final_model_name = None
 
+# if extra experiments, a different default data split will be used.
+TrainCfg.extra_experiment = True
+# subsampling rate for extra experiment, None for no subsampling
+# typical subsampling rates: 0.01, 0.10, 0.5, 1.0
+TrainCfg.subsample = None
+
 
 ###############################################################################
 # configurations for building deep learning models

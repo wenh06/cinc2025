@@ -303,7 +303,7 @@ class CODE15(_DataBase):
         self,
         rec: Union[str, int],
         data_format: str = "channel_first",
-        units: Union[str, type(None)] = "mV",
+        units: Union[str, None] = "mV",
         fs: Optional[Real] = None,
         return_fs: bool = False,
     ) -> Union[np.ndarray, Tuple[np.ndarray, Real]]:
@@ -1176,7 +1176,7 @@ class SamiTrop(_DataBase):
         self,
         rec: Union[str, int],
         data_format: str = "channel_first",
-        units: Union[str, type(None)] = "mV",
+        units: Union[str, None] = "mV",
         fs: Optional[Real] = None,
         return_fs: bool = False,
     ) -> Union[np.ndarray, Tuple[np.ndarray, Real]]:
@@ -2026,7 +2026,7 @@ class CINC2025(_DataBase):
         self,
         rec: Union[str, int],
         data_format: str = "channel_first",
-        units: Union[str, type(None)] = "mV",
+        units: Union[str, None] = "mV",
         fs: Optional[Real] = None,
         return_fs: bool = True,
     ) -> Union[np.ndarray, Tuple[np.ndarray, Real]]:

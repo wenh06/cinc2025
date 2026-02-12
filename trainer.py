@@ -615,19 +615,25 @@ class CINC2025Trainer(BaseTrainer):
     def save_prefix(self) -> str:
         prefix = self._model.__name__
         if hasattr(self._model.config, "cnn"):
-            prefix = f"{prefix}_{self._model.config.cnn.name}_epoch"
+            prefix = f"{prefix}-{self._model.config.cnn.name}-epoch"
         elif hasattr(self._model.config, "name"):  # backbone name for FM_CINC2025
-            prefix = f"{prefix}_{self._model.config.name}_epoch"
+            prefix = f"{prefix}-{self._model.config.name}-epoch"
         else:
-            prefix = f"{prefix}_epoch"
+            prefix = f"{prefix}-epoch"
+        if self.train_config.get("subsample", None) is not None:
+            subsample = int(self.train_config.subsample * 100)
+            prefix = f"subsample-{subsample}%-{prefix}"
         return prefix
 
     def extra_log_suffix(self) -> str:
         suffix = super().extra_log_suffix()
         if hasattr(self._model.config, "cnn"):
-            suffix = f"{suffix}_{self._model.config.cnn.name}"
+            suffix = f"{suffix}-{self._model.config.cnn.name}"
         elif hasattr(self._model.config, "name"):  # backbone name for FM_CINC2025
-            suffix = f"{suffix}_{self._model.config.name}"
+            suffix = f"{suffix}-{self._model.config.name}"
+        if self.train_config.get("subsample", None) is not None:
+            subsample = int(self.train_config.subsample * 100)
+            suffix = f"{suffix}-subsample{subsample}%"
         return suffix
 
     def _setup_criterion(self) -> None:

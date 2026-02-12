@@ -181,6 +181,7 @@ def train_model(
     else:
         # general configs and logger
         train_config = deepcopy(TrainCfg)
+    train_config.extra_experiment = False
 
     # override the default directories
     train_config.db_dir = Path(data_folder).resolve().absolute()
