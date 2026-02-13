@@ -107,10 +107,10 @@ class CINC2025Dataset(Dataset, ReprMixin):
         ] = SampleType.DOCTOR_CONFIRMED_POSITIVE_SAMPLE.value
         # add columns of hard labels and soft labels
         hard_label_dict = {
-            SampleType.NEGATIVE_SAMPLE.value: np.array([1, 0]),
-            SampleType.SELF_REPORTED_POSITIVE_SAMPLE.value: np.array([0, 1]),
-            SampleType.SELF_REPORTED_UNCERTAIN_SAMPLE.value: np.array([1, 0]),
-            SampleType.DOCTOR_CONFIRMED_POSITIVE_SAMPLE.value: np.array([0, 1]),
+            SampleType.NEGATIVE_SAMPLE.value: np.array([1, 0], dtype=self.dtype),
+            SampleType.SELF_REPORTED_POSITIVE_SAMPLE.value: np.array([0, 1], dtype=self.dtype),
+            SampleType.SELF_REPORTED_UNCERTAIN_SAMPLE.value: np.array([1, 0], dtype=self.dtype),
+            SampleType.DOCTOR_CONFIRMED_POSITIVE_SAMPLE.value: np.array([0, 1], dtype=self.dtype),
         }
         self.reader._df_records["hard_label"] = self.reader._df_records["sample_type"].map(hard_label_dict)
         soft_label_dict = {
