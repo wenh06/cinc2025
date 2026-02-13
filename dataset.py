@@ -77,6 +77,8 @@ class CINC2025Dataset(Dataset, ReprMixin):
         self.config.db_dir = Path(self.config.db_dir).expanduser().resolve()
         # subsampling is performed in the dataset (train-val split is fixed)
         self.config.subsample = reader_kwargs.pop("subsample", self.config.get("subsample", 1))
+        if self.config.subsample is None:
+            self.config.subsample = 1.0
         assert 0 < self.config.subsample <= 1, "subsample must be in (0, 1]"
         self.config.extra_experiment = reader_kwargs.pop("extra_experiment", self.config.get("extra_experiment", False))
 
