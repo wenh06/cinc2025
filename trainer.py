@@ -664,10 +664,9 @@ class CINC2025Trainer(BaseTrainer):
 
 @torch.no_grad()
 def run_chagas_model(
-    chagas_model: Union[CRNN_CINC2025, FM_CINC2025], ds: CINC2025Dataset
+    chagas_model: Union[CRNN_CINC2025, FM_CINC2025], ds: CINC2025Dataset, batch_size: int
 ) -> Tuple[List[CINC2025Outputs], List[Dict[str, torch.Tensor]]]:
-    """Run the chagas classification model on the
-    given data loader on different thresholds.
+    """Run the chagas classification model on the given dataset.
 
     Parameters
     ----------
@@ -675,8 +674,8 @@ def run_chagas_model(
         The chagas classification model to be run.
     ds : CINC2025Dataset
         The dataset for running the model.
-    thresholds : Sequence[float]
-        The thresholds for the evaluation.
+    batch_size : int
+        The batch size for running the model.
 
     Returns
     -------
@@ -690,7 +689,7 @@ def run_chagas_model(
     all_labels = []
     data_loader = DataLoader(
         dataset=ds,
-        batch_size=16,
+        batch_size=batch_size,
         shuffle=False,
         num_workers=4,
         pin_memory=True,
@@ -727,7 +726,7 @@ def _evaluate_chagas_model(
     outputs: List[CINC2025Outputs], labels: List[Dict[str, torch.Tensor]], thresholds: Sequence[float], verbose: bool = False
 ) -> Dict[float, Dict[str, float]]:
     """Evaluate the chagas classification model on the
-    given data loader on different thresholds.
+    given dataset on different thresholds.
 
     Parameters
     ----------
@@ -770,7 +769,7 @@ def _evaluate_chagas_model(
 
 @torch.no_grad()
 def evaluate_chagas_model(
-    chagas_model: CRNN_CINC2025, ds: CINC2025Dataset, thresholds: Sequence[float], verbose: bool = False
+    chagas_model: CRNN_CINC2025, ds: CINC2025Dataset, thresholds: Sequence[float], batch_size: int, verbose: bool = False
 ) -> Dict[float, Dict[str, float]]:
     """Evaluate the chagas classification model on the
     given data loader on different thresholds.
@@ -783,6 +782,8 @@ def evaluate_chagas_model(
         The dataset for evaluation.
     thresholds : Sequence[float]
         The thresholds for the evaluation.
+    batch_size : int
+        The batch size for evaluation.
     verbose : bool, default False
         Whether to print some debug information.
 
@@ -795,7 +796,7 @@ def evaluate_chagas_model(
     all_outputs, all_labels = run_chagas_model(
         chagas_model=chagas_model,
         ds=ds,
-        thresholds=thresholds,
+        batch_size=batch_size,
     )
     eval_res = _evaluate_chagas_model(
         outputs=all_outputs,

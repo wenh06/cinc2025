@@ -66,7 +66,7 @@ class CINC2025Dataset(Dataset, ReprMixin):
             self.config.update(deepcopy(config))
         self.training = training
         self.lazy = lazy
-
+        part = reader_kwargs.pop("part", None)  # to load a third part of the dataset for debugging
         if self.config.get("db_dir", None) is None:
             self.config.db_dir = reader_kwargs.pop("db_dir", None)
             assert self.config.db_dir is not None, "db_dir must be specified"
@@ -89,7 +89,7 @@ class CINC2025Dataset(Dataset, ReprMixin):
 
         self.__cache = None
         self.reader = CINC2025(db_dir=self.config.db_dir, **reader_kwargs)
-        self.records = self._train_test_split()
+        self.records = self._train_test_split(part=part)
         # add a column of sample_type to split the samples into 4 categories:
         # 0: negative samples
         # 1: self-reported positive samples

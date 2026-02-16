@@ -221,6 +221,9 @@ def train_model(
                 model_config.fm.backbone_cache_dir = Path(MODEL_CACHE_DIR) / "ST-MEM"
             else:  # hubert-ecg
                 model_config.fm.backbone_cache_dir = Path(MODEL_CACHE_DIR) / "Edoardo-BS-hubert-ecg-base"
+            train_config.fs = model_config.fm.fs[model_config.fm.name]
+            train_config.resample.fs = model_config.fm.fs[model_config.fm.name]
+            train_config.input_len = model_config.fm.input_len[model_config.fm.name]
 
         model = model_cls(config=model_config)
         # NOTE: DP models might have issues:
@@ -321,7 +324,18 @@ def load_model(
 
     model_cls = SubmissionCfg.model_cls
     model_path = Path(model_folder) / SubmissionCfg.final_model_name
-    model, train_config = model_cls.from_checkpoint(model_path, device=DEVICE)
+    model, train_config = model_cls.from_checkpoint(model_path)
+    model.to(DEVICE)
+    if isinstance(model, CRNN_CINC2025):
+        print("Using CRNN_CINC2025 model.")
+        train_config.fs = model.config.fs
+        train_config.resample.fs = model.config.fs
+    elif isinstance(model, FM_CINC2025):
+        print("Using FM_CINC2025 model.")
+        train_config.fs = model.config.fs[model.config.name]
+        train_config.resample.fs = model.config.fs[model.config.name]
+    else:
+        raise ValueError("Unsupported model class.")
     ppm_config = CFG(random=False)
     ppm_config.update(deepcopy(train_config))
     ppm = PreprocManager.from_config(ppm_config)
@@ -362,13 +376,15 @@ def run_model(
     # raise error only when testing in GitHub Actions;
     # in other cases (submissions), errors are caught and printed,
     # and workarounds are used to continue the model inference
-    # raise_error = TEST_FLAG
-    raise_error = True  # early stage, always raise error
+    raise_error = TEST_FLAG
+    # raise_error = True  # early stage, always raise error
     if raise_error:
-        print("Running the models in test mode. Any error will raise an exception.")
+        if verbose:
+            print("Running the models in test mode. Any error will raise an exception.")
     else:
-        print("Running the models in submission mode. Errors will be caught and printed.")
-        print("Workarounds will be used to continue the model inference.")
+        if verbose:
+            print("Running the models in submission mode. Errors will be caught and printed.")
+            print("Workarounds will be used to continue the model inference.")
 
     wfdb_record = wfdb.rdrecord(record)
     signal = wfdb_record.p_signal
@@ -388,7 +404,8 @@ def run_model(
 
     elapsed_time = humanize.naturaldelta(datetime.now() - start_time)
 
-    print(f"Inference pipeline completed in {elapsed_time}.")
+    if verbose:
+        print(f"Inference pipeline completed in {elapsed_time}.")
 
     return binary_output, probability_output
 
