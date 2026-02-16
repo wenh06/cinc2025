@@ -1,0 +1,1408 @@
+2026-02-13 18:48:31,342 - TorchECG - INFO - training configurations are as follows:
+{
+    "debug": True,
+    "final_model_name": None,
+    "log_step": 100,
+    "flooding_level": 0.0,
+    "early_stopping": {
+        "min_delta": 0.001,
+        "patience": 6
+    },
+    "log_dir": /home/wenh06/Jupyter/wenhao/workspace/cinc2025/log,
+    "checkpoints": /home/wenh06/Jupyter/wenhao/workspace/cinc2025/checkpoints,
+    "model_dir": /home/wenh06/Jupyter/wenhao/workspace/cinc2025/saved_models,
+    "working_dir": None,
+    "prefix": "TorchECG",
+    "DTYPE": DTYPE(STR='float32', NP=dtype('float32'), TORCH=torch.float32, INT=32),
+    "str_dtype": "float32",
+    "np_dtype": <class 'numpy.float32'>,
+    "dtype": torch.float32,
+    "device": cuda,
+    "eps": 1e-07,
+    "SEED": 42,
+    "RNG": Generator(PCG64),
+    "RNG_sample": functools.partial(<bound method Generator.choice of Generator(PCG64) at 0x7F9C205C2B20>, replace=False, shuffle=False),
+    "RNG_randint": functools.partial(<bound method Generator.integers of Generator(PCG64) at 0x7F9C205C2B20>, endpoint=True),
+    "set_seed": <function set_seed at 0x7fa00032bd90>,
+    "change_dtype": <function change_dtype at 0x7f9e8c249fc0>,
+    "db_dir": /home/wenh06/Jupyter/Hot-data/cinc2025,
+    "project_dir": /home/wenh06/Jupyter/wenhao/workspace/cinc2025,
+    "torch_dtype": torch.float32,
+    "fs": 400,
+    "n_leads": 12,
+    "chagas_classes": [
+        0, 1
+    ],
+    "arr_diag_classes": [
+        "1dAVb",
+        "RBBB",
+        "LBBB",
+        "SB",
+        "ST",
+        "AF",
+        "NORM",
+        "OTHER"
+    ],
+    "demographic_features": [
+        "age",
+        "sex"
+    ],
+    "age_scale": 100.0,
+    "sex_mapping": {
+        "Female": 0,
+        "Male": 1
+    },
+    "arr_diag_class_map": {
+        "1dAVb": 0,
+        "RBBB": 1,
+        "LBBB": 2,
+        "SB": 3,
+        "ST": 4,
+        "AF": 5,
+        "NORM": 6,
+        "OTHER": 7
+    },
+    "aux_tasks": {
+        "binary_classification": {
+            "include": False,
+            "loss": "AsymmetricLoss",
+            "loss_weight": 1.0,
+            "loss_kw": {}
+        },
+        "arrhythmia_classification": {
+            "include": False,
+            "loss": "AsymmetricLoss",
+            "loss_weight": 1.0,
+            "loss_kw": {}
+        }
+    },
+    "resample": {
+        "fs": 400
+    },
+    "bandpass": {
+        "filter_type": "butter"
+    },
+    "normalize": {
+        "method": "z-score",
+        "mean": 0.0,
+        "std": 1.0
+    },
+    "label_smooth": {
+        "prob": 0.8,
+        "smoothing": {
+            "0": 0.0,
+            "1": 0.3,
+            "2": 0.2,
+            "3": 0.0
+        }
+    },
+    "powerline_noise": {
+        "prob": 0.5,
+        "amplitude_ratio_range": [
+            0.02, 0.08
+        ],
+        "frequencies": [
+            50, 60
+        ]
+    },
+    "n_epochs": 20,
+    "batch_size": 192,
+    "optimizer": "adamw_amsgrad",
+    "momentum": 0.949,
+    "betas": [
+        0.9, 0.999
+    ],
+    "decay": 0.01,
+    "learning_rate": 0.0003,
+    "lr": 0.0003,
+    "lr_scheduler": "one_cycle",
+    "lr_step_size": 50,
+    "lr_gamma": 0.1,
+    "max_lr": 0.0009,
+    "warmup_ratio": 0.1,
+    "freeze_backbone_epochs": 3,
+    "upsample_positive_chagas": {
+        "CODE-15%": 3,
+        "SaMi-Trop": 7
+    },
+    "use_dbs": [
+        "CODE-15%",
+        "SaMi-Trop",
+        "PTB-XL"
+    ],
+    "keep_checkpoint_max": 0,
+    "criterion": "ChagasLoss",
+    "criterion_kw": {
+        "positive_weight_factor": 5.0
+    },
+    "train_ratio": 0.8,
+    "input_len": 4096,
+    "min_len": 1200,
+    "monitor": "challenge_score",
+    "extra_experiment": True,
+    "subsample": 0.1,
+    "classes": [
+        0, 1
+    ]
+}
+2026-02-13 18:48:31,343 - TorchECG - WARNING - keep_checkpoint_max is set to 0, no checkpoint will be kept
+2026-02-13 18:48:31,344 - TorchECG - INFO - 
+Starting training:
+------------------
+Epochs:          20
+Batch size:      192
+Learning rate:   0.0003
+Training size:   24468
+Validation size: 5837
+Device:          cuda
+Optimizer:       adamw_amsgrad
+Dataset classes: [0, 1]
+-----------------------------------------
+
+2026-02-13 18:48:31,349 - TorchECG - INFO - Train epoch_0:
+--------------------------------------------------------------------------------------------------------------
+2026-02-13 18:49:17,813 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 0 / Step 100: train/loss : 0.6794
+Epoch 0 / Step 100: train/lr :   0.0001
+--------------------------------------------------
+2026-02-13 18:50:19,807 - TorchECG - INFO - Evaluating on 24468 samples...
+2026-02-13 18:50:38,297 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.746, 0.254]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 18:50:38,298 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.719, 0.281]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 18:50:38,298 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.78, 0.22]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 18:50:38,299 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.804, 0.196]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 18:50:38,299 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.724, 0.276]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 18:50:38,300 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 0 / Step 128: train/chagas_auroc :     0.7403
+Epoch 0 / Step 128: train/chagas_auprc :     0.1455
+Epoch 0 / Step 128: train/chagas_accuracy :  0.9360
+Epoch 0 / Step 128: train/chagas_f_measure : 0.0000
+Epoch 0 / Step 128: train/chagas_tpr :       0.0000
+Epoch 0 / Step 128: train/challenge_score :  0.1477
+--------------------------------------------------
+2026-02-13 18:51:08,236 - TorchECG - INFO - Evaluating on 5837 samples...
+2026-02-13 18:51:12,146 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.712, 0.288]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 18:51:12,147 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.753, 0.247]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 18:51:12,147 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.766, 0.234]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 18:51:12,148 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.718, 0.282]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 18:51:12,148 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.775, 0.225]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 18:51:12,149 - TorchECG - INFO - Val Metrics:
+--------------------------------------------------
+Epoch 0 / Step 128: val/chagas_auroc :     0.7036
+Epoch 0 / Step 128: val/chagas_auprc :     0.0501
+Epoch 0 / Step 128: val/chagas_accuracy :  0.9762
+Epoch 0 / Step 128: val/chagas_f_measure : 0.0000
+Epoch 0 / Step 128: val/chagas_tpr :       0.0000
+Epoch 0 / Step 128: val/challenge_score :  0.1594
+--------------------------------------------------
+2026-02-13 18:51:12,152 - TorchECG - INFO - 
+best metric = 0.15942028985507245,
+obtained at epoch 0
+
+2026-02-13 18:51:12,152 - TorchECG - INFO - --------------------------------------------------------------------------------------------------------------
+
+2026-02-13 18:51:12,158 - TorchECG - INFO - Train epoch_1:
+--------------------------------------------------------------------------------------------------------------
+2026-02-13 18:51:51,077 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 1 / Step 200: train/loss : 0.6312
+Epoch 1 / Step 200: train/lr :   0.0002
+--------------------------------------------------
+2026-02-13 18:52:59,627 - TorchECG - INFO - Evaluating on 24468 samples...
+2026-02-13 18:53:18,032 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.505, 0.495]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 18:53:18,033 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.354, 0.646]
+Chagas binary predictions:    True
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 18:53:18,033 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.759, 0.241]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 18:53:18,033 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.726, 0.274]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 18:53:18,033 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.566, 0.434]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 18:53:18,034 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 1 / Step 256: train/chagas_auroc :     0.7956
+Epoch 1 / Step 256: train/chagas_auprc :     0.2349
+Epoch 1 / Step 256: train/chagas_accuracy :  0.7462
+Epoch 1 / Step 256: train/chagas_f_measure : 0.2491
+Epoch 1 / Step 256: train/chagas_tpr :       0.6586
+Epoch 1 / Step 256: train/challenge_score :  0.2577
+--------------------------------------------------
+2026-02-13 18:53:47,840 - TorchECG - INFO - Evaluating on 5837 samples...
+2026-02-13 18:53:51,739 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.878, 0.122]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 18:53:51,740 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.297, 0.703]
+Chagas binary predictions:    True
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 18:53:51,740 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.686, 0.314]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 18:53:51,740 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.326, 0.674]
+Chagas binary predictions:    True
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 18:53:51,741 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.224, 0.776]
+Chagas binary predictions:    True
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 18:53:51,741 - TorchECG - INFO - Val Metrics:
+--------------------------------------------------
+Epoch 1 / Step 256: val/chagas_auroc :     0.7556
+Epoch 1 / Step 256: val/chagas_auprc :     0.1067
+Epoch 1 / Step 256: val/chagas_accuracy :  0.7440
+Epoch 1 / Step 256: val/chagas_f_measure : 0.1032
+Epoch 1 / Step 256: val/chagas_tpr :       0.6232
+Epoch 1 / Step 256: val/challenge_score :  0.2609
+--------------------------------------------------
+2026-02-13 18:53:51,744 - TorchECG - INFO - 
+best metric = 0.2608695652173913,
+obtained at epoch 1
+
+2026-02-13 18:53:51,744 - TorchECG - INFO - --------------------------------------------------------------------------------------------------------------
+
+2026-02-13 18:53:51,750 - TorchECG - INFO - Train epoch_2:
+--------------------------------------------------------------------------------------------------------------
+2026-02-13 18:54:23,993 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 2 / Step 300: train/loss : 0.6233
+Epoch 2 / Step 300: train/lr :   0.0003
+--------------------------------------------------
+2026-02-13 18:55:39,808 - TorchECG - INFO - Evaluating on 24468 samples...
+2026-02-13 18:55:58,198 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.186, 0.814]
+Chagas binary predictions:    True
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 18:55:58,199 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.152, 0.848]
+Chagas binary predictions:    True
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 18:55:58,199 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.618, 0.382]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 18:55:58,200 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.851, 0.149]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 18:55:58,200 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.498, 0.502]
+Chagas binary predictions:    True
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 18:55:58,201 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 2 / Step 384: train/chagas_auroc :     0.8280
+Epoch 2 / Step 384: train/chagas_auprc :     0.3283
+Epoch 2 / Step 384: train/chagas_accuracy :  0.5981
+Epoch 2 / Step 384: train/chagas_f_measure : 0.2154
+Epoch 2 / Step 384: train/chagas_tpr :       0.8632
+Epoch 2 / Step 384: train/challenge_score :  0.3229
+--------------------------------------------------
+2026-02-13 18:56:28,081 - TorchECG - INFO - Evaluating on 5837 samples...
+2026-02-13 18:56:31,967 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.817, 0.183]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 18:56:31,967 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.348, 0.652]
+Chagas binary predictions:    True
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 18:56:31,968 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.354, 0.646]
+Chagas binary predictions:    True
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 18:56:31,968 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.899, 0.101]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 18:56:31,969 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.284, 0.716]
+Chagas binary predictions:    True
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 18:56:31,970 - TorchECG - INFO - Val Metrics:
+--------------------------------------------------
+Epoch 2 / Step 384: val/chagas_auroc :     0.7852
+Epoch 2 / Step 384: val/chagas_auprc :     0.1242
+Epoch 2 / Step 384: val/chagas_accuracy :  0.5859
+Epoch 2 / Step 384: val/chagas_f_measure : 0.0862
+Epoch 2 / Step 384: val/chagas_tpr :       0.8261
+Epoch 2 / Step 384: val/challenge_score :  0.3551
+--------------------------------------------------
+2026-02-13 18:56:31,972 - TorchECG - INFO - 
+best metric = 0.35507246376811596,
+obtained at epoch 2
+
+2026-02-13 18:56:31,973 - TorchECG - INFO - --------------------------------------------------------------------------------------------------------------
+
+2026-02-13 18:56:31,978 - TorchECG - INFO - Train epoch_3:
+--------------------------------------------------------------------------------------------------------------
+2026-02-13 18:56:56,942 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 3 / Step 400: train/loss : 0.6315
+Epoch 3 / Step 400: train/lr :   0.0005
+--------------------------------------------------
+2026-02-13 18:57:21,756 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 3 / Step 500: train/loss : 0.7102
+Epoch 3 / Step 500: train/lr :   0.0007
+--------------------------------------------------
+2026-02-13 18:58:19,546 - TorchECG - INFO - Evaluating on 24468 samples...
+2026-02-13 18:58:38,019 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.37, 0.63]
+Chagas binary predictions:    True
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 18:58:38,019 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.835, 0.165]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 18:58:38,020 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.882, 0.118]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 18:58:38,020 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.916, 0.084]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 18:58:38,020 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.954, 0.046]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 18:58:38,022 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 3 / Step 512: train/chagas_auroc :     0.8551
+Epoch 3 / Step 512: train/chagas_auprc :     0.3908
+Epoch 3 / Step 512: train/chagas_accuracy :  0.8835
+Epoch 3 / Step 512: train/chagas_f_measure : 0.3921
+Epoch 3 / Step 512: train/chagas_tpr :       0.5876
+Epoch 3 / Step 512: train/challenge_score :  0.3721
+--------------------------------------------------
+2026-02-13 18:59:07,849 - TorchECG - INFO - Evaluating on 5837 samples...
+2026-02-13 18:59:11,746 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.923, 0.077]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 18:59:11,747 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.967, 0.033]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 18:59:11,747 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.964, 0.036]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 18:59:11,748 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.599, 0.401]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 18:59:11,748 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.511, 0.489]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 18:59:11,749 - TorchECG - INFO - Val Metrics:
+--------------------------------------------------
+Epoch 3 / Step 512: val/chagas_auroc :     0.7942
+Epoch 3 / Step 512: val/chagas_auprc :     0.1164
+Epoch 3 / Step 512: val/chagas_accuracy :  0.8924
+Epoch 3 / Step 512: val/chagas_f_measure : 0.1671
+Epoch 3 / Step 512: val/chagas_tpr :       0.4565
+Epoch 3 / Step 512: val/challenge_score :  0.3551
+--------------------------------------------------
+2026-02-13 18:59:11,750 - TorchECG - INFO - 
+best metric = 0.35507246376811596,
+obtained at epoch 2
+
+2026-02-13 18:59:11,751 - TorchECG - INFO - --------------------------------------------------------------------------------------------------------------
+
+2026-02-13 18:59:11,757 - TorchECG - INFO - Train epoch_4:
+--------------------------------------------------------------------------------------------------------------
+2026-02-13 18:59:55,084 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 4 / Step 600: train/loss : 0.6763
+Epoch 4 / Step 600: train/lr :   0.0008
+--------------------------------------------------
+2026-02-13 19:00:59,904 - TorchECG - INFO - Evaluating on 24468 samples...
+2026-02-13 19:01:18,267 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.78, 0.22]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:01:18,267 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.49, 0.51]
+Chagas binary predictions:    True
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:01:18,268 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.85, 0.15]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:01:18,268 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.97, 0.03]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:01:18,268 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.959, 0.041]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:01:18,269 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 4 / Step 640: train/chagas_auroc :     0.8499
+Epoch 4 / Step 640: train/chagas_auprc :     0.3851
+Epoch 4 / Step 640: train/chagas_accuracy :  0.9114
+Epoch 4 / Step 640: train/chagas_f_measure : 0.4157
+Epoch 4 / Step 640: train/chagas_tpr :       0.4930
+Epoch 4 / Step 640: train/challenge_score :  0.3613
+--------------------------------------------------
+2026-02-13 19:01:48,165 - TorchECG - INFO - Evaluating on 5837 samples...
+2026-02-13 19:01:52,073 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.985, 0.015]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:01:52,074 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.935, 0.065]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:01:52,074 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.91, 0.09]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:01:52,075 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.945, 0.055]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:01:52,075 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.861, 0.139]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:01:52,076 - TorchECG - INFO - Val Metrics:
+--------------------------------------------------
+Epoch 4 / Step 640: val/chagas_auroc :     0.7833
+Epoch 4 / Step 640: val/chagas_auprc :     0.1014
+Epoch 4 / Step 640: val/chagas_accuracy :  0.9207
+Epoch 4 / Step 640: val/chagas_f_measure : 0.1948
+Epoch 4 / Step 640: val/chagas_tpr :       0.4058
+Epoch 4 / Step 640: val/challenge_score :  0.2826
+--------------------------------------------------
+2026-02-13 19:01:52,078 - TorchECG - INFO - 
+best metric = 0.35507246376811596,
+obtained at epoch 2
+
+2026-02-13 19:01:52,079 - TorchECG - INFO - --------------------------------------------------------------------------------------------------------------
+
+2026-02-13 19:01:52,085 - TorchECG - INFO - Train epoch_5:
+--------------------------------------------------------------------------------------------------------------
+2026-02-13 19:02:27,689 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 5 / Step 700: train/loss : 0.6546
+Epoch 5 / Step 700: train/lr :   0.0009
+--------------------------------------------------
+2026-02-13 19:03:39,606 - TorchECG - INFO - Evaluating on 24468 samples...
+2026-02-13 19:03:57,986 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.581, 0.419]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:03:57,986 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.947, 0.053]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:03:57,987 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.941, 0.059]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:03:57,987 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.959, 0.041]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:03:57,988 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.977, 0.023]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:03:57,989 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 5 / Step 768: train/chagas_auroc :     0.8823
+Epoch 5 / Step 768: train/chagas_auprc :     0.4972
+Epoch 5 / Step 768: train/chagas_accuracy :  0.9116
+Epoch 5 / Step 768: train/chagas_f_measure : 0.4634
+Epoch 5 / Step 768: train/chagas_tpr :       0.5972
+Epoch 5 / Step 768: train/challenge_score :  0.4418
+--------------------------------------------------
+2026-02-13 19:04:27,822 - TorchECG - INFO - Evaluating on 5837 samples...
+2026-02-13 19:04:31,701 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.981, 0.019]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:04:31,701 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.972, 0.028]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:04:31,702 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.97, 0.03]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:04:31,702 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.4, 0.6]
+Chagas binary predictions:    True
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:04:31,702 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.962, 0.038]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:04:31,703 - TorchECG - INFO - Val Metrics:
+--------------------------------------------------
+Epoch 5 / Step 768: val/chagas_auroc :     0.8395
+Epoch 5 / Step 768: val/chagas_auprc :     0.1693
+Epoch 5 / Step 768: val/chagas_accuracy :  0.9195
+Epoch 5 / Step 768: val/chagas_f_measure : 0.2193
+Epoch 5 / Step 768: val/chagas_tpr :       0.4783
+Epoch 5 / Step 768: val/challenge_score :  0.3623
+--------------------------------------------------
+2026-02-13 19:04:31,706 - TorchECG - INFO - 
+best metric = 0.36231884057971014,
+obtained at epoch 5
+
+2026-02-13 19:04:31,706 - TorchECG - INFO - --------------------------------------------------------------------------------------------------------------
+
+2026-02-13 19:04:31,711 - TorchECG - INFO - Train epoch_6:
+--------------------------------------------------------------------------------------------------------------
+2026-02-13 19:05:00,589 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 6 / Step 800: train/loss : 0.7143
+Epoch 6 / Step 800: train/lr :   0.0009
+--------------------------------------------------
+2026-02-13 19:06:19,664 - TorchECG - INFO - Evaluating on 24468 samples...
+2026-02-13 19:06:38,128 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.508, 0.492]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:06:38,129 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.951, 0.049]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:06:38,129 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.943, 0.057]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:06:38,130 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.961, 0.039]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:06:38,130 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.979, 0.021]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:06:38,132 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 6 / Step 896: train/chagas_auroc :     0.8992
+Epoch 6 / Step 896: train/chagas_auprc :     0.5686
+Epoch 6 / Step 896: train/chagas_accuracy :  0.9444
+Epoch 6 / Step 896: train/chagas_f_measure : 0.5448
+Epoch 6 / Step 896: train/chagas_tpr :       0.5205
+Epoch 6 / Step 896: train/challenge_score :  0.4898
+--------------------------------------------------
+2026-02-13 19:07:08,059 - TorchECG - INFO - Evaluating on 5837 samples...
+2026-02-13 19:07:11,954 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.955, 0.045]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:07:11,954 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.889, 0.111]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:07:11,955 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.933, 0.067]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:07:11,955 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.971, 0.029]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:07:11,955 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.975, 0.025]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:07:11,956 - TorchECG - INFO - Val Metrics:
+--------------------------------------------------
+Epoch 6 / Step 896: val/chagas_auroc :     0.8259
+Epoch 6 / Step 896: val/chagas_auprc :     0.1535
+Epoch 6 / Step 896: val/chagas_accuracy :  0.9563
+Epoch 6 / Step 896: val/chagas_f_measure : 0.2342
+Epoch 6 / Step 896: val/chagas_tpr :       0.2826
+Epoch 6 / Step 896: val/challenge_score :  0.3551
+--------------------------------------------------
+2026-02-13 19:07:11,958 - TorchECG - INFO - 
+best metric = 0.36231884057971014,
+obtained at epoch 5
+
+2026-02-13 19:07:11,958 - TorchECG - INFO - --------------------------------------------------------------------------------------------------------------
+
+2026-02-13 19:07:11,964 - TorchECG - INFO - Train epoch_7:
+--------------------------------------------------------------------------------------------------------------
+2026-02-13 19:07:33,814 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 7 / Step 900: train/loss : 0.7002
+Epoch 7 / Step 900: train/lr :   0.0009
+--------------------------------------------------
+2026-02-13 19:07:59,042 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 7 / Step 1000: train/loss : 0.5930
+Epoch 7 / Step 1000: train/lr :   0.0009
+--------------------------------------------------
+2026-02-13 19:09:00,061 - TorchECG - INFO - Evaluating on 24468 samples...
+2026-02-13 19:09:18,414 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.871, 0.129]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:09:18,415 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.863, 0.137]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:09:18,415 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.882, 0.118]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:09:18,415 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.92, 0.08]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:09:18,416 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.971, 0.029]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:09:18,417 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 7 / Step 1024: train/chagas_auroc :     0.9161
+Epoch 7 / Step 1024: train/chagas_auprc :     0.6041
+Epoch 7 / Step 1024: train/chagas_accuracy :  0.9494
+Epoch 7 / Step 1024: train/chagas_f_measure : 0.5845
+Epoch 7 / Step 1024: train/chagas_tpr :       0.5563
+Epoch 7 / Step 1024: train/challenge_score :  0.5217
+--------------------------------------------------
+2026-02-13 19:09:48,358 - TorchECG - INFO - Evaluating on 5837 samples...
+2026-02-13 19:09:52,237 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.923, 0.077]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:09:52,238 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.899, 0.101]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:09:52,238 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.741, 0.259]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:09:52,238 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.903, 0.097]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:09:52,239 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.963, 0.037]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:09:52,240 - TorchECG - INFO - Val Metrics:
+--------------------------------------------------
+Epoch 7 / Step 1024: val/chagas_auroc :     0.8022
+Epoch 7 / Step 1024: val/chagas_auprc :     0.1095
+Epoch 7 / Step 1024: val/chagas_accuracy :  0.9519
+Epoch 7 / Step 1024: val/chagas_f_measure : 0.1407
+Epoch 7 / Step 1024: val/chagas_tpr :       0.1667
+Epoch 7 / Step 1024: val/challenge_score :  0.2536
+--------------------------------------------------
+2026-02-13 19:09:52,241 - TorchECG - INFO - 
+best metric = 0.36231884057971014,
+obtained at epoch 5
+
+2026-02-13 19:09:52,242 - TorchECG - INFO - --------------------------------------------------------------------------------------------------------------
+
+2026-02-13 19:09:52,247 - TorchECG - INFO - Train epoch_8:
+--------------------------------------------------------------------------------------------------------------
+2026-02-13 19:10:32,072 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 8 / Step 1100: train/loss : 0.6523
+Epoch 8 / Step 1100: train/lr :   0.0008
+--------------------------------------------------
+2026-02-13 19:11:39,984 - TorchECG - INFO - Evaluating on 24468 samples...
+2026-02-13 19:11:58,383 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.734, 0.266]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:11:58,384 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.955, 0.045]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:11:58,385 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.914, 0.086]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:11:58,385 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.968, 0.032]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:11:58,385 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.977, 0.023]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:11:58,386 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 8 / Step 1152: train/chagas_auroc :     0.9041
+Epoch 8 / Step 1152: train/chagas_auprc :     0.5591
+Epoch 8 / Step 1152: train/chagas_accuracy :  0.9125
+Epoch 8 / Step 1152: train/chagas_f_measure : 0.4828
+Epoch 8 / Step 1152: train/chagas_tpr :       0.6387
+Epoch 8 / Step 1152: train/challenge_score :  0.4597
+--------------------------------------------------
+2026-02-13 19:12:28,266 - TorchECG - INFO - Evaluating on 5837 samples...
+2026-02-13 19:12:32,154 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.962, 0.038]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:12:32,155 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.963, 0.037]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:12:32,155 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.873, 0.127]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:12:32,155 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.221, 0.779]
+Chagas binary predictions:    True
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:12:32,156 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.956, 0.044]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:12:32,157 - TorchECG - INFO - Val Metrics:
+--------------------------------------------------
+Epoch 8 / Step 1152: val/chagas_auroc :     0.7735
+Epoch 8 / Step 1152: val/chagas_auprc :     0.0878
+Epoch 8 / Step 1152: val/chagas_accuracy :  0.9125
+Epoch 8 / Step 1152: val/chagas_f_measure : 0.1691
+Epoch 8 / Step 1152: val/chagas_tpr :       0.3768
+Epoch 8 / Step 1152: val/challenge_score :  0.2609
+--------------------------------------------------
+2026-02-13 19:12:32,158 - TorchECG - INFO - 
+best metric = 0.36231884057971014,
+obtained at epoch 5
+
+2026-02-13 19:12:32,159 - TorchECG - INFO - --------------------------------------------------------------------------------------------------------------
+
+2026-02-13 19:12:32,165 - TorchECG - INFO - Train epoch_9:
+--------------------------------------------------------------------------------------------------------------
+2026-02-13 19:13:05,099 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 9 / Step 1200: train/loss : 0.6243
+Epoch 9 / Step 1200: train/lr :   0.0008
+--------------------------------------------------
+2026-02-13 19:14:20,105 - TorchECG - INFO - Evaluating on 24468 samples...
+2026-02-13 19:14:38,560 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.765, 0.235]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:14:38,561 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.94, 0.06]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:14:38,561 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.665, 0.335]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:14:38,562 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.969, 0.031]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:14:38,562 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.982, 0.018]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:14:38,563 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 9 / Step 1280: train/chagas_auroc :     0.9338
+Epoch 9 / Step 1280: train/chagas_auprc :     0.6941
+Epoch 9 / Step 1280: train/chagas_accuracy :  0.9512
+Epoch 9 / Step 1280: train/chagas_f_measure : 0.6457
+Epoch 9 / Step 1280: train/chagas_tpr :       0.6957
+Epoch 9 / Step 1280: train/challenge_score :  0.5723
+--------------------------------------------------
+2026-02-13 19:15:08,439 - TorchECG - INFO - Evaluating on 5837 samples...
+2026-02-13 19:15:12,328 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.957, 0.043]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:15:12,328 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.969, 0.031]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:15:12,329 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.969, 0.031]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:15:12,329 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.7, 0.3]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:15:12,329 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.582, 0.418]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:15:12,330 - TorchECG - INFO - Val Metrics:
+--------------------------------------------------
+Epoch 9 / Step 1280: val/chagas_auroc :     0.7979
+Epoch 9 / Step 1280: val/chagas_auprc :     0.1262
+Epoch 9 / Step 1280: val/chagas_accuracy :  0.9459
+Epoch 9 / Step 1280: val/chagas_f_measure : 0.2020
+Epoch 9 / Step 1280: val/chagas_tpr :       0.2899
+Epoch 9 / Step 1280: val/challenge_score :  0.3333
+--------------------------------------------------
+2026-02-13 19:15:12,332 - TorchECG - INFO - 
+best metric = 0.36231884057971014,
+obtained at epoch 5
+
+2026-02-13 19:15:12,332 - TorchECG - INFO - --------------------------------------------------------------------------------------------------------------
+
+2026-02-13 19:15:12,338 - TorchECG - INFO - Train epoch_10:
+--------------------------------------------------------------------------------------------------------------
+2026-02-13 19:15:38,356 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 10 / Step 1300: train/loss : 0.6461
+Epoch 10 / Step 1300: train/lr :   0.0007
+--------------------------------------------------
+2026-02-13 19:16:03,518 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 10 / Step 1400: train/loss : 0.6168
+Epoch 10 / Step 1400: train/lr :   0.0007
+--------------------------------------------------
+2026-02-13 19:17:00,314 - TorchECG - INFO - Evaluating on 24468 samples...
+2026-02-13 19:17:18,786 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.192, 0.808]
+Chagas binary predictions:    True
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:17:18,787 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.936, 0.064]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:17:18,787 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.736, 0.264]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:17:18,788 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.982, 0.018]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:17:18,788 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.986, 0.014]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:17:18,789 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 10 / Step 1408: train/chagas_auroc :     0.9440
+Epoch 10 / Step 1408: train/chagas_auprc :     0.7497
+Epoch 10 / Step 1408: train/chagas_accuracy :  0.9159
+Epoch 10 / Step 1408: train/chagas_f_measure : 0.5512
+Epoch 10 / Step 1408: train/chagas_tpr :       0.8082
+Epoch 10 / Step 1408: train/challenge_score :  0.6215
+--------------------------------------------------
+2026-02-13 19:17:48,616 - TorchECG - INFO - Evaluating on 5837 samples...
+2026-02-13 19:17:52,496 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.947, 0.053]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:17:52,497 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.929, 0.071]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:17:52,497 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.974, 0.026]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:17:52,498 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.992, 0.008]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:17:52,498 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.942, 0.058]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:17:52,499 - TorchECG - INFO - Val Metrics:
+--------------------------------------------------
+Epoch 10 / Step 1408: val/chagas_auroc :     0.8026
+Epoch 10 / Step 1408: val/chagas_auprc :     0.1259
+Epoch 10 / Step 1408: val/chagas_accuracy :  0.9027
+Epoch 10 / Step 1408: val/chagas_f_measure : 0.1720
+Epoch 10 / Step 1408: val/chagas_tpr :       0.4275
+Epoch 10 / Step 1408: val/challenge_score :  0.3261
+--------------------------------------------------
+2026-02-13 19:17:52,501 - TorchECG - INFO - 
+best metric = 0.36231884057971014,
+obtained at epoch 5
+
+2026-02-13 19:17:52,502 - TorchECG - INFO - --------------------------------------------------------------------------------------------------------------
+
+2026-02-13 19:17:52,507 - TorchECG - INFO - Train epoch_11:
+--------------------------------------------------------------------------------------------------------------
+2026-02-13 19:18:36,593 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 11 / Step 1500: train/loss : 0.5556
+Epoch 11 / Step 1500: train/lr :   0.0006
+--------------------------------------------------
+2026-02-13 19:19:40,173 - TorchECG - INFO - Evaluating on 24468 samples...
+2026-02-13 19:19:58,551 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.917, 0.083]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:19:58,552 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.732, 0.268]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:19:58,552 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.343, 0.657]
+Chagas binary predictions:    True
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:19:58,553 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.97, 0.03]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:19:58,553 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.985, 0.015]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:19:58,554 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 11 / Step 1536: train/chagas_auroc :     0.9409
+Epoch 11 / Step 1536: train/chagas_auprc :     0.7465
+Epoch 11 / Step 1536: train/chagas_accuracy :  0.9328
+Epoch 11 / Step 1536: train/chagas_f_measure : 0.6052
+Epoch 11 / Step 1536: train/chagas_tpr :       0.8056
+Epoch 11 / Step 1536: train/challenge_score :  0.6087
+--------------------------------------------------
+2026-02-13 19:20:28,454 - TorchECG - INFO - Evaluating on 5837 samples...
+2026-02-13 19:20:32,332 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.965, 0.035]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:20:32,333 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.959, 0.041]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:20:32,334 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.969, 0.031]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:20:32,334 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.844, 0.156]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:20:32,334 - TorchECG - INFO - 
+----------------------------------------------
+Chagas scalar predictions:    [0.957, 0.043]
+Chagas binary predictions:    False
+Chagas labels:                False
+----------------------------------------------
+
+2026-02-13 19:20:32,335 - TorchECG - INFO - Val Metrics:
+--------------------------------------------------
+Epoch 11 / Step 1536: val/chagas_auroc :     0.7333
+Epoch 11 / Step 1536: val/chagas_auprc :     0.1164
+Epoch 11 / Step 1536: val/chagas_accuracy :  0.9159
+Epoch 11 / Step 1536: val/chagas_f_measure : 0.1520
+Epoch 11 / Step 1536: val/chagas_tpr :       0.3188
+Epoch 11 / Step 1536: val/challenge_score :  0.2681
+--------------------------------------------------
+2026-02-13 19:20:32,337 - TorchECG - INFO - early stopping is triggered at epoch 11
+2026-02-13 19:20:32,392 - TorchECG - INFO - best model is saved at /home/wenh06/Jupyter/wenhao/workspace/cinc2025/saved_models/BestModel_subsample-10%-CRNN_CINC2025-resnet_nature_comm_bottle_neck-epoch5_02-13_19-20_metric_0.36.pth.tar
