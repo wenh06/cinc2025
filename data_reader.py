@@ -13,6 +13,7 @@ import h5py
 import numpy as np
 import pandas as pd
 import wfdb
+from diff_binom_confint import make_risk_report
 from torch_ecg.cfg import CFG
 from torch_ecg.databases.base import DEFAULT_FIG_SIZE_PER_SEC, DataBaseInfo, _DataBase, wfdb_get_version
 from torch_ecg.databases.physionet_databases import PTBXL as PTBXL_Reader
@@ -944,6 +945,88 @@ class CODE15(_DataBase):
             else:
                 raise ValueError(f"Chagas label not found in the header file {header_file}")
         return chagas_label
+
+    def make_chagas_risk_report(
+        self,
+        test_records: Optional[Sequence[str]] = None,
+        conf_level: float = 0.95,
+        method: str = "wilson",
+        diff_method: str = "wilson",
+        save_path: Optional[Union[Path, str]] = None,
+        return_type: Literal["pd", "dict", "latex", "md", "markdown", "html"] = "pd",
+        **kwargs: Any,
+    ) -> Union[pd.DataFrame, dict, str]:
+        """Make a report of the Chagas risk in the dataset.
+
+        Parameters
+        ----------
+        test_records : list of str, optional
+            List of record names to be used as the test set.
+            If is None, the report will be generated for the whole dataset.
+        conf_level : float, default 0.95
+            Confidence level, should be inside the interval ``(0, 1)``.
+        method : str, default "wilson"
+            Type (computation method) of the confidence interval.
+            For a full list of the available methods, see
+            :func:`diff_binom_confint.list_confidence_interval_methods`.
+        diff_method : str, default "wilson"
+            Type (computation method) of the confidence interval of the difference.
+            For a full list of the available methods, see
+            :func:`diff_binom_confint.list_difference_confidence_interval_methods`.
+        save_path : str or pathlib.Path, optional
+            Path to save the report table.
+            If is None, the report table will not be saved.
+        return_type : {"pd", "dict", "latex", "md", "markdown", "html"}, default "pd"
+            The type of the returned report table.
+            - "pd": pandas.DataFrame
+            - "dict": dict
+            - "latex": LaTeX table
+            - "md" or "markdown": Markdown table
+            - "html": HTML table
+        **kwargs: dict, optional
+            Other parameters passed to
+            :func:`diff_binom_confint.compute_confidence_interval` and
+            :func:`diff_binom_confint.compute_difference_confidence_interval`.
+
+        Returns
+        -------
+        report : pd.DataFrame or dict or str
+            The Chagas risk report.
+
+        """
+        df_exams = pd.read_csv(self.db_dir / self.__label_file__)
+        df_exams["Sex"] = df_exams["is_male"].apply(lambda s: "Male" if s else "Female")
+        # map age to age group with step of 30 years, e.g., 0-29, 30-59, 60-89, 90+
+        df_exams["Age"] = df_exams["age"].apply(lambda a: f"{int(a // 30) * 30}-{int(a // 30) * 30 + 29}")
+        # replace "90-119" with "90+"
+        df_exams["Age"] = df_exams["Age"].replace({"90-119": "90+"})
+        df_exams = df_exams.set_index("exam_id")
+        df_exams["Chagas"] = pd.read_csv(self.db_dir / self.__chagas_label_file__).set_index("exam_id")["chagas"]
+        df_exams = df_exams["1dAVb,RBBB,LBBB,SB,ST,AF,normal_ecg,Age,Sex,Chagas".split(",")].dropna()
+        # make sure the index of `df_exams` is of type str, to be consistent with the record names
+        df_exams.index = df_exams.index.astype(str)
+
+        if test_records is not None:
+            df_train = df_exams.loc[~df_exams.index.isin(test_records)].copy()
+            df_test = df_exams.loc[df_exams.index.isin(test_records)].copy()
+            data_source = (df_train, df_test)
+        else:
+            data_source = df_exams
+
+        report = make_risk_report(
+            data_source=data_source,
+            target="Chagas",
+            positive_class=True,
+            risk_name="Chagas",
+            conf_level=conf_level,
+            method=method,
+            diff_method=diff_method,
+            save_path=save_path,
+            return_type=return_type,
+            **kwargs,
+        )
+
+        return report
 
 
 _SamiTrop_INFO = DataBaseInfo(
