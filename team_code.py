@@ -172,8 +172,9 @@ def train_model(
         # fine-tune the remote model
         model, train_config = SubmissionCfg.model_cls.from_checkpoint(
             Path(MODEL_CACHE_DIR) / REMOTE_MODELS[SubmissionCfg.remote_model]["filename"],
-            device=DEVICE,
+            weights_only=False,
         )
+        model.to(DEVICE)
         model_config = model.config
         # if torch.cuda.device_count() > 1:
         #     model = DP(model)
@@ -324,7 +325,7 @@ def load_model(
 
     model_cls = SubmissionCfg.model_cls
     model_path = Path(model_folder) / SubmissionCfg.final_model_name
-    model, train_config = model_cls.from_checkpoint(model_path)
+    model, train_config = model_cls.from_checkpoint(model_path, weights_only=False)
     model.to(DEVICE)
     if isinstance(model, CRNN_CINC2025):
         print("Using CRNN_CINC2025 model.")

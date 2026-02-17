@@ -87,9 +87,12 @@ class CINC2025Dataset(Dataset, ReprMixin):
         else:
             self.dtype = np.float32
 
+        ppm_config = CFG(random=False)
+        ppm_config.update(deepcopy(self.config))
+        self.ppm = PreprocManager.from_config(ppm_config)
+
         self.__cache = None
         self.reader = CINC2025(db_dir=self.config.db_dir, **reader_kwargs)
-        self.records = self._train_test_split(part=part)
         # add a column of sample_type to split the samples into 4 categories:
         # 0: negative samples
         # 1: self-reported positive samples
@@ -127,10 +130,7 @@ class CINC2025Dataset(Dataset, ReprMixin):
         self.reader._df_records["age"] = self.reader._df_records["age"].map(float) / self.config.age_scale
         self.reader._df_records["sex"] = self.reader._df_records["sex"].map(self.config.sex_mapping)
 
-        ppm_config = CFG(random=False)
-        ppm_config.update(deepcopy(self.config))
-        self.ppm = PreprocManager.from_config(ppm_config)
-
+        self.records = self._train_test_split(part=part)
         self.fdr = FastDataReader(self.reader, self.records, self.config, self.ppm)
 
         if not self.lazy:
@@ -145,6 +145,33 @@ class CINC2025Dataset(Dataset, ReprMixin):
         if self.cache is None:
             return self.fdr[index]
         return {k: v[index] for k, v in self.cache.items()}
+
+    def _reset_records(self, new_records: List[str], reload: bool = False) -> None:
+        """Reset the records of the dataset.
+
+        Parameters
+        ----------
+        new_records : list
+            List of new record names.
+        reload : bool, default False
+            Whether to reload all data.
+            If data is cached and `reload` is False,
+            the cached data will be cleared.
+
+        """
+        # keep only the records that are in the database (self.reader.all_records)
+        # and drop the records that have signal length less than `self.config.min_len`
+        # to avoid data processing errors (e.g. bandpass filtering)
+        self.records = list(
+            set(new_records) & set(self.reader._df_records[self.reader._df_records.sig_len >= self.config.min_len].index)
+        )
+        del self.fdr
+        self.fdr = FastDataReader(self.reader, self.records, self.config, self.ppm)
+        self.__cache = None
+        if reload:
+            self._load_all_data()
+        else:
+            self.__cache = None
 
     def _load_all_data(self, batch_size: int = 256, num_workers: Optional[int] = None) -> None:
         """Load all data into memory using DataLoader for multi-process acceleration.
