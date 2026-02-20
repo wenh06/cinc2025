@@ -1,7 +1,9 @@
 import argparse
 import os
+from pathlib import Path
 from typing import Literal, Optional, Tuple
 
+import matplotlib.font_manager as fm
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -201,25 +203,31 @@ def extract_features(model: torch.nn.Module, dataloader: DataLoader) -> Tuple[np
 
 def plot_umap(embedding, labels, types, title, save_path):
     """Plot UMAP with custom palette for SampleTypes."""
+
+    if fm.findfont("Times New Roman", fallback_to_default=False):
+        plt.rcParams["font.family"] = "Times New Roman"
+    else:
+        print("Times New Roman font not found. Using default font.")
+
     df = pd.DataFrame(embedding, columns=["UMAP1", "UMAP2"])
 
     # Mapping logic (Same as before)
     if types is not None:
         type_map = {
             SampleType.NEGATIVE_SAMPLE.value: "Negative (PTB-XL)",
-            SampleType.SELF_REPORTED_POSITIVE_SAMPLE.value: "Pos (Self-Reported/Code-15%)",
+            SampleType.SELF_REPORTED_POSITIVE_SAMPLE.value: "Positive (Self-Reported/Code-15%)",
             SampleType.SELF_REPORTED_UNCERTAIN_SAMPLE.value: "Uncertain (Self-Reported/Code-15%)",
-            SampleType.DOCTOR_CONFIRMED_POSITIVE_SAMPLE.value: "Pos (Doctor-Confirmed/SaMi-Trop)",
+            SampleType.DOCTOR_CONFIRMED_POSITIVE_SAMPLE.value: "Positive (Serology-Confirmed/SaMi-Trop)",
         }
         df["Source"] = [type_map.get(int(t), str(t)) for t in types]
         hue_col = "Source"
 
         # Color Palette
         palette = {
-            "Negative (PTB-XL)": "#bdc3c7",  # Light Grey
-            "Uncertain (Self-Reported/Code-15%)": "#7f8c8d",  # Darker Grey
-            "Pos (Self-Reported/Code-15%)": "#f39c12",  # Orange
-            "Pos (Doctor-Confirmed/SaMi-Trop)": "#c0392b",  # Red
+            "Negative (PTB-XL)": "#27ae60",  # Green
+            "Uncertain (Self-Reported/Code-15%)": "#2980b9",  # Blue
+            "Positive (Self-Reported/Code-15%)": "#f39c12",  # Orange
+            "Positive (Serology-Confirmed/SaMi-Trop)": "#c0392b",  # Red
         }
         # Filter palette
         unique_sources = df["Source"].unique()
@@ -239,7 +247,7 @@ def plot_umap(embedding, labels, types, title, save_path):
         data=df, x="UMAP1", y="UMAP2", hue=hue_col, style=hue_col, palette=palette, size="Size", sizes=(15, 40), alpha=0.7
     )
 
-    plt.title(title, fontsize=20)
+    # plt.title(title, fontsize=20)
     plt.xlabel("UMAP1", fontsize=16)
     plt.ylabel("UMAP2", fontsize=16)
     plt.xticks(fontsize=14)
@@ -258,6 +266,137 @@ def plot_umap(embedding, labels, types, title, save_path):
     else:
         plt.savefig(save_path, dpi=300, bbox_inches="tight")
         print(f"Saved plot to {save_path}")
+
+
+def plot_score_distribution(model, dataloader, ylim=None, save_path=None):
+    """
+    Plot KDE distribution of predicted scores, matching the style and palette of the UMAP plot.
+    Handles 4 sample types.
+    """
+
+    if fm.findfont("Times New Roman", fallback_to_default=False):
+        plt.rcParams["font.family"] = "Times New Roman"
+    else:
+        print("Times New Roman font not found. Using default font.")
+
+    if isinstance(model, FM_CINC2025):
+        model_arch = "fm"
+    elif isinstance(model, CRNN_CINC2025):
+        model_arch = "crnn"
+    else:
+        raise ValueError("Unknown model type for score distribution plotting.")
+
+    model.eval()
+    scores = []
+    types = []
+    device = model.device
+
+    print("Extracting scores for distribution plot...")
+    with torch.no_grad():
+        for batch in tqdm(dataloader, desc="Extracting Scores", dynamic_ncols=True):
+            sigs = batch["signals"].to(device)
+            batch_types = batch["sample_type"]
+            demographics = batch.get("demographics", None)
+            if demographics is not None:
+                demographics = demographics.to(device)
+
+            out = model({"signals": sigs, "demographics": demographics})
+            probs = out["chagas_prob"][:, 1]
+
+            scores.extend(probs.cpu().numpy())
+            types.extend(batch_types.numpy())
+
+    df = pd.DataFrame({"Score": scores, "Type Code": types})
+    df["Type Code"] = df["Type Code"].astype(int)
+
+    type_map = {
+        SampleType.NEGATIVE_SAMPLE.value: "Negative (PTB-XL)",
+        SampleType.SELF_REPORTED_POSITIVE_SAMPLE.value: "Positive (Self-Reported/Code-15%)",
+        SampleType.SELF_REPORTED_UNCERTAIN_SAMPLE.value: "Uncertain (Self-Reported/Code-15%)",
+        SampleType.DOCTOR_CONFIRMED_POSITIVE_SAMPLE.value: "Positive (Serology-Confirmed/SaMi-Trop)",
+    }
+
+    df["Source"] = df["Type Code"].map(type_map)
+    df = df.dropna(subset=["Source"])
+    if len(df) == 0:
+        raise ValueError("No valid data after cleaning! Check Type Code mapping.")
+
+    palette = {
+        "Negative (PTB-XL)": "#27ae60",  # Green
+        "Uncertain (Self-Reported/Code-15%)": "#2980b9",  # Blue
+        "Positive (Self-Reported/Code-15%)": "#f39c12",  # Orange
+        "Positive (Serology-Confirmed/SaMi-Trop)": "#c0392b",  # Red
+    }
+
+    valid_sources = df["Source"].unique()
+    current_palette = {k: v for k, v in palette.items() if k in valid_sources}
+    print(f"Valid color palette: {current_palette}")
+
+    plt.figure(figsize=(10, 6))
+
+    ax = sns.kdeplot(
+        data=df,
+        x="Score",
+        hue="Source",
+        palette=current_palette,
+        fill=True,
+        common_norm=False,
+        alpha=0.3,
+        linewidth=2.5,
+        legend=False,
+    )
+    desired_order = [
+        "Negative (PTB-XL)",
+        "Uncertain (Self-Reported/Code-15%)",
+        "Positive (Self-Reported/Code-15%)",
+        "Positive (Serology-Confirmed/SaMi-Trop)",
+    ]
+    ordered_sources = [s for s in desired_order if s in valid_sources]
+
+    handles = []
+    labels = []
+    for source in ordered_sources:
+        handle = plt.Line2D([], [], color=current_palette[source], linewidth=2.5, alpha=0.8, label=source)
+        handle_fill = plt.Rectangle((0, 0), 1, 1, facecolor=current_palette[source], alpha=0.3)
+        handles.append((handle, handle_fill))
+        labels.append(source)
+
+    ax.legend(
+        handles=[h[0] for h in handles],
+        labels=labels,
+        title="Data Source",
+        loc="upper center",
+        bbox_to_anchor=(0.5, -0.15),
+        ncol=2,
+        fontsize=12,
+        title_fontsize=14,
+        frameon=True,
+    )
+
+    plt.title("Distribution of Predicted Risk Scores by Data Source", fontsize=18)
+    plt.xlabel("Predicted Chagas Probability", fontsize=14)
+    plt.ylabel("Density (Normalized per Group)", fontsize=14)
+    plt.xlim(-0.01, 1)
+    if ylim is not None:
+        plt.ylim(0, ylim)
+    plt.grid(True, alpha=0.2)
+    plt.tight_layout()
+
+    if save_path is None:
+        Path("images").mkdir(exist_ok=True)
+        save_path_pdf = f"images/score_distribution_{model_arch}.pdf"
+        plt.savefig(save_path_pdf, dpi=300, bbox_inches="tight")
+        print(f"Saved plot to {save_path_pdf}")
+
+        save_path_svg = f"images/score_distribution_{model_arch}.svg"
+        plt.savefig(save_path_svg, dpi=300, bbox_inches="tight")
+        print(f"Saved plot to {save_path_svg}")
+    else:
+        Path(save_path).parent.mkdir(parents=True, exist_ok=True)
+        plt.savefig(save_path, dpi=300, bbox_inches="tight")
+        print(f"Saved plot to {save_path}")
+
+    plt.show()
 
 
 def run_visualization(
