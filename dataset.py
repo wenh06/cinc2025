@@ -67,6 +67,9 @@ class CINC2025Dataset(Dataset, ReprMixin):
         self.training = training
         self.lazy = lazy
         part = reader_kwargs.pop("part", None)  # to load a third part of the dataset for debugging
+        if part is not None and part != "train" and self.training:
+            print(f"Warning: part is set to {part} but training is True. Setting training to False.")
+            self.training = False
         if self.config.get("db_dir", None) is None:
             self.config.db_dir = reader_kwargs.pop("db_dir", None)
             assert self.config.db_dir is not None, "db_dir must be specified"
