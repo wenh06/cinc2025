@@ -256,11 +256,14 @@ def train_model(
         print(f"train size: {len(ds_train)}, val size: {len(ds_val)}")
 
     if isinstance(model, FM_CINC2025):
-        print("Using FM_CINC2025 model, adjusting fs and input_len")
+        print(f"Using FM_CINC2025 model with {model_config.fm.name} backbone, adjusting fs and input_len")
         ds_train.reset_resample_fs(model_config.fm.fs[model_config.fm.name], reload=False)
         ds_train.reset_input_len(model_config.fm.input_len[model_config.fm.name], reload=False)
         ds_val.reset_resample_fs(model_config.fm.fs[model_config.fm.name], reload=False)
         ds_val.reset_input_len(model_config.fm.input_len[model_config.fm.name], reload=False)
+        train_config.fs = model_config.fm.fs[model_config.fm.name]
+        train_config.resample.fs = model_config.fm.fs[model_config.fm.name]
+        train_config.input_len = model_config.fm.input_len[model_config.fm.name]
 
     trainer = CINC2025Trainer(
         model=model,
