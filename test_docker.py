@@ -139,8 +139,9 @@ def test_models() -> None:
         collate_fn=collate_fn,
     )
 
+    model_config = deepcopy(ModelCfg)
     print("Testing CRNN_CINC2025 model...")
-    model = CRNN_CINC2025(ModelCfg)
+    model = CRNN_CINC2025(model_config)
     # if torch.cuda.device_count() > 1:
     #     model = DP(model)
     #     # model = DDP(model)
@@ -164,12 +165,13 @@ def test_models() -> None:
 
     # Test FM_CINC2025 model
     print("Testing FM_CINC2025 model with ST-MEM backbone...")
-    ModelCfg.fm.name = "st-mem"
-    ModelCfg.fm.backbone_cache_dir = Path(MODEL_CACHE_DIR) / "ST-MEM"
-    model = FM_CINC2025(ModelCfg)
+    model_config = deepcopy(ModelCfg)
+    model_config.fm.name = "st-mem"
+    model_config.fm.backbone_cache_dir = Path(MODEL_CACHE_DIR) / "ST-MEM"
+    model = FM_CINC2025(model_config)
     model.to(DEVICE)
-    ds_val.reset_resample_fs(ModelCfg.fm.fs[ModelCfg.fm.name], reload=False)
-    ds_val.reset_input_len(ModelCfg.fm.input_len[ModelCfg.fm.name], reload=False)
+    ds_val.reset_resample_fs(model_config.fm.fs[model_config.fm.name], reload=False)
+    ds_val.reset_input_len(model_config.fm.input_len[model_config.fm.name], reload=False)
     for idx, input_tensors in enumerate(dl):
         if idx == 0:
             if model.config.get("dem_encoder", None) is not None:
@@ -186,12 +188,13 @@ def test_models() -> None:
             break
 
     print("Testing FM_CINC2025 model with HuBERT-ECG backbone...")
-    ModelCfg.fm.name = "hubert-ecg"
-    ModelCfg.fm.backbone_cache_dir = Path(MODEL_CACHE_DIR) / "Edoardo-BS-hubert-ecg-base"
-    model = FM_CINC2025(ModelCfg)
+    model_config = deepcopy(ModelCfg)
+    model_config.fm.name = "hubert-ecg"
+    model_config.fm.backbone_cache_dir = Path(MODEL_CACHE_DIR) / "Edoardo-BS-hubert-ecg-base"
+    model = FM_CINC2025(model_config)
     model.to(DEVICE)
-    ds_val.reset_resample_fs(ModelCfg.fm.fs[ModelCfg.fm.name], reload=False)
-    ds_val.reset_input_len(ModelCfg.fm.input_len[ModelCfg.fm.name], reload=False)
+    ds_val.reset_resample_fs(model_config.fm.fs[model_config.fm.name], reload=False)
+    ds_val.reset_input_len(model_config.fm.input_len[model_config.fm.name], reload=False)
     for idx, input_tensors in enumerate(dl):
         if idx == 0:
             if model.config.get("dem_encoder", None) is not None:

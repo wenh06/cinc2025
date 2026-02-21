@@ -152,7 +152,7 @@ TrainCfg.freeze_backbone_epochs = 3
 
 TrainCfg.upsample_positive_chagas = {
     "CODE-15%": 3,
-    "SaMi-Trop": 7,
+    "SaMi-Trop": 12,
 }  # rate of upsampling positive samples, 1 for no upsampling
 TrainCfg.use_dbs = ["CODE-15%", "SaMi-Trop", "PTB-XL"]  # CODE-15%, SaMi-Trop, PTB-XL
 
