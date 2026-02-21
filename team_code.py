@@ -204,11 +204,12 @@ def train_model(
         train_config.log_step = 20
         train_config.early_stopping.patience = 3
     else:
-        train_config.n_epochs = 20
         if SubmissionCfg.model_cls == CRNN_CINC2025:
+            train_config.n_epochs = 20
             train_config.batch_size = 192  # 16G (Tesla T4)
             train_config.early_stopping.patience = int(train_config.n_epochs * 0.2)
         else:  # FM_CINC2025
+            train_config.n_epochs = 7
             train_config.batch_size = 32  # 16G (Tesla T4)
             train_config.early_stopping.patience = 2
         train_config.log_step = 100
