@@ -116,9 +116,6 @@ RUN pip list
 
 RUN python -m pip install --upgrade pip setuptools wheel
 
-# RUN pip install torchsort
-
-# RUN pip install torch-ecg
 RUN pip install torch-ecg
 # install the dev branch of torch-ecg
 # RUN pip install git+https://github.com/DeepPSP/torch_ecg.git@dev

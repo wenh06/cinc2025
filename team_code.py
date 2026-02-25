@@ -37,9 +37,9 @@ from utils.misc import remove_spikes_naive, to_dtype
 ################################################################################
 # environment variables
 
-# os.environ["HUGGINGFACE_HUB_CACHE"] = str(MODEL_CACHE_DIR)
-# os.environ["HF_HUB_CACHE"] = str(MODEL_CACHE_DIR)
-# os.environ["HF_HOME"] = str(Path(MODEL_CACHE_DIR).parent)
+os.environ["HUGGINGFACE_HUB_CACHE"] = str(MODEL_CACHE_DIR)
+os.environ["HF_HUB_CACHE"] = str(MODEL_CACHE_DIR)
+os.environ["HF_HOME"] = str(Path(MODEL_CACHE_DIR).parent)
 
 try:
     TEST_FLAG = os.environ.get("CINC2025_REVENGER_TEST", False)

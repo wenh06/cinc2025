@@ -22,7 +22,14 @@ MODEL_CACHE_DIR = str(
     Path(
         # ~/.cache/revenger_model_dir_cinc2025
         # /challenge/cache/revenger_model_dir
-        os.environ.get("MODEL_CACHE_DIR", "~/.cache/cinc2025/revenger_model_dir")
+        os.environ.get(
+            "MODEL_CACHE_DIR",
+            (
+                "/challenge/cache/revenger_model_dir"
+                if Path("/challenge/cache/revenger_model_dir").exists()
+                else "~/.cache/cinc2025/revenger_model_dir"
+            ),
+        ),
     )
     .expanduser()
     .resolve()
@@ -34,7 +41,14 @@ DATA_CACHE_DIR = str(
     Path(
         # ~/.cache/revenger_data_dir_cinc2025
         # /challenge/cache/revenger_data_dir
-        os.environ.get("DATA_CACHE_DIR", "~/.cache/cinc2025/revenger_data_dir")
+        os.environ.get(
+            "DATA_CACHE_DIR",
+            (
+                "/challenge/cache/revenger_data_dir"
+                if Path("/challenge/cache/revenger_data_dir").exists()
+                else "~/.cache/cinc2025/revenger_data_dir"
+            ),
+        ),
     )
     .expanduser()
     .resolve()
