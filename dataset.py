@@ -361,6 +361,8 @@ class CINC2025Dataset(Dataset, ReprMixin):
         print(f"Upsampling positive samples: {self.config.upsample_positive_chagas}")
         df = self.reader._df_records[self.reader._df_records.index.isin(records)].copy()
         for source, rate in self.config.upsample_positive_chagas.items():
+            if rate <= 1:
+                continue
             records += df[(df["source"] == source) & (df["chagas"])].sample(frac=rate - 1, replace=True).index.tolist()
         return records
 

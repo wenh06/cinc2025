@@ -626,7 +626,10 @@ class CINC2025Trainer(BaseTrainer):
         return prefix
 
     def extra_log_suffix(self) -> str:
-        suffix = super().extra_log_suffix()
+        if hasattr(self.train_config, "extra_log_suffix") and self.train_config.extra_log_suffix is not None:
+            return self.train_config.extra_log_suffix
+        model_name = self._model.__name__ if hasattr(self._model, "__name__") else self._model.__class__.__name__
+        suffix = f"{model_name}_{self.train_config.optimizer}"
         if hasattr(self._model.config, "cnn"):
             suffix = f"{suffix}-{self._model.config.cnn.name}"
         elif hasattr(self._model.config, "name"):  # backbone name for FM_CINC2025

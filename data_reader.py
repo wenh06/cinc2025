@@ -35,6 +35,8 @@ from utils.misc import trim_zeros
 __all__ = [
     "CODE15",
     "SamiTrop",
+    "PTBXL",
+    "CINC2025",
 ]
 
 
