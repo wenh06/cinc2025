@@ -24,7 +24,6 @@ env:
   # host-side writable directories to bind-mount into the container
   host_output_dir: ${{ github.workspace }}/output
   host_test_dir: ${{ github.workspace }}/test
-  host_model_dir: ${{ github.workspace }}/model
 
 jobs:
 
@@ -131,6 +130,9 @@ jobs:
             --db-dir ${{ env.mount_data_dir }} \
             --files code-15-exams-part17,sami-trop,ptb-xl-subset,labels,chagas-labels \
             --convert --remove
+        echo "=== model dir contents after data download ==="
+        apptainer exec container.sif \
+          tree ${{ env.revenger_model_dir }}
 
     # - name: Run the Docker image
     #   # TODO: adjust this step for CinC2025 challenge
@@ -159,11 +161,13 @@ jobs:
       run: |
         mkdir -p ${{ env.host_output_dir }}
         mkdir -p ${{ env.host_test_dir }}
-        mkdir -p ${{ env.host_model_dir }}
 
     - name: Run the Apptainer container
       if: ${{ env.status != 'pre' }}
       run: |
+        echo "=== model dir contents before run ==="
+        apptainer exec container.sif \
+          tree ${{ env.revenger_model_dir }}
         apptainer exec \
           --env PYTHONUNBUFFERED=1 \
           --env CINC2025_REVENGER_TEST=${{ env.CINC2025_REVENGER_TEST }} \
@@ -175,7 +179,6 @@ jobs:
           --bind ${{ env.download_data_dir }}:${{ env.mount_data_dir }}:ro \
           --bind ${{ env.host_output_dir }}:${{ env.revenger_output_dir }} \
           --bind ${{ env.host_test_dir }}:${{ env.revenger_test_dir }} \
-          --bind ${{ env.host_model_dir }}:${{ env.revenger_model_dir }} \
           --network none \
           container.sif \
           bash test_run_challenge.sh
