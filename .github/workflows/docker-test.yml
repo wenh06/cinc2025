@@ -61,7 +61,7 @@ jobs:
         context: .
         file: ${{ env.docker_main_filename }}
         push: false
-        # load: true  # TODO: change to true if later using apptrainer.
+        # load: true
         tags: |
           ${{ env.DOCKER_HUB_USERNAME }}/${{ env.DOCKER_HUB_REPOSITORY }}:${{ env.DOCKER_IMAGE_TAG }}
 
@@ -149,6 +149,6 @@ jobs:
           --env revenger_output_dir=${{ env.revenger_output_dir }} \
           --env mount_data_dir=${{ env.mount_data_dir }} \
           --bind ${{ env.download_data_dir }}:${{ env.mount_data_dir }}:ro \
-          --net \
+          --network none \
           container.sif \
           bash test_run_challenge.sh
