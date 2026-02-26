@@ -14,6 +14,7 @@ env:
   download_data_dir: ${{ github.workspace }}/download_data
   mount_data_dir: /challenge/data
   revenger_data_dir: /challenge/cache/revenger_data_dir
+  revenger_model_cache_dir: /challenge/cache/revenger_model_dir
   revenger_model_dir: /challenge/model
   revenger_test_dir: /challenge/test
   revenger_output_dir: /challenge/output
@@ -133,7 +134,7 @@ jobs:
             --convert --remove
         echo "=== model dir contents after data download ==="
         apptainer exec container.sif \
-          tree ${{ env.revenger_model_dir }}
+          tree ${{ env.revenger_model_cache_dir }}
 
     # - name: Run the Docker image
     #   # TODO: adjust this step for CinC2025 challenge
@@ -169,7 +170,7 @@ jobs:
       run: |
         echo "=== model dir contents before run ==="
         apptainer exec container.sif \
-          tree ${{ env.revenger_model_dir }}
+          tree ${{ env.revenger_model_cache_dir }}
         apptainer exec \
           --env PYTHONUNBUFFERED=1 \
           --env CINC2025_REVENGER_TEST=${{ env.CINC2025_REVENGER_TEST }} \
