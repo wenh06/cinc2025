@@ -35,7 +35,7 @@ else:
 
 tmp_data_dir = Path(os.environ.get("mount_data_dir", _BASE_DIR / "tmp" / "CINC2025")).resolve()
 print(f"tmp_data_dir: {str(tmp_data_dir)}")
-tmp_data_dir.mkdir(parents=True, exist_ok=True)
+# tmp_data_dir.mkdir(parents=True, exist_ok=True)
 print("data directory signal files count:", len(list(tmp_data_dir.glob("*.hea"))))
 
 # downloading is done outside the docker container
@@ -56,9 +56,9 @@ def echo_write_permission(folder: Union[str, Path]) -> None:
     print(f"{str(folder)} {is_writeable}")
 
 
-echo_write_permission(tmp_data_dir)
-echo_write_permission(tmp_model_dir)
-echo_write_permission(tmp_output_dir)
+echo_write_permission(tmp_data_dir)  # should not be writable
+echo_write_permission(tmp_model_dir)  # should be writable
+echo_write_permission(tmp_output_dir)  # should be writable
 
 
 @func_indicator("testing dataset")

@@ -14,7 +14,7 @@ env:
   download_data_dir: ${{ github.workspace }}/download_data
   mount_data_dir: /challenge/data
   revenger_data_dir: /challenge/cache/revenger_data_dir
-  revenger_model_dir: /challenge/cache/revenger_model_dir
+  revenger_model_dir: /challenge/model
   revenger_test_dir: /challenge/test
   revenger_output_dir: /challenge/output
   docker_main_filename: Dockerfile
@@ -24,6 +24,7 @@ env:
   # host-side writable directories to bind-mount into the container
   host_output_dir: ${{ github.workspace }}/output
   host_test_dir: ${{ github.workspace }}/test
+  host_model_dir: ${{ github.workspace }}/model
 
 jobs:
 
@@ -161,6 +162,7 @@ jobs:
       run: |
         mkdir -p ${{ env.host_output_dir }}
         mkdir -p ${{ env.host_test_dir }}
+        mkdir -p ${{ env.host_model_dir }}
 
     - name: Run the Apptainer container
       if: ${{ env.status != 'pre' }}
@@ -179,6 +181,7 @@ jobs:
           --bind ${{ env.download_data_dir }}:${{ env.mount_data_dir }}:ro \
           --bind ${{ env.host_output_dir }}:${{ env.revenger_output_dir }} \
           --bind ${{ env.host_test_dir }}:${{ env.revenger_test_dir }} \
+          --bind ${{ env.host_model_dir }}:${{ env.revenger_model_dir }} \
           --network none \
           container.sif \
           bash test_run_challenge.sh
