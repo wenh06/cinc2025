@@ -20,6 +20,12 @@ FROM pytorch/pytorch:2.7.1-cuda11.8-cudnn9-devel
 # which might stuck the docker build process
 ENV DEBIAN_FRONTEND=noninteractive
 
+# NOTE: new since 2025:
+# The Challenge uses Apptainer to run the images
+# where the environment variables set in the Dockerfile will NOT be passed to the Apptainer container by default.
+# To make the environment variables available in the Apptainer container, one can either:
+# 1) set the environment variables in the entrypoint script (team_code.py) or some config files
+
 ENV HUGGINGFACE_HUB_CACHE=/challenge/cache/revenger_model_dir
 ENV HF_HUB_CACHE=/challenge/cache/revenger_model_dir
 ENV MODEL_CACHE_DIR=/challenge/cache/revenger_model_dir
