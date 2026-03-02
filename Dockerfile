@@ -63,7 +63,8 @@ RUN if [ -x "$(command -v gcc)" ]; then gcc --version; fi
 RUN if [ -d "/usr/local/cuda/include" ]; then ls /usr/local/cuda/include; fi
 
 
-# NOTE: The GPU provided by the Challenge is nvidia Tesla T4
+# NOTE: the following are OUTDATED:
+# The GPU provided by the Challenge is nvidia Tesla T4
 # running on a g4dn.4xlarge instance on AWS,
 # which has 16 vCPUs, 64 GB RAM, 300 GB of local storage.
 # nvidiaDriverVersion: 525.85.12
@@ -74,6 +75,10 @@ RUN if [ -d "/usr/local/cuda/include" ]; then ls /usr/local/cuda/include; fi
 # https://github.com/awsdocs/amazon-ec2-user-guide/blob/master/doc_source/accelerated-computing-instances.md#gpu-instances
 # https://docs.nvidia.com/cuda/cuda-toolkit-release-notes/index.html
 # https://download.pytorch.org/whl/torch_stable.html
+
+# Since 2025, the Challenge uses
+# NVidia Ampere A30 (compute capability 8.0, 24 GB VRAM)
+# NVidia RTX 6000 Ada Generation (compute capability 8.6, 48 GB VRAM)
 
 
 ## The MAINTAINER instruction sets the author field of the generated images.

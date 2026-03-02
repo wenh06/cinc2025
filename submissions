@@ -25,7 +25,6 @@ Unofficial Phase:
       augmentations: null
       upsample: null
     hash: 1f181e3
-
   submission 2:
     challenge_score: 0.237
     submission ID: 1026
@@ -52,7 +51,6 @@ Unofficial Phase:
       augmentations: null
       upsample: null
     hash: f7a9e15
-
   submission 3:
     challenge_score: 0.290
     submission ID: 1295
@@ -455,3 +453,96 @@ Official Phase:
     crop_infer:
       agg: max
     hash: fc3a91c
+  submission final:
+    challenge_score:
+      validation-reds-ii: 0.245
+      test-reds-ii: 0.229
+      test-samitrop-iii: 0.148
+      test-elsa-brasil: 0.111
+    submission ID: 2715
+    backbone: crnn-resnet_nature_comm_bottle_neck
+    ranking_loss: false
+    train:
+      n_epochs: 30
+      batch_size: 128
+      lr_scheduler: one_cycle
+      lr: 0.0001
+      max_lr: 0.0006
+      early_stopping_patience: 9
+      preprocess: |
+        - name: bandpass
+          params:
+            filter_type: butter
+        - name: resample
+          params:
+            fs: 400
+      use_dbs: |
+        CODE-15%
+        SaMi-Trop
+        PTB-XL
+      augmentations: |
+        label_smoothing:
+          prob: 0.7
+          smoothing:
+            0: 0.2
+            1: 0.6
+            2: 0.0
+      upsample:
+        CODE-15%: 3
+        SaMi-Trop: 12
+    crop_infer:
+      agg: max
+    hash: 9d64248
+
+Focus Issue Phase:
+  submission 1:
+    challenge_score:
+      validation-reds-ii: 0.183
+      test-reds-ii: 0.236
+      test-samitrop-iii: 0.225
+      test-elsa-brasil: 0.089
+    submission ID: F11
+    submission time: 2/24/2026 19:45:33 ET
+    backbone: fm-st-mem
+    ranking_loss: false
+    train:
+      n_epochs: 7
+      batch_size: 32
+      lr_scheduler: one_cycle
+      lr:
+        backbone: 0.00005
+        head: 0.0003
+      max_lr:
+        backbone: 0.0002
+        head: 0.001
+      early_stopping_patience: 2
+      preprocess: |
+        - name: bandpass
+          params:
+            filter_type: butter
+        - name: resample
+          params:
+            fs: 250
+      use_dbs: |
+        CODE-15%
+        SaMi-Trop
+        PTB-XL
+      augmentations: |
+        label_smoothing:
+          prob: 0.8
+          smoothing:
+            0: 0.0
+            1: 0.3
+            2: 0.2
+            3: 0.0
+        powerline_noise:
+          prob: 0.5
+          params:
+            frequencies: [50, 60]
+            amplitude_ratio_range: [0.02, 0.08]
+      upsample:
+        CODE-15%: 3
+        SaMi-Trop: 12
+    crop_infer:
+      agg: max
+    hash: 2a96bc6
