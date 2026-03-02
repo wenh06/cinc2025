@@ -61,7 +61,7 @@ else:
 SubmissionCfg = CFG()
 SubmissionCfg.remote_model = None  # "crnn-resnet_nature_comm_bottle_neck-none-se"
 # SubmissionCfg.remote_model = "crnn-resnet_nature_comm_bottle_neck-none-se"  # NOTE: for testing
-SubmissionCfg.model_cls = FM_CINC2025  # CRNN_CINC2025
+SubmissionCfg.model_cls = CRNN_CINC2025  # CRNN_CINC2025, FM_CINC2025
 SubmissionCfg.final_model_name = "final_model.pth"
 SubmissionCfg.use_dbs = ["CODE-15%", "SaMi-Trop", "PTB-XL"]
 

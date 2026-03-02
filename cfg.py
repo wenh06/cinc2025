@@ -151,8 +151,10 @@ TrainCfg.warmup_ratio = 0.1  # for "cosine_warmup" and "burn_in" schedulers
 TrainCfg.freeze_backbone_epochs = 3
 
 TrainCfg.upsample_positive_chagas = {
-    "CODE-15%": 3,
-    "SaMi-Trop": 12,
+    # "CODE-15%": 3,
+    # "SaMi-Trop": 12,
+    "CODE-15%": 1,
+    "SaMi-Trop": 1,
 }  # rate of upsampling positive samples, 1 for no upsampling
 TrainCfg.use_dbs = ["CODE-15%", "SaMi-Trop", "PTB-XL"]  # CODE-15%, SaMi-Trop, PTB-XL
 
