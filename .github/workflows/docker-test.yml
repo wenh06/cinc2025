@@ -92,6 +92,8 @@ jobs:
 
     - name: Convert Docker image to Apptainer SIF
       run: |
+        docker image inspect ${{ env.DOCKER_HUB_USERNAME }}/${{ env.DOCKER_HUB_REPOSITORY }}:${{ env.DOCKER_IMAGE_TAG }} \
+          --format='{{.Size}}'
         apptainer build container.sif \
           docker-daemon://${{ env.DOCKER_HUB_USERNAME }}/${{ env.DOCKER_HUB_REPOSITORY }}:${{ env.DOCKER_IMAGE_TAG }}
 
