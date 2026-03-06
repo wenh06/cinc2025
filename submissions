@@ -561,3 +561,51 @@ Focus Issue Phase:
     crop_infer:
       agg: max
     hash: 2a96bc6
+  submission 2:
+    challenge_score:
+      validation-reds-ii: 0.369
+      test-reds-ii: 0.264
+      test-samitrop-iii: 0.295
+      test-elsa-brasil: 0.104
+    submission ID: F14
+    submission time: 3/2/2026 4:04:57 ET
+    backbone: crnn-resnet_nature_comm_bottle_neck
+    loss: WeightedBCE
+    ranking_loss: false
+    train:
+      n_epochs: 20
+      batch_size: 32
+      lr_scheduler: one_cycle
+      lr: 0.0003
+      max_lr: 0.0009
+      early_stopping_patience: 4
+      preprocess: |
+        - name: bandpass
+          params:
+            filter_type: butter
+        - name: resample
+          params:
+            fs: 400
+      use_dbs: |
+        CODE-15%
+        SaMi-Trop
+        PTB-XL
+      augmentations: |
+        label_smoothing:
+          prob: 0.8
+          smoothing:
+            0: 0.0
+            1: 0.3
+            2: 0.2
+            3: 0.0
+        powerline_noise:
+          prob: 0.5
+          params:
+            frequencies: [50, 60]
+            amplitude_ratio_range: [0.02, 0.08]
+      upsample:
+        CODE-15%: 1
+        SaMi-Trop: 1
+    crop_infer:
+      agg: max
+    hash: 7e0ce58
