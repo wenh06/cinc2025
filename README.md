@@ -20,6 +20,8 @@ Detection of Chagas Disease from the ECG: The George B. Moody PhysioNet Challeng
 - [Key problem to solve](#key-problem-to-solve)
 - [Background knowledge](#background-knowledge)
 - [Post-Conference Thoughts](#post-conference-thoughts)
+  - [Thoughts on the Final Results](#thoughts-on-the-final-results)
+  - [Focus Issue Phase Findings](#focus-issue-phase-findings)
 
 <!-- tocstop -->
 
@@ -136,6 +138,23 @@ about ECG abnormalities in Chagas Disease, the most common ECG abnormalities are
 
 - High-performing teams often accepted very low accuracy in exchange for better recall/risk ranking.
 - Foundation/self-supervised ECG encoders (ViT/Transformer backbones, distilled/foundation models pretrained on large ECG corpora) are widely used.
+
+### Focus Issue Phase Findings
+
+Empirical results from the Focus Issue Phase submissions reveal a key insight
+about handling the imbalanced data:
+
+- **Upsampling is harmful for this task.** Heavy upsampling of positive samples
+  (e.g., SaMi-Trop ×12) causes the model to overfit to the few positive
+  instances, severely hurting generalization across datasets (especially the
+  hidden SaMi-Trop III and ELSA-Brasil test sets).
+- **Quality > Quantity.** Replacing upsampling with Weighted BCE + Soft Labels
+  (reliability-aware label smoothing) improved the SaMi-Trop III score from
+  0.148 to 0.295 using the same ResNet backbone — nearly doubling performance.
+- This held even without a Foundation Model backbone: the CRNN-ResNet with the
+  correct training strategy (no upsampling, Weighted BCE, soft labels) outperformed
+  all prior submissions across all datasets except ELSA-Brasil (slight drop,
+  within noise).
 
 ### Miscellaneous
 
