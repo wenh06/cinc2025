@@ -1,0 +1,428 @@
+2026-03-10 22:38:03,637 - TorchECG - INFO - training configurations are as follows:
+{
+    "debug": False,
+    "final_model_name": None,
+    "log_step": 100,
+    "flooding_level": 0.0,
+    "early_stopping": {
+        "min_delta": 0.001,
+        "patience": 3
+    },
+    "log_dir": /root/workspace/cinc2025/log,
+    "checkpoints": /root/workspace/cinc2025/checkpoints,
+    "model_dir": /root/workspace/cinc2025/saved_models,
+    "working_dir": None,
+    "prefix": "TorchECG",
+    "DTYPE": DTYPE(STR='float32', NP=dtype('float32'), TORCH=torch.float32, INT=32),
+    "str_dtype": "float32",
+    "np_dtype": <class 'numpy.float32'>,
+    "dtype": torch.float32,
+    "device": cuda,
+    "eps": 1e-07,
+    "SEED": 42,
+    "RNG": Generator(PCG64),
+    "RNG_sample": functools.partial(<bound method Generator.choice of Generator(PCG64) at 0x7F9B5CD8F680>, replace=False, shuffle=False),
+    "RNG_randint": functools.partial(<bound method Generator.integers of Generator(PCG64) at 0x7F9B5CD8F680>, endpoint=True),
+    "set_seed": <function set_seed at 0x7f9de29bfc40>,
+    "change_dtype": <function change_dtype at 0x7f9d9e4667a0>,
+    "db_dir": /root/autodl-tmp/cinc2025,
+    "project_dir": /root/workspace/cinc2025,
+    "torch_dtype": torch.float32,
+    "fs": 400,
+    "n_leads": 12,
+    "chagas_classes": [
+        0, 1
+    ],
+    "arr_diag_classes": [
+        "1dAVb",
+        "RBBB",
+        "LBBB",
+        "SB",
+        "ST",
+        "AF",
+        "NORM",
+        "OTHER"
+    ],
+    "demographic_features": [
+        "age",
+        "sex"
+    ],
+    "age_scale": 100.0,
+    "sex_mapping": {
+        "Female": 0,
+        "Male": 1
+    },
+    "arr_diag_class_map": {
+        "1dAVb": 0,
+        "RBBB": 1,
+        "LBBB": 2,
+        "SB": 3,
+        "ST": 4,
+        "AF": 5,
+        "NORM": 6,
+        "OTHER": 7
+    },
+    "aux_tasks": {
+        "binary_classification": {
+            "include": False,
+            "loss": "AsymmetricLoss",
+            "loss_weight": 1.0,
+            "loss_kw": {}
+        },
+        "arrhythmia_classification": {
+            "include": False,
+            "loss": "AsymmetricLoss",
+            "loss_weight": 1.0,
+            "loss_kw": {}
+        }
+    },
+    "resample": {
+        "fs": 400
+    },
+    "bandpass": {
+        "filter_type": "butter"
+    },
+    "normalize": {
+        "method": "z-score",
+        "mean": 0.0,
+        "std": 1.0
+    },
+    "label_smooth": {
+        "prob": 0.8,
+        "smoothing": {
+            "0": 0.0,
+            "1": 0.3,
+            "2": 0.2,
+            "3": 0.0
+        }
+    },
+    "powerline_noise": {
+        "prob": 0.5,
+        "amplitude_ratio_range": [
+            0.02, 0.08
+        ],
+        "frequencies": [
+            50, 60
+        ]
+    },
+    "n_epochs": 20,
+    "batch_size": 64,
+    "optimizer": "adamw_amsgrad",
+    "momentum": 0.949,
+    "betas": [
+        0.9, 0.999
+    ],
+    "decay": 0.01,
+    "learning_rate": {
+        "backbone": 5e-05,
+        "head": 0.0003
+    },
+    "lr": {
+        "backbone": 5e-05,
+        "head": 0.0003
+    },
+    "lr_scheduler": "one_cycle",
+    "lr_step_size": 50,
+    "lr_gamma": 0.1,
+    "max_lr": {
+        "backbone": 0.0002,
+        "head": 0.001
+    },
+    "warmup_ratio": 0.1,
+    "freeze_backbone_epochs": 3,
+    "upsample_positive_chagas": {
+        "CODE-15%": 1,
+        "SaMi-Trop": 1
+    },
+    "use_dbs": [
+        "CODE-15%",
+        "SaMi-Trop",
+        "PTB-XL"
+    ],
+    "keep_checkpoint_max": 0,
+    "criterion": "ChagasLoss",
+    "criterion_kw": {
+        "positive_weight_factor": 5.0
+    },
+    "train_ratio": 0.8,
+    "input_len": 4096,
+    "min_len": 1200,
+    "monitor": "challenge_score",
+    "extra_experiment": True,
+    "subsample": 0.1,
+    "classes": [
+        0, 1
+    ]
+}
+2026-03-10 22:38:03,639 - TorchECG - WARNING - keep_checkpoint_max is set to 0, no checkpoint will be kept
+2026-03-10 22:38:03,641 - TorchECG - INFO - Optimizer Setup with Differential LRs:
+2026-03-10 22:38:03,641 - TorchECG - INFO - Backbone LR target: 5e-05
+2026-03-10 22:38:03,642 - TorchECG - INFO - Head LR target:     0.0003
+2026-03-10 22:38:03,642 - TorchECG - INFO - One Cycle Scheduler Setup: max_lr=[0.0002, 0.001], 20 epochs, 365 steps per epoch.
+2026-03-10 22:38:03,643 - TorchECG - INFO - 
+Starting training:
+------------------
+Epochs:          20
+Batch size:      64
+Learning rate:   {'backbone': 5e-05, 'head': 0.0003}
+Training size:   23355
+Validation size: 5833
+Device:          cuda
+Optimizer:       adamw_amsgrad
+Dataset classes: [0, 1]
+-----------------------------------------
+
+2026-03-10 22:38:03,644 - TorchECG - INFO - Backbone frozen for epoch 0.
+2026-03-10 22:38:03,650 - TorchECG - INFO - Train epoch_0:
+--------------------------------------------------------------------------------------------------------------
+2026-03-10 22:38:37,538 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 0 / Step 100: train/loss : 0.5954
+Epoch 0 / Step 100: train/lr :   0.0000
+--------------------------------------------------
+2026-03-10 22:38:50,815 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 0 / Step 200: train/loss : 0.7420
+Epoch 0 / Step 200: train/lr :   0.0000
+--------------------------------------------------
+2026-03-10 22:39:04,154 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 0 / Step 300: train/loss : 0.5535
+Epoch 0 / Step 300: train/lr :   0.0000
+--------------------------------------------------
+2026-03-10 22:40:02,291 - TorchECG - INFO - Evaluating on 5833 samples...
+2026-03-10 22:40:07,211 - TorchECG - INFO - Val Metrics:
+--------------------------------------------------
+Epoch 0 / Step 365: val/chagas_auroc :     0.6927
+Epoch 0 / Step 365: val/chagas_auprc :     0.0374
+Epoch 0 / Step 365: val/chagas_accuracy :  0.9832
+Epoch 0 / Step 365: val/chagas_f_measure : 0.0000
+Epoch 0 / Step 365: val/chagas_tpr :       0.0000
+Epoch 0 / Step 365: val/challenge_score :  0.1429
+--------------------------------------------------
+2026-03-10 22:40:07,219 - TorchECG - INFO - 
+best metric = 0.14285714285714285,
+obtained at epoch 0
+
+2026-03-10 22:40:07,220 - TorchECG - INFO - --------------------------------------------------------------------------------------------------------------
+
+2026-03-10 22:40:07,222 - TorchECG - INFO - Backbone frozen for epoch 1.
+2026-03-10 22:40:07,229 - TorchECG - INFO - Train epoch_1:
+--------------------------------------------------------------------------------------------------------------
+2026-03-10 22:40:32,509 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 1 / Step 400: train/loss : 0.5385
+Epoch 1 / Step 400: train/lr :   0.0000
+--------------------------------------------------
+2026-03-10 22:40:45,908 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 1 / Step 500: train/loss : 0.5845
+Epoch 1 / Step 500: train/lr :   0.0000
+--------------------------------------------------
+2026-03-10 22:40:59,427 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 1 / Step 600: train/loss : 0.6263
+Epoch 1 / Step 600: train/lr :   0.0000
+--------------------------------------------------
+2026-03-10 22:41:13,003 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 1 / Step 700: train/loss : 0.5189
+Epoch 1 / Step 700: train/lr :   0.0001
+--------------------------------------------------
+2026-03-10 22:42:07,027 - TorchECG - INFO - Evaluating on 5833 samples...
+2026-03-10 22:42:11,983 - TorchECG - INFO - Val Metrics:
+--------------------------------------------------
+Epoch 1 / Step 730: val/chagas_auroc :     0.7489
+Epoch 1 / Step 730: val/chagas_auprc :     0.0507
+Epoch 1 / Step 730: val/chagas_accuracy :  0.9832
+Epoch 1 / Step 730: val/chagas_f_measure : 0.0000
+Epoch 1 / Step 730: val/chagas_tpr :       0.0000
+Epoch 1 / Step 730: val/challenge_score :  0.2143
+--------------------------------------------------
+2026-03-10 22:42:11,990 - TorchECG - INFO - 
+best metric = 0.21428571428571427,
+obtained at epoch 1
+
+2026-03-10 22:42:11,991 - TorchECG - INFO - --------------------------------------------------------------------------------------------------------------
+
+2026-03-10 22:42:11,993 - TorchECG - INFO - Backbone frozen for epoch 2.
+2026-03-10 22:42:12,001 - TorchECG - INFO - Train epoch_2:
+--------------------------------------------------------------------------------------------------------------
+2026-03-10 22:42:42,363 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 2 / Step 800: train/loss : 0.5906
+Epoch 2 / Step 800: train/lr :   0.0001
+--------------------------------------------------
+2026-03-10 22:42:55,806 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 2 / Step 900: train/loss : 0.6117
+Epoch 2 / Step 900: train/lr :   0.0001
+--------------------------------------------------
+2026-03-10 22:43:09,346 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 2 / Step 1000: train/loss : 0.5638
+Epoch 2 / Step 1000: train/lr :   0.0001
+--------------------------------------------------
+2026-03-10 22:44:12,567 - TorchECG - INFO - Evaluating on 5833 samples...
+2026-03-10 22:44:17,496 - TorchECG - INFO - Val Metrics:
+--------------------------------------------------
+Epoch 2 / Step 1095: val/chagas_auroc :     0.7027
+Epoch 2 / Step 1095: val/chagas_auprc :     0.0441
+Epoch 2 / Step 1095: val/chagas_accuracy :  0.9832
+Epoch 2 / Step 1095: val/chagas_f_measure : 0.0000
+Epoch 2 / Step 1095: val/chagas_tpr :       0.0000
+Epoch 2 / Step 1095: val/challenge_score :  0.1939
+--------------------------------------------------
+2026-03-10 22:44:17,499 - TorchECG - INFO - 
+best metric = 0.21428571428571427,
+obtained at epoch 1
+
+2026-03-10 22:44:17,501 - TorchECG - INFO - --------------------------------------------------------------------------------------------------------------
+
+2026-03-10 22:44:17,504 - TorchECG - INFO - Backbone unfrozen for epoch 3.
+2026-03-10 22:44:17,512 - TorchECG - INFO - Train epoch_3:
+--------------------------------------------------------------------------------------------------------------
+2026-03-10 22:44:40,134 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 3 / Step 1100: train/loss : 0.5229
+Epoch 3 / Step 1100: train/lr :   0.0001
+--------------------------------------------------
+2026-03-10 22:45:16,222 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 3 / Step 1200: train/loss : 0.6383
+Epoch 3 / Step 1200: train/lr :   0.0001
+--------------------------------------------------
+2026-03-10 22:45:52,825 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 3 / Step 1300: train/loss : 0.6274
+Epoch 3 / Step 1300: train/lr :   0.0001
+--------------------------------------------------
+2026-03-10 22:46:29,560 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 3 / Step 1400: train/loss : 0.6517
+Epoch 3 / Step 1400: train/lr :   0.0001
+--------------------------------------------------
+2026-03-10 22:47:41,560 - TorchECG - INFO - Evaluating on 5833 samples...
+2026-03-10 22:47:46,500 - TorchECG - INFO - Val Metrics:
+--------------------------------------------------
+Epoch 3 / Step 1460: val/chagas_auroc :     0.7862
+Epoch 3 / Step 1460: val/chagas_auprc :     0.1093
+Epoch 3 / Step 1460: val/chagas_accuracy :  0.9832
+Epoch 3 / Step 1460: val/chagas_f_measure : 0.0000
+Epoch 3 / Step 1460: val/chagas_tpr :       0.0000
+Epoch 3 / Step 1460: val/challenge_score :  0.3878
+--------------------------------------------------
+2026-03-10 22:47:46,505 - TorchECG - INFO - 
+best metric = 0.3877551020408163,
+obtained at epoch 3
+
+2026-03-10 22:47:46,506 - TorchECG - INFO - --------------------------------------------------------------------------------------------------------------
+
+2026-03-10 22:47:46,508 - TorchECG - INFO - Backbone unfrozen for epoch 4.
+2026-03-10 22:47:46,513 - TorchECG - INFO - Train epoch_4:
+--------------------------------------------------------------------------------------------------------------
+2026-03-10 22:48:21,543 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 4 / Step 1500: train/loss : 0.5783
+Epoch 4 / Step 1500: train/lr :   0.0002
+--------------------------------------------------
+2026-03-10 22:48:57,915 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 4 / Step 1600: train/loss : 0.6970
+Epoch 4 / Step 1600: train/lr :   0.0002
+--------------------------------------------------
+2026-03-10 22:49:34,577 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 4 / Step 1700: train/loss : 0.6347
+Epoch 4 / Step 1700: train/lr :   0.0002
+--------------------------------------------------
+2026-03-10 22:50:11,291 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 4 / Step 1800: train/loss : 0.6335
+Epoch 4 / Step 1800: train/lr :   0.0002
+--------------------------------------------------
+2026-03-10 22:51:10,057 - TorchECG - INFO - Evaluating on 5833 samples...
+2026-03-10 22:51:14,917 - TorchECG - INFO - Val Metrics:
+--------------------------------------------------
+Epoch 4 / Step 1825: val/chagas_auroc :     0.8037
+Epoch 4 / Step 1825: val/chagas_auprc :     0.0986
+Epoch 4 / Step 1825: val/chagas_accuracy :  0.9832
+Epoch 4 / Step 1825: val/chagas_f_measure : 0.0000
+Epoch 4 / Step 1825: val/chagas_tpr :       0.0000
+Epoch 4 / Step 1825: val/challenge_score :  0.3367
+--------------------------------------------------
+2026-03-10 22:51:14,919 - TorchECG - INFO - 
+best metric = 0.3877551020408163,
+obtained at epoch 3
+
+2026-03-10 22:51:14,921 - TorchECG - INFO - --------------------------------------------------------------------------------------------------------------
+
+2026-03-10 22:51:14,923 - TorchECG - INFO - Backbone unfrozen for epoch 5.
+2026-03-10 22:51:14,931 - TorchECG - INFO - Train epoch_5:
+--------------------------------------------------------------------------------------------------------------
+2026-03-10 22:52:02,384 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 5 / Step 1900: train/loss : 0.5614
+Epoch 5 / Step 1900: train/lr :   0.0002
+--------------------------------------------------
+2026-03-10 22:52:38,975 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 5 / Step 2000: train/loss : 0.6688
+Epoch 5 / Step 2000: train/lr :   0.0002
+--------------------------------------------------
+2026-03-10 22:53:15,698 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 5 / Step 2100: train/loss : 0.6088
+Epoch 5 / Step 2100: train/lr :   0.0002
+--------------------------------------------------
+2026-03-10 22:54:38,629 - TorchECG - INFO - Evaluating on 5833 samples...
+2026-03-10 22:54:43,501 - TorchECG - INFO - Val Metrics:
+--------------------------------------------------
+Epoch 5 / Step 2190: val/chagas_auroc :     0.7151
+Epoch 5 / Step 2190: val/chagas_auprc :     0.0973
+Epoch 5 / Step 2190: val/chagas_accuracy :  0.9832
+Epoch 5 / Step 2190: val/chagas_f_measure : 0.0000
+Epoch 5 / Step 2190: val/chagas_tpr :       0.0000
+Epoch 5 / Step 2190: val/challenge_score :  0.3776
+--------------------------------------------------
+2026-03-10 22:54:43,504 - TorchECG - INFO - 
+best metric = 0.3877551020408163,
+obtained at epoch 3
+
+2026-03-10 22:54:43,507 - TorchECG - INFO - --------------------------------------------------------------------------------------------------------------
+
+2026-03-10 22:54:43,509 - TorchECG - INFO - Backbone unfrozen for epoch 6.
+2026-03-10 22:54:43,516 - TorchECG - INFO - Train epoch_6:
+--------------------------------------------------------------------------------------------------------------
+2026-03-10 22:55:07,650 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 6 / Step 2200: train/loss : 0.6818
+Epoch 6 / Step 2200: train/lr :   0.0002
+--------------------------------------------------
+2026-03-10 22:55:43,850 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 6 / Step 2300: train/loss : 0.5021
+Epoch 6 / Step 2300: train/lr :   0.0002
+--------------------------------------------------
+2026-03-10 22:56:20,543 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 6 / Step 2400: train/loss : 0.6963
+Epoch 6 / Step 2400: train/lr :   0.0002
+--------------------------------------------------
+2026-03-10 22:56:57,391 - TorchECG - INFO - Train Metrics:
+--------------------------------------------------
+Epoch 6 / Step 2500: train/loss : 0.5411
+Epoch 6 / Step 2500: train/lr :   0.0002
+--------------------------------------------------
+2026-03-10 22:58:07,877 - TorchECG - INFO - Evaluating on 5833 samples...
+2026-03-10 22:58:12,730 - TorchECG - INFO - Val Metrics:
+--------------------------------------------------
+Epoch 6 / Step 2555: val/chagas_auroc :     0.7808
+Epoch 6 / Step 2555: val/chagas_auprc :     0.1210
+Epoch 6 / Step 2555: val/chagas_accuracy :  0.9832
+Epoch 6 / Step 2555: val/chagas_f_measure : 0.0000
+Epoch 6 / Step 2555: val/chagas_tpr :       0.0000
+Epoch 6 / Step 2555: val/challenge_score :  0.3469
+--------------------------------------------------
+2026-03-10 22:58:12,734 - TorchECG - INFO - early stopping is triggered at epoch 6
+2026-03-10 22:58:13,005 - TorchECG - INFO - best model is saved at /root/workspace/cinc2025/saved_models/BestModel_subsample-10%-FM_CINC2025-st-mem-epoch3_03-10_22-58_metric_0.39.pth.tar

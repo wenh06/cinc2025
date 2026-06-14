@@ -248,11 +248,11 @@ def plot_umap(embedding, labels, types, title, save_path):
     )
 
     # plt.title(title, fontsize=20)
-    plt.xlabel("UMAP1", fontsize=16)
-    plt.ylabel("UMAP2", fontsize=16)
-    plt.xticks(fontsize=14)
-    plt.yticks(fontsize=14)
-    plt.legend(bbox_to_anchor=(0.5, -0.1), loc="upper center", ncol=2, fontsize=14, title_fontsize=16)
+    plt.xlabel("UMAP1", fontsize=20)
+    plt.ylabel("UMAP2", fontsize=20)
+    plt.xticks(fontsize=16)
+    plt.yticks(fontsize=16)
+    plt.legend(bbox_to_anchor=(0.5, -0.1), loc="upper center", ncol=2, fontsize=16, title_fontsize=18)
     plt.tight_layout()
 
     if save_path is None:
@@ -365,17 +365,20 @@ def plot_score_distribution(model, dataloader, ylim=None, save_path=None):
         handles=[h[0] for h in handles],
         labels=labels,
         title="Data Source",
-        loc="upper center",
-        bbox_to_anchor=(0.5, -0.15),
-        ncol=2,
-        fontsize=12,
-        title_fontsize=14,
+        # loc='upper center',
+        loc="upper right",
+        # bbox_to_anchor=(0.5, -0.15),
+        ncol=1,
+        fontsize=20,
+        title_fontsize=22,
         frameon=True,
     )
 
-    plt.title("Distribution of Predicted Risk Scores by Data Source", fontsize=18)
-    plt.xlabel("Predicted Chagas Probability", fontsize=14)
-    plt.ylabel("Density (Normalized per Group)", fontsize=14)
+    # plt.title('Distribution of Predicted Risk Scores by Data Source', fontsize=18)
+    plt.xlabel("Predicted Chagas Probability", fontsize=23)
+    plt.ylabel("Density (Normalized per Group)", fontsize=23)
+    plt.xticks(fontsize=20)
+    plt.yticks(fontsize=20)
     plt.xlim(-0.01, 1)
     if ylim is not None:
         plt.ylim(0, ylim)
