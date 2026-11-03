@@ -48,9 +48,9 @@ def load_hubert_ecg_model(
     .. note::
         The pretrained models can be found at:
 
-        - https://huggingface.co/Edoardo-BS/hubert-ecg-small
-        - https://huggingface.co/Edoardo-BS/hubert-ecg-base
-        - https://huggingface.co/Edoardo-BS/hubert-ecg-large
+        - https://huggingface.co/Edoardo-Coppola/hubert-ecg-small
+        - https://huggingface.co/Edoardo-Coppola/hubert-ecg-base
+        - https://huggingface.co/Edoardo-Coppola/hubert-ecg-large
 
         The sampling rate of the ECG signals used to pretrain HuBERT-ECG is 100 Hz,
         as stated in the original paper, and also can be found in
@@ -67,11 +67,11 @@ def load_hubert_ecg_model(
 
     """
     if size_or_name_or_path == "small":
-        model_name = "Edoardo-BS/hubert-ecg-small"
+        model_name = "Edoardo-Coppola/hubert-ecg-small"
     elif size_or_name_or_path == "base":
-        model_name = "Edoardo-BS/hubert-ecg-base"
+        model_name = "Edoardo-Coppola/hubert-ecg-base"
     elif size_or_name_or_path == "large":
-        model_name = "Edoardo-BS/hubert-ecg-large"
+        model_name = "Edoardo-Coppola/hubert-ecg-large"
     else:
         model_name = size_or_name_or_path
 
@@ -97,11 +97,11 @@ def cache_remote_hubert_ecg_model(size_or_name: str, model_cache_dir: Optional[U
 
     """
     if size_or_name == "small":
-        model_name = "Edoardo-BS/hubert-ecg-small"
+        model_name = "Edoardo-Coppola/hubert-ecg-small"
     elif size_or_name == "base":
-        model_name = "Edoardo-BS/hubert-ecg-base"
+        model_name = "Edoardo-Coppola/hubert-ecg-base"
     elif size_or_name == "large":
-        model_name = "Edoardo-BS/hubert-ecg-large"
+        model_name = "Edoardo-Coppola/hubert-ecg-large"
     else:
         model_name = size_or_name
 

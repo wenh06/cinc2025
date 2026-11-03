@@ -7,9 +7,9 @@ Adapted from:
 
 The pretrained models can be found at:
 
-- https://huggingface.co/Edoardo-BS/hubert-ecg-small
-- https://huggingface.co/Edoardo-BS/hubert-ecg-base
-- https://huggingface.co/Edoardo-BS/hubert-ecg-large
+- https://huggingface.co/Edoardo-Coppola/hubert-ecg-small
+- https://huggingface.co/Edoardo-Coppola/hubert-ecg-base
+- https://huggingface.co/Edoardo-Coppola/hubert-ecg-large
 
 The sampling rate of the ECG signals used to pretrain HuBERT-ECG is 100 Hz,
 as stated in the original paper, and also can be found in

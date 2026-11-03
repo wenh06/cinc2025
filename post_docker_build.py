@@ -132,7 +132,7 @@ def cache_pretrained_models():
     print(f"ST-MEM model loaded: {st_mem_model}")
     del st_mem_model
     cache_remote_hubert_ecg_model("base")  # base size
-    hubert_ecg_model = load_hubert_ecg_model(Path(MODEL_CACHE_DIR) / "Edoardo-BS-hubert-ecg-base")
+    hubert_ecg_model = load_hubert_ecg_model(Path(MODEL_CACHE_DIR) / "Edoardo-Coppola-hubert-ecg-base")
     print(f"HuBERT-ECG model loaded: {hubert_ecg_model}")
     del hubert_ecg_model
 

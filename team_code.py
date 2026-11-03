@@ -223,7 +223,7 @@ def train_model(
             if model_config.fm.name.lower() == "st-mem":
                 model_config.fm.backbone_cache_dir = Path(MODEL_CACHE_DIR) / "ST-MEM"
             else:  # hubert-ecg
-                model_config.fm.backbone_cache_dir = Path(MODEL_CACHE_DIR) / "Edoardo-BS-hubert-ecg-base"
+                model_config.fm.backbone_cache_dir = Path(MODEL_CACHE_DIR) / "Edoardo-Coppola-hubert-ecg-base"
             train_config.fs = model_config.fm.fs[model_config.fm.name]
             train_config.resample.fs = model_config.fm.fs[model_config.fm.name]
             train_config.input_len = model_config.fm.input_len[model_config.fm.name]

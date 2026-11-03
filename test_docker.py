@@ -190,7 +190,7 @@ def test_models() -> None:
     print("Testing FM_CINC2025 model with HuBERT-ECG backbone...")
     model_config = deepcopy(ModelCfg)
     model_config.fm.name = "hubert-ecg"
-    model_config.fm.backbone_cache_dir = Path(MODEL_CACHE_DIR) / "Edoardo-BS-hubert-ecg-base"
+    model_config.fm.backbone_cache_dir = Path(MODEL_CACHE_DIR) / "Edoardo-Coppola-hubert-ecg-base"
     model = FM_CINC2025(model_config)
     model.to(DEVICE)
     ds_val.reset_resample_fs(model_config.fm.fs[model_config.fm.name], reload=False)
